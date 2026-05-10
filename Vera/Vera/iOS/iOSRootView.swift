@@ -6,6 +6,7 @@ struct iOSRootView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @State private var selectedURL: URL?
     @State private var navigationPath = NavigationPath()
+    @State private var showAbout = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -17,11 +18,19 @@ struct iOSRootView: View {
                     DocumentView(url: url)
                 }
                 .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { showAbout = true } label: {
+                            Image(systemName: "info.circle")
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { vm.needsFolderPicker = true } label: {
                             Image(systemName: "folder")
                         }
                     }
+                }
+                .sheet(isPresented: $showAbout) {
+                    AboutView()
                 }
         }
         .onChange(of: selectedURL) { _, newURL in

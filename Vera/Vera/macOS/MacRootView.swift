@@ -6,6 +6,7 @@ struct MacRootView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedURL: URL?
+    @State private var showAbout = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -26,6 +27,16 @@ struct MacRootView: View {
                         }
                         .help("Refresh")
                     }
+                    ToolbarItem(placement: .automatic) {
+                        Button { showAbout = true } label: {
+                            Image(systemName: "info.circle")
+                        }
+                        .help("About Vera")
+                    }
+                }
+                .sheet(isPresented: $showAbout) {
+                    AboutView()
+                        .frame(width: 480, height: 520)
                 }
         } detail: {
             if let url = selectedURL {
