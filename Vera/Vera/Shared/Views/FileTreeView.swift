@@ -9,8 +9,6 @@ struct FileTreeView: View {
             if vm.isLoading && vm.roots.isEmpty {
                 ProgressView("Loading files…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.rootUnavailable {
-                rootUnavailableView
             } else if vm.roots.isEmpty {
                 emptyStateView
             } else {
@@ -70,11 +68,4 @@ struct FileTreeView: View {
         )
     }
 
-    private var rootUnavailableView: some View {
-        ContentUnavailableView(
-            "Folder Not Available",
-            systemImage: "folder.badge.questionmark",
-            description: Text("iCloud Drive is not accessible on this device.")
-        )
-    }
 }

@@ -2,17 +2,6 @@ import Foundation
 
 enum CloudScanner {
     @MainActor
-    static func defaultRoot() -> URL? {
-        #if os(macOS)
-        let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs")
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
-        #else
-        return nil // iOS root is set by the user via folder picker
-        #endif
-    }
-
-    @MainActor
     static func scan(root: URL) throws -> [FileNode] {
         try scanDirectory(at: root)
     }

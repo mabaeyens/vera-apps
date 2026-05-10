@@ -7,7 +7,6 @@ final class FileTreeViewModel {
     var roots: [FileNode] = []
     var selectedURL: URL?
     var isLoading = false
-    var rootUnavailable = false
     var needsFolderPicker = false
 
     private var rootURL: URL?
@@ -17,16 +16,10 @@ final class FileTreeViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        #if os(macOS)
-        rootURL = CloudScanner.defaultRoot()
-        rootUnavailable = rootURL == nil
-        #else
         if rootURL == nil {
             rootURL = restoredBookmark()
         }
         needsFolderPicker = rootURL == nil
-        #endif
-
         guard let root = rootURL else { return }
 
         do {
@@ -37,11 +30,9 @@ final class FileTreeViewModel {
     }
 
     func setRoot(_ url: URL) {
-        #if os(iOS)
         _ = url.startAccessingSecurityScopedResource()
         saveBookmark(url)
         needsFolderPicker = false
-        #endif
         rootURL = url
         Task { await load() }
     }
@@ -60,25 +51,43 @@ final class FileTreeViewModel {
         }
     }
 
-    // MARK: - iOS bookmark persistence
+    // MARK: - Bookmark persistence
 
-    #if os(iOS)
     private func restoredBookmark() -> URL? {
         guard let data = UserDefaults.standard.data(forKey: "rootFolderBookmark") else { return nil }
         var stale = false
-        guard let url = try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale) else { return nil }
+        #if os(macOS)
+        guard let url = try? URL(
+            resolvingBookmarkData: data,
+            options: .withSecurityScope,
+            relativeTo: nil,
+            bookmarkDataIsStale: &stale
+        ) else { return nil }
+        #else
+        guard let url = try? URL(
+            resolvingBookmarkData: data,
+            bookmarkDataIsStale: &stale
+        ) else { return nil }
+        #endif
         if stale { saveBookmark(url) }
         _ = url.startAccessingSecurityScopedResource()
         return url
     }
 
     private func saveBookmark(_ url: URL) {
+        #if os(macOS)
+        guard let data = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        ) else { return }
+        #else
         guard let data = try? url.bookmarkData(
             options: [],
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         ) else { return }
+        #endif
         UserDefaults.standard.set(data, forKey: "rootFolderBookmark")
     }
-    #endif
 }
