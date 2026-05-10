@@ -26,6 +26,7 @@ final class FileTreeViewModel {
         needsFolderPicker = rootURL == nil
         guard let root = rootURL else { return }
 
+        await Task.yield()  // let the run loop render the spinner before the synchronous scan
         do {
             roots = try await CloudScanner.scan(root: root)
         } catch {
