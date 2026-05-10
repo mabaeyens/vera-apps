@@ -4,4 +4,3 @@ xcuserdata/
 DerivedData/
 *.xcworkspace/xcuserdata/
 .build/
-*.resolved
