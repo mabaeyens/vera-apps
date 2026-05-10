@@ -4,13 +4,17 @@ A reading-first Markdown viewer and editor for iOS and macOS. Part of the Mira e
 
 **Zero configuration.** No vaults, no projects. Vera is a transparent window into your iCloud Drive — it shows every `.md` file you already have.
 
-## Features (roadmap)
+## Features
 
-| Phase | Status | Feature |
-|-------|--------|---------|
-| 1 | In progress | iCloud file tree — browse all `.md` files |
-| 2 | Planned | Viewer (MarkdownUI) + Editor (TextEditor) with Smart Anchor |
-| 3 | Planned | Atlas drawer (tap-to-insert syntax) + syntax highlighting |
+- **Browse** — recursive file tree of every `.md` file in your chosen folder (iCloud or local)
+- **Read** — rendered Markdown via MarkdownUI (tables, code blocks, task lists)
+- **Edit** — syntax-highlighted editor; double-tap to switch from view to edit mode
+- **Atlas** — tap-to-insert syntax snippets; accessible from the toolbar or the text context menu
+- **Remove Formatting** — strip Markdown from selected text via the context menu
+- **New file** — create `.md` files in any folder directly from the sidebar
+- **Offline** — edits and new files work without a connection; iCloud syncs on reconnect
+- **Dark / light** — adaptive; follows system appearance
+- **macOS sidebar** — persistent; hide/show state remembered across relaunches
 
 ## Requirements
 
@@ -18,7 +22,8 @@ A reading-first Markdown viewer and editor for iOS and macOS. Part of the Mira e
 |-----------|---------|
 | Xcode | 26+ |
 | macOS (dev) | 26+ |
-| iOS (device) | 26+ |
+| iOS (device) | 18.0+ |
+| macOS (device) | 15.0+ |
 | Swift | 6 |
 
 ## Project structure
@@ -35,8 +40,8 @@ Design/              # App icon source files
 ## Architecture
 
 ```
-iCloud Drive (Vera container)
-    └── CloudScanner (async, recursive)
+iCloud Drive / local folder
+    └── FileManager recursive scan (@MainActor)
             └── FileTreeViewModel (@Observable @MainActor)
                     ├── iOS:   NavigationStack → DocumentView
                     └── macOS: NavigationSplitView → DocumentView
@@ -45,12 +50,18 @@ iCloud Drive (Vera container)
 ## Build
 
 ```bash
-xcodebuild -scheme Vera \
-  -destination "platform=iOS Simulator,name=iPhone 16 Pro" \
+# iOS Simulator
+cd Vera && xcodebuild -scheme Vera \
+  -destination "platform=iOS Simulator,name=iPhone 17e" \
+  -configuration Debug build 2>&1 | grep -E "error:|BUILD"
+
+# macOS
+cd Vera && xcodebuild -scheme Vera \
+  -destination "platform=macOS" \
   -configuration Debug build 2>&1 | grep -E "error:|BUILD"
 ```
 
 ## SPM dependencies
 
 - [`swift-markdown-ui`](https://github.com/gonzalezreal/swift-markdown-ui) — Markdown rendering in ViewingMode
-- [`Highlightr`](https://github.com/raspu/Highlightr) — Syntax highlighting in EditingMode (Phase 3)
+- [`Highlightr`](https://github.com/raspu/Highlightr) — Syntax highlighting in EditingMode

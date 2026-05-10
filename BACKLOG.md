@@ -4,29 +4,20 @@
 
 - **Phase 1** ✅ iCloud scanner + file tree sidebar
 - **Phase 2** ✅ ViewingMode (MarkdownUI) + EditingMode (TextEditor) + auto-save
-- **Phase 3** ✅ All items complete — pending final TestFlight test pass
+- **Phase 3** ✅ All items complete
+- **Phase 4** ✅ All items complete — pending TestFlight test pass (build 7)
 
 ---
 
-## Phase 3 — Done
+## Phase 4 — Done
 
-1. ✅ **iOS TestFlight distribution** — automated via `/vera-ship` skill
-2. ✅ **Markdown cheat sheet** — toolbar book button, MarkdownUI render
-3. ✅ **Atlas drawer** — category picker + snippet list, inserts at cursor
-4. ✅ **Syntax highlighting** — Highlightr `CodeAttributedString`, light/dark theme
-5. ✅ **About screen** — icon, version, description; iOS + macOS
-6. ✅ **iOS full test pass** — all 23 tests confirmed on build 4 (2026-05-10)
-7. ✅ **macOS full test pass** — all 23 tests confirmed on build 5 (2026-05-10)
-8. ✅ **Atlas: format selected text** — wrapping snippets wrap selection via `registerWrap` coordinator closure
-9. ✅ **macOS sidebar** — `columnVisibility: .all` pins sidebar open by default
-10. ✅ **macOS font sizes** — `.dynamicTypeSize(.xLarge)` on preview; 15pt monospaced on editor
-11. ✅ **macOS editor bottom cut off** — `contentInsets` bottom 44pt on NSScrollView
+1. ✅ **macOS sidebar persistence** — `@AppStorage("sidebar.visible")` + `.navigationSplitViewStyle(.balanced)`; user's hide/show choice survives relaunches
+2. ✅ **Atlas in context menu** — iOS: `editMenuForTextIn` delegate; macOS: `textView(_:menu:for:at:)`. "Format…" opens Atlas, both platforms
+3. ✅ **Remove Formatting in context menu** — "Remove Formatting" appears when text is selected; strips inline (`**`, `*`, `` ` ``, `~~`, links) and block (`#`, `>`, `- `, `1.`) markdown via `String.strippingMarkdown()`
+4. ✅ **New file button** — `square.and.pencil` toolbar button on macOS sidebar and iOS nav bar; `NewFileSheet` with filename field + location picker; auto-opens created file
+5. ✅ **Offline banner** — `ConnectivityMonitor` (`NWPathMonitor`) injected via `.environment`; slim banner in sidebar when offline; cloud-file download button disabled/shows `icloud.slash` when offline
 
-12. ✅ **Onboarding view** — first-launch sheet; gates folder picker until "Choose a Folder" tapped
-13. ✅ **Auto-save robustness** — `NSFileVersion` conflict resolution on read + version cleanup after write
-14. ✅ **App icon dark/tinted variants** — dark (#0A1818 bg) and grayscale tinted PNGs; `Contents.json` updated
-
-## Phase 3 — Remaining
+## Phase 4 — Remaining
 
 *(none — all items complete)*
 
