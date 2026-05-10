@@ -12,13 +12,7 @@ struct iOSRootView: View {
                 .navigationTitle("Vera")
                 .navigationBarTitleDisplayMode(.large)
                 .navigationDestination(for: URL.self) { url in
-                    // Phase 2: replace with DocumentView(url: url)
-                    Text(url.deletingPathExtension().lastPathComponent)
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .navigationTitle(url.deletingPathExtension().lastPathComponent)
-                        .navigationBarTitleDisplayMode(.inline)
+                    DocumentView(url: url)
                 }
         }
         .onChange(of: selectedURL) { _, newURL in

@@ -12,16 +12,9 @@ struct MacRootView: View {
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260)
         } detail: {
             if let url = selectedURL {
-                // Phase 2: replace with DocumentView(url: url)
-                Text(url.lastPathComponent)
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                DocumentView(url: url)
             } else {
-                Text("Select a file")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ContentUnavailableView("Select a file", systemImage: "doc.text")
             }
         }
     }
