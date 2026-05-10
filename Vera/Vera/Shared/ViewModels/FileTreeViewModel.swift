@@ -7,28 +7,43 @@ final class FileTreeViewModel {
     var roots: [FileNode] = []
     var selectedURL: URL?
     var isLoading = false
-    var iCloudUnavailable = false
+    var rootUnavailable = false
+    var needsFolderPicker = false
 
-    private var metadataQuery: NSMetadataQuery?
+    private var rootURL: URL?
     private var refreshTask: Task<Void, Never>?
 
     func load() async {
         isLoading = true
         defer { isLoading = false }
 
-        guard let root = CloudScanner.iCloudRoot() else {
-            iCloudUnavailable = true
-            return
+        #if os(macOS)
+        rootURL = CloudScanner.defaultRoot()
+        rootUnavailable = rootURL == nil
+        #else
+        if rootURL == nil {
+            rootURL = restoredBookmark()
         }
+        needsFolderPicker = rootURL == nil
+        #endif
 
-        iCloudUnavailable = false
+        guard let root = rootURL else { return }
+
         do {
             roots = try CloudScanner.scan(root: root)
         } catch {
             roots = []
         }
+    }
 
-        startMetadataWatcher()
+    func setRoot(_ url: URL) {
+        #if os(iOS)
+        _ = url.startAccessingSecurityScopedResource()
+        saveBookmark(url)
+        needsFolderPicker = false
+        #endif
+        rootURL = url
+        Task { await load() }
     }
 
     func download(_ url: URL) {
@@ -36,9 +51,7 @@ final class FileTreeViewModel {
         scheduleRefresh()
     }
 
-    // MARK: - Private
-
-    private func scheduleRefresh() {
+    func scheduleRefresh() {
         refreshTask?.cancel()
         refreshTask = Task {
             try? await Task.sleep(for: .seconds(1))
@@ -47,23 +60,25 @@ final class FileTreeViewModel {
         }
     }
 
-    private func startMetadataWatcher() {
-        guard metadataQuery == nil else { return }
-        let q = NSMetadataQuery()
-        q.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
-        q.predicate = NSPredicate(format: "%K LIKE '*.md'", NSMetadataItemFSNameKey)
+    // MARK: - iOS bookmark persistence
 
-        NotificationCenter.default.addObserver(
-            forName: .NSMetadataQueryDidUpdate,
-            object: q,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.scheduleRefresh()
-            }
-        }
-
-        q.start()
-        metadataQuery = q
+    #if os(iOS)
+    private func restoredBookmark() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: "rootFolderBookmark") else { return nil }
+        var stale = false
+        guard let url = try? URL(resolvingBookmarkData: data, bookmarkDataIsStale: &stale) else { return nil }
+        if stale { saveBookmark(url) }
+        _ = url.startAccessingSecurityScopedResource()
+        return url
     }
+
+    private func saveBookmark(_ url: URL) {
+        guard let data = try? url.bookmarkData(
+            options: [],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        ) else { return }
+        UserDefaults.standard.set(data, forKey: "rootFolderBookmark")
+    }
+    #endif
 }

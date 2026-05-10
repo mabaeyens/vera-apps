@@ -3,6 +3,8 @@
 Vera is a reading-first Markdown viewer and editor for iOS and macOS.
 It is part of the Mira ecosystem. The GitHub repository is `mabaeyens/vera-apps`.
 
+**Core premise:** Vera browses and edits any `.md` file anywhere in the user's iCloud Drive or local storage. There is no dedicated vault, container, or project folder. The user's existing file system is the data model.
+
 ---
 
 ## Project identity
@@ -55,13 +57,14 @@ No server, no networking. 100% local + iCloud.
 
 ## Key technical decisions
 
-- **iCloud access:** uses `NSUbiquitousContainerIdentifier` entitlement with the shared iCloud Drive container (`iCloud.com.mab.Vera`). No custom container — reads from the user's existing Drive.
+- **File access — macOS:** No App Sandbox. Scans `~/Library/Mobile Documents/com~apple~CloudDocs/` directly via `FileManager`. No iCloud container entitlements required.
+- **File access — iOS:** On first launch, `UIDocumentPickerViewController` (`.fileImporter`) lets the user pick any folder (iCloud Drive root, a subfolder, or a local folder). The chosen URL is persisted as a security-scoped bookmark in `UserDefaults` and restored on every subsequent launch.
+- **No dedicated container, no vault, no configuration files.** Vera reads whatever folder the user points it at.
 - **Markdown rendering (ViewingMode):** MarkdownUI (SPM). Richer fidelity than `AttributedString(markdown:)` — handles tables, code blocks, task lists correctly.
-- **Markdown editing (EditingMode):** Native `TextEditor` / `UITextView` wrapping raw `.md` text.
-- **Smart Anchor (Phase 2):** tap-to-cursor mapping via TextKit 2 `NSTextLayoutManager`. Isolated in `SmartAnchorResolver.swift`.
-- **Auto-save:** debounced write via `Combine` publisher (500 ms delay after last keystroke).
-- **Cloud-awareness:** check `ubiquitousItemDownloadingStatusKey` before opening; trigger `startDownloadingUbiquitousItem` on tap.
-- **No external databases, no vaults, no configuration files.** The file tree IS the data model.
+- **Markdown editing (EditingMode):** Native `TextEditor` wrapping raw `.md` text.
+- **Smart Anchor (Phase 2):** proportional tap-to-offset mapping. Isolated in `SmartAnchorResolver.swift`.
+- **Auto-save:** 500 ms debounce via `Task.sleep` after last keystroke.
+- **Cloud-awareness:** check `ubiquitousItemDownloadingStatusKey`; trigger `startDownloadingUbiquitousItem` on tap for iCloud-hosted files.
 
 ---
 

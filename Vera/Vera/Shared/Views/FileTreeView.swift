@@ -9,8 +9,8 @@ struct FileTreeView: View {
             if vm.isLoading && vm.roots.isEmpty {
                 ProgressView("Loading files…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.iCloudUnavailable {
-                iCloudUnavailableView
+            } else if vm.rootUnavailable {
+                rootUnavailableView
             } else if vm.roots.isEmpty {
                 emptyStateView
             } else {
@@ -66,15 +66,15 @@ struct FileTreeView: View {
         ContentUnavailableView(
             "No Markdown Files",
             systemImage: "doc.text",
-            description: Text("Add .md files to your iCloud Drive under the Vera folder.")
+            description: Text("No .md files found in the selected folder.")
         )
     }
 
-    private var iCloudUnavailableView: some View {
+    private var rootUnavailableView: some View {
         ContentUnavailableView(
-            "iCloud Not Available",
-            systemImage: "icloud.slash",
-            description: Text("Sign in to iCloud in Settings to use Vera.")
+            "Folder Not Available",
+            systemImage: "folder.badge.questionmark",
+            description: Text("iCloud Drive is not accessible on this device.")
         )
     }
 }

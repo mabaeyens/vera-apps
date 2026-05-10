@@ -2,10 +2,14 @@ import Foundation
 
 enum CloudScanner {
     @MainActor
-    static func iCloudRoot() -> URL? {
-        FileManager.default
-            .url(forUbiquityContainerIdentifier: "iCloud.com.mab.Vera")
-            .map { $0.appendingPathComponent("Documents") }
+    static func defaultRoot() -> URL? {
+        #if os(macOS)
+        let url = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Mobile Documents/com~apple~CloudDocs")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        #else
+        return nil // iOS root is set by the user via folder picker
+        #endif
     }
 
     @MainActor
