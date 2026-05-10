@@ -19,11 +19,6 @@
 
 ---
 
-## Known bugs — fix first next session
-
-1. **iOS archive fails** — `iOSRootView.swift:34` missing `import UniformTypeIdentifiers` for `.folder` content type. Fix: add the import (same fix already applied to MacRootView).
-2. **Swift 6 warning → iOS archive error** — `CloudScanner.swift:6` `scanDirectory(at:)` is implicitly `@MainActor` (likely because `FileManager()` init is `@MainActor` in iOS 26 SDK), so `Task.detached` can't call it. Fix: either mark `scanDirectory` as `nonisolated` and use a different FileManager construction strategy, or restructure the detached task.
-
 ---
 
 ## Notes

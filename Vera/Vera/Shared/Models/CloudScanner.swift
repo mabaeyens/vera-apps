@@ -2,13 +2,13 @@ import Foundation
 
 enum CloudScanner {
     static func scan(root: URL) async throws -> [FileNode] {
-        try await Task.detached(priority: .userInitiated) {
-            try Self.scanDirectory(at: root)
+        let fm = FileManager()
+        return try await Task.detached(priority: .userInitiated) {
+            try Self.scanDirectory(at: root, fm: fm)
         }.value
     }
 
-    private static func scanDirectory(at url: URL) throws -> [FileNode] {
-        let fm = FileManager()
+    private static func scanDirectory(at url: URL, fm: FileManager) throws -> [FileNode] {
 
         let contents = try fm.contentsOfDirectory(
             at: url,
@@ -22,7 +22,7 @@ enum CloudScanner {
         for itemURL in contents {
             let resources = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
             if resources.isDirectory == true {
-                let children = (try? scanDirectory(at: itemURL)) ?? []
+                let children = (try? scanDirectory(at: itemURL, fm: fm)) ?? []
                 if !children.isEmpty {
                     folders.append(.folder(id: UUID(), name: itemURL.lastPathComponent, children: children))
                 }

@@ -1,5 +1,6 @@
 #if os(iOS)
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct iOSRootView: View {
     @Environment(FileTreeViewModel.self) private var vm
