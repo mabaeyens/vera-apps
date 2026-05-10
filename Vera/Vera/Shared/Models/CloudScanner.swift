@@ -10,8 +10,6 @@ enum CloudScanner {
     private static func scanDirectory(at url: URL) throws -> [FileNode] {
         let fm = FileManager.default
 
-        try? fm.startDownloadingUbiquitousItem(at: url)
-
         let contents = try fm.contentsOfDirectory(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey],

@@ -37,6 +37,19 @@ struct FileTreeView: View {
             Label(name, systemImage: "folder")
 
         case .file(_, let name, let url, let state):
+            #if os(macOS)
+            HStack {
+                Label(name, systemImage: "doc.text")
+                Spacer()
+                if state == .cloud {
+                    Image(systemName: "icloud.and.arrow.down")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                }
+            }
+            .contentShape(Rectangle())
+            .tag(url)
+            #else
             Button {
                 selectedURL = url
             } label: {
@@ -52,8 +65,6 @@ struct FileTreeView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            #if os(macOS)
-            .tag(url)
             #endif
         }
     }
