@@ -4,7 +4,7 @@
 
 - **Phase 1** ✅ iCloud scanner + file tree sidebar
 - **Phase 2** ✅ ViewingMode (MarkdownUI) + EditingMode (TextEditor) + auto-save
-- **Phase 3** 🔜 In progress — core features shipped; macOS + iOS fully tested
+- **Phase 3** ✅ All items complete — pending final TestFlight test pass
 
 ---
 
@@ -22,11 +22,13 @@
 10. ✅ **macOS font sizes** — `.dynamicTypeSize(.xLarge)` on preview; 15pt monospaced on editor
 11. ✅ **macOS editor bottom cut off** — `contentInsets` bottom 44pt on NSScrollView
 
+12. ✅ **Onboarding view** — first-launch sheet; gates folder picker until "Choose a Folder" tapped
+13. ✅ **Auto-save robustness** — `NSFileVersion` conflict resolution on read + version cleanup after write
+14. ✅ **App icon dark/tinted variants** — dark (#0A1818 bg) and grayscale tinted PNGs; `Contents.json` updated
+
 ## Phase 3 — Remaining
 
-1. **Onboarding view** — first-launch explanation of iCloud access and folder picker
-2. **Auto-save robustness** — `NSFileVersion` conflict handling
-3. **App icon dark/tinted variants** — iOS 18+ dark and tinted AppIcon variants
+*(none — all items complete)*
 
 ---
 
