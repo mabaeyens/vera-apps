@@ -13,10 +13,11 @@ struct MacRootView: View {
 
     var body: some View {
         @Bindable var vm = vm
-        HSplitView {
+        HStack(spacing: 0) {
             if sidebarVisible {
                 FileTreeView(selectedURL: $selectedURL)
                     .frame(minWidth: 200, idealWidth: 260, maxWidth: 340)
+                Divider()
             }
             Group {
                 if let url = selectedURL {
