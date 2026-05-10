@@ -12,6 +12,10 @@ final class FileTreeViewModel {
     private var rootURL: URL?
     private var refreshTask: Task<Void, Never>?
 
+    init() {
+        needsFolderPicker = UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil
+    }
+
     func load() async {
         isLoading = true
         defer { isLoading = false }
