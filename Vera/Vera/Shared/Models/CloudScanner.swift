@@ -1,16 +1,16 @@
 import Foundation
 
 enum CloudScanner {
+    // Runs on the main actor: FileManager methods are @MainActor in iOS 26 SDK.
+    // Directory enumeration (no file reads) is fast enough that this is fine.
+    @MainActor
     static func scan(root: URL) async throws -> [FileNode] {
-        let fm = FileManager()
-        return try await Task.detached(priority: .userInitiated) {
-            try Self.scanDirectory(at: root, fm: fm)
-        }.value
+        try scanDirectory(at: root)
     }
 
-    private static func scanDirectory(at url: URL, fm: FileManager) throws -> [FileNode] {
-
-        let contents = try fm.contentsOfDirectory(
+    @MainActor
+    private static func scanDirectory(at url: URL) throws -> [FileNode] {
+        let contents = try FileManager.default.contentsOfDirectory(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey],
             options: [.skipsHiddenFiles]
@@ -22,7 +22,7 @@ enum CloudScanner {
         for itemURL in contents {
             let resources = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
             if resources.isDirectory == true {
-                let children = (try? scanDirectory(at: itemURL, fm: fm)) ?? []
+                let children = (try? scanDirectory(at: itemURL)) ?? []
                 if !children.isEmpty {
                     folders.append(.folder(id: UUID(), name: itemURL.lastPathComponent, children: children))
                 }
@@ -40,6 +40,7 @@ enum CloudScanner {
         return folders.sorted(by: sort) + files.sorted(by: sort)
     }
 
+    @MainActor
     private static func downloadState(for url: URL) -> DownloadState {
         guard
             let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]),
