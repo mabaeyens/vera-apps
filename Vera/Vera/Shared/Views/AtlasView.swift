@@ -2,8 +2,14 @@ import SwiftUI
 
 struct AtlasView: View {
     let onTap: (AtlasItem) -> Void
+    let onRemoveFormatting: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var selectedCategory: AtlasCategory = .basics
+
+    init(onTap: @escaping (AtlasItem) -> Void, onRemoveFormatting: (() -> Void)? = nil) {
+        self.onTap = onTap
+        self.onRemoveFormatting = onRemoveFormatting
+    }
 
     var body: some View {
         NavigationStack {
@@ -32,6 +38,21 @@ struct AtlasView: View {
                                 .lineLimit(1)
                         }
                     }
+                }
+
+                if let strip = onRemoveFormatting {
+                    Divider()
+                    Button {
+                        strip()
+                        dismiss()
+                    } label: {
+                        Label("Remove Formatting", systemImage: "eraser")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 16)
                 }
             }
             .navigationTitle("Snippets")

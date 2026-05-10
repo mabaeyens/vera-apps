@@ -10,63 +10,67 @@ struct MacRootView: View {
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @AppStorage("sidebar.visible") private var sidebarVisible: Bool = true
-    private var columnVisibility: Binding<NavigationSplitViewVisibility> {
-        Binding(
-            get: { sidebarVisible ? .all : .detailOnly },
-            set: { sidebarVisible = ($0 != .detailOnly) }
-        )
-    }
 
     var body: some View {
         @Bindable var vm = vm
-        NavigationSplitView(columnVisibility: columnVisibility) {
-            FileTreeView(selectedURL: $selectedURL)
-                .navigationTitle("Vera")
-                .navigationSplitViewColumnWidth(min: 220, ideal: 260)
-                .toolbar {
-                    ToolbarItem(placement: .automatic) {
-                        Button { showNewFile = true } label: {
-                            Image(systemName: "square.and.pencil")
-                        }
-                        .help("New file")
-                        .disabled(vm.rootURL == nil)
-                    }
-                    ToolbarItem(placement: .automatic) {
-                        Button { vm.needsFolderPicker = true } label: {
-                            Image(systemName: "folder")
-                        }
-                        .help("Choose folder…")
-                    }
-                    ToolbarItem(placement: .automatic) {
-                        Button { Task { await vm.load() } } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .help("Refresh")
-                    }
-                    ToolbarItem(placement: .automatic) {
-                        Button { showAbout = true } label: {
-                            Image(systemName: "info.circle")
-                        }
-                        .help("About Vera")
-                    }
+        HSplitView {
+            if sidebarVisible {
+                FileTreeView(selectedURL: $selectedURL)
+                    .frame(minWidth: 200, idealWidth: 260, maxWidth: 340)
+            }
+            Group {
+                if let url = selectedURL {
+                    DocumentView(url: url)
+                        .id(url)
+                } else {
+                    ContentUnavailableView("Select a file", systemImage: "doc.text")
                 }
-                .sheet(isPresented: $showAbout) {
-                    AboutView()
-                        .frame(width: 480, height: 520)
+            }
+            .frame(minWidth: 400, maxWidth: .infinity)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    sidebarVisible.toggle()
+                } label: {
+                    Image(systemName: "sidebar.left")
                 }
-                .sheet(isPresented: $showNewFile) {
-                    NewFileSheet { url in selectedURL = url }
-                        .environment(vm)
+                .help(sidebarVisible ? "Hide Sidebar" : "Show Sidebar")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { showNewFile = true } label: {
+                    Image(systemName: "square.and.pencil")
                 }
-        } detail: {
-            if let url = selectedURL {
-                DocumentView(url: url)
-                    .id(url)
-            } else {
-                ContentUnavailableView("Select a file", systemImage: "doc.text")
+                .help("New file")
+                .disabled(vm.rootURL == nil)
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { vm.needsFolderPicker = true } label: {
+                    Image(systemName: "folder")
+                }
+                .help("Choose folder…")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { Task { await vm.load() } } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .help("Refresh")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { showAbout = true } label: {
+                    Image(systemName: "info.circle")
+                }
+                .help("About Vera")
             }
         }
-        .navigationSplitViewStyle(.balanced)
+        .sheet(isPresented: $showAbout) {
+            AboutView()
+                .frame(width: 480, height: 520)
+        }
+        .sheet(isPresented: $showNewFile) {
+            NewFileSheet { url in selectedURL = url }
+                .environment(vm)
+        }
         .sheet(isPresented: $showOnboarding, onDismiss: {
             if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
                 vm.needsFolderPicker = true

@@ -12,6 +12,7 @@ struct EditingModeView: View {
             onTextChange: { viewModel.textDidChange() },
             registerInsert: { viewModel.insertAtCursor = $0 },
             registerWrap: { viewModel.wrapSelection = $0 },
+            registerStrip: { viewModel.stripSelection = $0 },
             onShowAtlas: { viewModel.atlasRequested = true }
         )
     }

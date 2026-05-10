@@ -6,10 +6,14 @@ struct CheatSheetView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                Markdown(Self.content)
-                    .markdownTheme(.gitHub)
-                    .padding()
+            List {
+                ForEach(sections, id: \.title) { section in
+                    Section(section.title) {
+                        ForEach(section.entries, id: \.syntax) { entry in
+                            CheatEntryRow(entry: entry)
+                        }
+                    }
+                }
             }
             .navigationTitle("Markdown Reference")
             #if os(iOS)
@@ -28,90 +32,106 @@ struct CheatSheetView: View {
             #endif
         }
     }
-
-    // swiftlint:disable:next line_length
-    private static let content = """
-    # Markdown Reference
-
-    ## Emphasis
-
-    | Syntax | Result |
-    |--------|--------|
-    | `**bold**` | **bold** |
-    | `*italic*` | *italic* |
-    | `***both***` | ***both*** |
-    | `~~strike~~` | ~~strike~~ |
-    | `` `code` `` | `code` |
-
-    ## Headings
-
-    ```
-    # H1
-    ## H2
-    ### H3
-    #### H4
-    ```
-
-    ## Lists
-
-    ```
-    - Bullet item
-      - Nested item
-
-    1. First
-    2. Second
-
-    - [ ] Open task
-    - [x] Done task
-    ```
-
-    ## Links & Images
-
-    ```
-    [Link text](https://example.com)
-    ![Alt text](image.png)
-    [![Alt](img.png)](https://example.com)
-    ```
-
-    ## Code
-
-    Inline: `` `code` ``
-
-    Fenced block:
-    ````
-    ```swift
-    let x = 42
-    ```
-    ````
-
-    ## Blockquotes & Dividers
-
-    ```
-    > A blockquote
-    > spanning lines
-
-    ---
-    ```
-
-    ## Tables
-
-    ```
-    | Col 1 | Col 2 | Col 3 |
-    |-------|:-----:|------:|
-    | left  | center| right |
-    ```
-
-    ## Footnotes
-
-    ```
-    Text with a note.[^1]
-
-    [^1]: The footnote text.
-    ```
-    """
 }
+
+// MARK: - Entry row
+
+private struct CheatEntryRow: View {
+    let entry: CheatEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(entry.syntax)
+                .font(.system(.footnote, design: .monospaced))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.secondary.opacity(0.1))
+                .clipShape(.rect(cornerRadius: 5))
+
+            Markdown(entry.preview)
+                .markdownTheme(.gitHub)
+                .padding(.leading, 2)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Data
+
+private struct CheatEntry {
+    let syntax: String
+    let preview: String
+}
+
+private struct CheatSection {
+    let title: String
+    let entries: [CheatEntry]
+}
+
+private let sections: [CheatSection] = [
+    CheatSection(title: "Headings", entries: [
+        CheatEntry(syntax: "# Heading 1",   preview: "# Heading 1"),
+        CheatEntry(syntax: "## Heading 2",  preview: "## Heading 2"),
+        CheatEntry(syntax: "### Heading 3", preview: "### Heading 3"),
+    ]),
+    CheatSection(title: "Emphasis", entries: [
+        CheatEntry(syntax: "**bold**",            preview: "**bold**"),
+        CheatEntry(syntax: "*italic*",            preview: "*italic*"),
+        CheatEntry(syntax: "***bold italic***",   preview: "***bold italic***"),
+        CheatEntry(syntax: "~~strikethrough~~",   preview: "~~strikethrough~~"),
+        CheatEntry(syntax: "`inline code`",       preview: "`inline code`"),
+    ]),
+    CheatSection(title: "Links", entries: [
+        CheatEntry(
+            syntax: "[label](url)",
+            preview: "[Vera](https://example.com)"
+        ),
+    ]),
+    CheatSection(title: "Lists", entries: [
+        CheatEntry(
+            syntax: "- item\n- item\n  - nested",
+            preview: "- item\n- item\n  - nested"
+        ),
+        CheatEntry(
+            syntax: "1. first\n2. second\n3. third",
+            preview: "1. first\n2. second\n3. third"
+        ),
+        CheatEntry(
+            syntax: "- [ ] unchecked\n- [x] checked",
+            preview: "- [ ] unchecked\n- [x] checked"
+        ),
+    ]),
+    CheatSection(title: "Blockquote", entries: [
+        CheatEntry(
+            syntax: "> A blockquote\n> spanning two lines",
+            preview: "> A blockquote\n> spanning two lines"
+        ),
+    ]),
+    CheatSection(title: "Code", entries: [
+        CheatEntry(
+            syntax: "```swift\nlet x = 42\nprint(x)\n```",
+            preview: "```swift\nlet x = 42\nprint(x)\n```"
+        ),
+    ]),
+    CheatSection(title: "Table", entries: [
+        CheatEntry(
+            syntax: "| Left | Center | Right |\n|------|:------:|------:|\n| a    |   b    |     c |",
+            preview: "| Left | Center | Right |\n|------|:------:|------:|\n| a    |   b    |     c |"
+        ),
+    ]),
+    CheatSection(title: "Divider", entries: [
+        CheatEntry(syntax: "---", preview: "---"),
+    ]),
+    CheatSection(title: "Footnote", entries: [
+        CheatEntry(
+            syntax: "Text with a note.[^1]\n\n[^1]: The footnote text.",
+            preview: "Text with a note.[^1]\n\n[^1]: The footnote text."
+        ),
+    ]),
+]
 
 #Preview {
     CheatSheetView()
-        .frame(width: 480, height: 600)
+        .frame(width: 480, height: 640)
 }

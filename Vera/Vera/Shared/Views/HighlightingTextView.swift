@@ -11,6 +11,7 @@ struct HighlightingTextView: UIViewRepresentable {
     let onTextChange: () -> Void
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
+    let registerStrip: (@escaping () -> Void) -> Void
     let onShowAtlas: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -37,6 +38,7 @@ struct HighlightingTextView: UIViewRepresentable {
         textView.smartQuotesType = .no
         textView.smartDashesType = .no
         textView.text = text
+        textView.textContainerInset = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
         context.coordinator.textView = textView
 
         registerInsert { [weak coordinator = context.coordinator] snippet in
@@ -44,6 +46,9 @@ struct HighlightingTextView: UIViewRepresentable {
         }
         registerWrap { [weak coordinator = context.coordinator] prefix, suffix in
             coordinator?.wrap(prefix: prefix, suffix: suffix)
+        }
+        registerStrip { [weak coordinator = context.coordinator] in
+            coordinator?.strip()
         }
 
         return textView
@@ -172,6 +177,7 @@ struct HighlightingTextView: NSViewRepresentable {
     let onTextChange: () -> Void
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
+    let registerStrip: (@escaping () -> Void) -> Void
     let onShowAtlas: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -201,7 +207,7 @@ struct HighlightingTextView: NSViewRepresentable {
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.textContainerInset = NSSize(width: 8, height: 8)
+        textView.textContainerInset = NSSize(width: 20, height: 12)
         textView.string = text
         context.coordinator.textView = textView
 
@@ -216,6 +222,9 @@ struct HighlightingTextView: NSViewRepresentable {
         }
         registerWrap { [weak coordinator = context.coordinator] prefix, suffix in
             coordinator?.wrap(prefix: prefix, suffix: suffix)
+        }
+        registerStrip { [weak coordinator = context.coordinator] in
+            coordinator?.strip()
         }
 
         return scrollView

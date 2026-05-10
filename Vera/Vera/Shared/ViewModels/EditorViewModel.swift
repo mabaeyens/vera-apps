@@ -13,6 +13,7 @@ final class EditorViewModel {
     var anchorPoint: CGPoint? = nil
     var insertAtCursor: ((String) -> Void)? = nil
     var wrapSelection: ((String, String) -> Void)? = nil
+    var stripSelection: (() -> Void)? = nil
     var atlasRequested = false
 
     enum SaveState { case saved, saving, error(String) }
@@ -51,6 +52,10 @@ final class EditorViewModel {
             rawText += "\n\(snippet)"
             textDidChange()
         }
+    }
+
+    func stripAtCursor() {
+        stripSelection?()
     }
 
     func wrapOrInsert(_ syntax: String, prefix: String, suffix: String) {

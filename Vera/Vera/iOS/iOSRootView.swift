@@ -45,6 +45,7 @@ struct iOSRootView: View {
                         navigationPath.append(url)
                     }
                     .environment(vm)
+                    .presentationDetents([.medium])
                 }
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {

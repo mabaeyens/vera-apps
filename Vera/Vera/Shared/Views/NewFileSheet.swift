@@ -74,7 +74,11 @@ struct NewFileSheet: View {
                     .disabled(filename.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
             }
             #endif
+
+            Spacer()
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
         .onAppear { fieldFocused = true }
     }
 

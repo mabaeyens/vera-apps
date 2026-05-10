@@ -32,19 +32,22 @@ struct DocumentView: View {
             if requested { showAtlas = true; viewModel.atlasRequested = false }
         }
         .sheet(isPresented: $showAtlas) {
-            AtlasView { item in
-                switch item.kind {
-                case .insert:
-                    viewModel.insertSnippet(item.syntax)
-                case .wrap(let prefix, let suffix):
-                    viewModel.wrapOrInsert(item.syntax, prefix: prefix, suffix: suffix)
-                }
-            }
-                #if os(iOS)
-                .presentationDetents([.medium, .large])
-                #else
-                .frame(width: 380, height: 480)
-                #endif
+            AtlasView(
+                onTap: { item in
+                    switch item.kind {
+                    case .insert:
+                        viewModel.insertSnippet(item.syntax)
+                    case .wrap(let prefix, let suffix):
+                        viewModel.wrapOrInsert(item.syntax, prefix: prefix, suffix: suffix)
+                    }
+                },
+                onRemoveFormatting: { viewModel.stripAtCursor() }
+            )
+            #if os(iOS)
+            .presentationDetents([.large])
+            #else
+            .frame(width: 380, height: 560)
+            #endif
         }
         .sheet(isPresented: $showCheatSheet) {
             CheatSheetView()

@@ -29,8 +29,9 @@ struct AboutView: View {
                     "Vera browses and edits any Markdown file anywhere in your iCloud Drive " +
                     "or local storage — no dedicated folder, no vault, no configuration. " +
                     "Your file system is the source of truth; Vera is just a window into it.\n\n" +
-                    "The name Vera is the Latin word for \"true\" and the Portuguese word " +
-                    "for \"real\" — a quiet editor that stays out of the way of your files.\n\n" +
+                    "The name comes from the Spanish word vera — meaning side or shore — " +
+                    "as in \"ven a mi vera\" (come to my side). A quiet companion " +
+                    "that stays close to your files.\n\n" +
                     "Part of the Mira ecosystem."
                 )
                 .font(.subheadline)
@@ -59,17 +60,38 @@ struct AboutView: View {
     @ViewBuilder
     private var appIcon: some View {
         #if os(iOS)
-        Image(uiImage: UIImage(named: "AppIcon") ?? UIImage())
-            .resizable()
-            .frame(width: 100, height: 100)
-            .clipShape(.rect(cornerRadius: 22, style: .continuous))
+        if let image = loadAppIcon() {
+            Image(uiImage: image)
+                .resizable()
+                .frame(width: 100, height: 100)
+                .clipShape(.rect(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+        } else {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.green)
+                .frame(width: 100, height: 100)
+        }
         #else
         Image(nsImage: NSApplication.shared.applicationIconImage)
             .resizable()
             .frame(width: 100, height: 100)
             .clipShape(.rect(cornerRadius: 22, style: .continuous))
+            .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
         #endif
     }
+
+    #if os(iOS)
+    private func loadAppIcon() -> UIImage? {
+        if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+           let primary = icons["CFBundlePrimaryIcon"] as? [String: Any],
+           let files = primary["CFBundleIconFiles"] as? [String],
+           let name = files.last,
+           let image = UIImage(named: name) {
+            return image
+        }
+        return UIImage(named: "AppIcon")
+    }
+    #endif
 }
 
 #Preview {
