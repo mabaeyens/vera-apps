@@ -7,6 +7,7 @@ struct iOSRootView: View {
     @State private var selectedURL: URL?
     @State private var navigationPath = NavigationPath()
     @State private var showAbout = false
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
 
     var body: some View {
         @Bindable var vm = vm
@@ -32,6 +33,13 @@ struct iOSRootView: View {
                 .sheet(isPresented: $showAbout) {
                     AboutView()
                 }
+        }
+        .sheet(isPresented: $showOnboarding, onDismiss: {
+            if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
+                vm.needsFolderPicker = true
+            }
+        }) {
+            OnboardingView()
         }
         .onChange(of: selectedURL) { _, newURL in
             if let url = newURL {

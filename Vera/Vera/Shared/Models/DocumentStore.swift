@@ -19,6 +19,13 @@ enum DocumentStore {
         if let coordError { throw coordError }
         if let readError { throw readError }
         guard let content else { throw CocoaError(.fileReadUnknown) }
+
+        // Resolve any iCloud sync conflicts by accepting the current version
+        if let conflicts = NSFileVersion.unresolvedConflictVersionsOfItem(at: url), !conflicts.isEmpty {
+            conflicts.forEach { $0.isResolved = true }
+            try? NSFileVersion.removeOtherVersionsOfItem(at: url)
+        }
+
         return content
     }
 
@@ -37,5 +44,8 @@ enum DocumentStore {
 
         if let coordError { throw coordError }
         if let writeError { throw writeError }
+
+        // Clean up older versions after a successful write
+        try? NSFileVersion.removeOtherVersionsOfItem(at: url)
     }
 }

@@ -13,7 +13,8 @@ final class FileTreeViewModel {
     private var refreshTask: Task<Void, Never>?
 
     init() {
-        needsFolderPicker = UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil
+        let hasSeen = UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
+        needsFolderPicker = hasSeen && UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil
     }
 
     func load() async {

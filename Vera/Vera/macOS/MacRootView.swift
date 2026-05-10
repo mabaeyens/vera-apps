@@ -8,6 +8,7 @@ struct MacRootView: View {
     @State private var selectedURL: URL?
     @State private var showAbout = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
 
     var body: some View {
         @Bindable var vm = vm
@@ -46,6 +47,14 @@ struct MacRootView: View {
             } else {
                 ContentUnavailableView("Select a file", systemImage: "doc.text")
             }
+        }
+        .sheet(isPresented: $showOnboarding, onDismiss: {
+            if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
+                vm.needsFolderPicker = true
+            }
+        }) {
+            OnboardingView()
+                .frame(width: 440, height: 620)
         }
         .fileImporter(
             isPresented: $vm.needsFolderPicker,
