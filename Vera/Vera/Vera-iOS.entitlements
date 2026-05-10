@@ -4,11 +4,11 @@
 <dict>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.com.mira.vera</string>
+		<string>iCloud.com.mab.Vera</string>
 	</array>
 	<key>com.apple.developer.ubiquity-container-identifiers</key>
 	<array>
-		<string>iCloud.com.mira.vera</string>
+		<string>iCloud.com.mab.Vera</string>
 	</array>
 </dict>
 </plist>

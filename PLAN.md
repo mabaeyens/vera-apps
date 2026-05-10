@@ -16,7 +16,7 @@ A working sidebar that lists all `.md` files from the user's iCloud Drive in a c
 - Set minimum deployment: iOS 18.0, macOS 15.0.
 - Add SPM package: `MarkdownUI` (from `github.com/gonzalezreal/swift-markdown-ui`, latest release).
 - Add entitlement files: `Vera-iOS.entitlements`, `Vera-macOS.entitlements`.
-- Enable iCloud Documents capability (container: `iCloud.com.mira.vera`).
+- Enable iCloud Documents capability (container: `iCloud.com.mab.Vera`).
 - Enable `com.apple.security.files.user-selected.read-write` on macOS (for Sandbox + iCloud).
 - Create the folder structure: `Shared/Models`, `Shared/ViewModels`, `Shared/Views`, `iOS/`, `macOS/`.
 - Create GitHub repo `mabaeyens/vera-apps`, push initial commit.

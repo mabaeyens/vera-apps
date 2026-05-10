@@ -1,23 +1,22 @@
 import Foundation
 
 enum CloudScanner {
-    static func iCloudRoot() async -> URL? {
-        await Task.detached(priority: .userInitiated) {
-            FileManager.default.url(forUbiquityContainerIdentifier: "iCloud.com.mira.vera")
-                .map { $0.appendingPathComponent("Documents") }
-        }.value
+    @MainActor
+    static func iCloudRoot() -> URL? {
+        FileManager.default
+            .url(forUbiquityContainerIdentifier: "iCloud.com.mab.Vera")
+            .map { $0.appendingPathComponent("Documents") }
     }
 
-    static func scan(root: URL) async throws -> [FileNode] {
-        try await Task.detached(priority: .userInitiated) {
-            try Self.scanDirectory(at: root)
-        }.value
+    @MainActor
+    static func scan(root: URL) throws -> [FileNode] {
+        try scanDirectory(at: root)
     }
 
+    @MainActor
     private static func scanDirectory(at url: URL) throws -> [FileNode] {
         let fm = FileManager.default
 
-        // Ensure the directory is downloaded before reading
         try? fm.startDownloadingUbiquitousItem(at: url)
 
         let contents = try fm.contentsOfDirectory(

@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 
 struct MacRootView: View {
@@ -25,3 +26,4 @@ struct MacRootView: View {
         }
     }
 }
+#endif

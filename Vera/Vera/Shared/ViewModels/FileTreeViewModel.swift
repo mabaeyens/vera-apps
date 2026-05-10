@@ -16,14 +16,14 @@ final class FileTreeViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        guard let root = await CloudScanner.iCloudRoot() else {
+        guard let root = CloudScanner.iCloudRoot() else {
             iCloudUnavailable = true
             return
         }
 
         iCloudUnavailable = false
         do {
-            roots = try await CloudScanner.scan(root: root)
+            roots = try CloudScanner.scan(root: root)
         } catch {
             roots = []
         }

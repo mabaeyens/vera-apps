@@ -15,6 +15,6 @@
 ## Notes
 
 - MarkdownUI SPM: `https://github.com/gonzalezreal/swift-markdown-ui`
-- iCloud container identifier: `iCloud.com.mira.vera`
+- iCloud container identifier: `iCloud.com.mab.Vera`
 - Smart Anchor v1 uses proportional approximation; upgrade to TextKit 2 exact mapping only if needed
 - See PLAN.md for full phase breakdown and test table

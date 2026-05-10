@@ -55,7 +55,7 @@ No server, no networking. 100% local + iCloud.
 
 ## Key technical decisions
 
-- **iCloud access:** uses `NSUbiquitousContainerIdentifier` entitlement with the shared iCloud Drive container (`iCloud.com.mira.vera`). No custom container — reads from the user's existing Drive.
+- **iCloud access:** uses `NSUbiquitousContainerIdentifier` entitlement with the shared iCloud Drive container (`iCloud.com.mab.Vera`). No custom container — reads from the user's existing Drive.
 - **Markdown rendering (ViewingMode):** MarkdownUI (SPM). Richer fidelity than `AttributedString(markdown:)` — handles tables, code blocks, task lists correctly.
 - **Markdown editing (EditingMode):** Native `TextEditor` / `UITextView` wrapping raw `.md` text.
 - **Smart Anchor (Phase 2):** tap-to-cursor mapping via TextKit 2 `NSTextLayoutManager`. Isolated in `SmartAnchorResolver.swift`.
