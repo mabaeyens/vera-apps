@@ -3,6 +3,8 @@ import SwiftUI
 struct DocumentView: View {
     let url: URL
     @State private var viewModel: EditorViewModel
+    @State private var showAtlas = false
+    @State private var showCheatSheet = false
 
     init(url: URL) {
         self.url = url
@@ -26,6 +28,20 @@ struct DocumentView: View {
         .navigationTitle(url.deletingPathExtension().lastPathComponent)
         .toolbar { toolbarItems }
         .task { await viewModel.load() }
+        .sheet(isPresented: $showAtlas) {
+            AtlasView { snippet in viewModel.insertSnippet(snippet) }
+                #if os(iOS)
+                .presentationDetents([.medium, .large])
+                #else
+                .frame(width: 380, height: 480)
+                #endif
+        }
+        .sheet(isPresented: $showCheatSheet) {
+            CheatSheetView()
+                #if os(macOS)
+                .frame(width: 480, height: 600)
+                #endif
+        }
     }
 
     @ToolbarContentBuilder
@@ -38,6 +54,20 @@ struct DocumentView: View {
                 Button("Done") { viewModel.exitEditMode() }
                     .bold()
             }
+        }
+        ToolbarItem(placement: .automatic) {
+            if viewModel.mode == .editing {
+                Button { showAtlas = true } label: {
+                    Image(systemName: "wand.and.stars")
+                }
+                .help("Snippets")
+            }
+        }
+        ToolbarItem(placement: .automatic) {
+            Button { showCheatSheet = true } label: {
+                Image(systemName: "book.closed")
+            }
+            .help("Markdown Reference")
         }
         ToolbarItem(placement: .status) {
             saveIndicator

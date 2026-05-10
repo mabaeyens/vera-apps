@@ -11,6 +11,7 @@ final class EditorViewModel {
     var isLoading = false
     var saveState: SaveState = .saved
     var anchorPoint: CGPoint? = nil
+    var insertAtCursor: ((String) -> Void)? = nil
 
     enum SaveState { case saved, saving, error(String) }
 
@@ -39,6 +40,15 @@ final class EditorViewModel {
     func exitEditMode() {
         mode = .viewing
         anchorPoint = nil
+    }
+
+    func insertSnippet(_ snippet: String) {
+        if let insert = insertAtCursor {
+            insert(snippet)
+        } else {
+            rawText += "\n\(snippet)"
+            textDidChange()
+        }
     }
 
     func textDidChange() {
