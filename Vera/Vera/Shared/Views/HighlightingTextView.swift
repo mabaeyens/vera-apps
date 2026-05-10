@@ -23,9 +23,12 @@ struct HighlightingTextView: UIViewRepresentable {
         textContainer.widthTracksTextView = true
         layoutManager.addTextContainer(textContainer)
 
+        // Set theme font before creating the text view; Highlightr's theme overrides textView.font
+        textStorage.highlightr.setTheme(to: "atom-one-light")
+        textStorage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: 17, weight: .regular))
+
         let textView = UITextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
-        textView.font = UIFont.monospacedSystemFont(ofSize: UIFont.systemFontSize, weight: .regular)
         textView.backgroundColor = .clear
         textView.autocorrectionType = .no
         textView.autocapitalizationType = .none
@@ -50,6 +53,7 @@ struct HighlightingTextView: UIViewRepresentable {
         if let storage = uiView.textStorage as? CodeAttributedString {
             let theme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
             storage.highlightr.setTheme(to: theme)
+            storage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: 17, weight: .regular))
         }
     }
 
