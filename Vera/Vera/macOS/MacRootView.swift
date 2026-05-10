@@ -7,10 +7,11 @@ struct MacRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedURL: URL?
     @State private var showAbout = false
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
         @Bindable var vm = vm
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             FileTreeView(selectedURL: $selectedURL)
                 .navigationTitle("Vera")
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260)

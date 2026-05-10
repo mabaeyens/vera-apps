@@ -29,7 +29,14 @@ struct DocumentView: View {
         .toolbar { toolbarItems }
         .task { await viewModel.load() }
         .sheet(isPresented: $showAtlas) {
-            AtlasView { snippet in viewModel.insertSnippet(snippet) }
+            AtlasView { item in
+                switch item.kind {
+                case .insert:
+                    viewModel.insertSnippet(item.syntax)
+                case .wrap(let prefix, let suffix):
+                    viewModel.wrapOrInsert(item.syntax, prefix: prefix, suffix: suffix)
+                }
+            }
                 #if os(iOS)
                 .presentationDetents([.medium, .large])
                 #else

@@ -8,21 +8,34 @@ enum AtlasCategory: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum AtlasItemKind {
+    case insert
+    case wrap(prefix: String, suffix: String)
+}
+
 struct AtlasItem: Identifiable {
     let id = UUID()
     let label: String
     let syntax: String
     let category: AtlasCategory
+    let kind: AtlasItemKind
+
+    init(label: String, syntax: String, category: AtlasCategory, kind: AtlasItemKind = .insert) {
+        self.label = label
+        self.syntax = syntax
+        self.category = category
+        self.kind = kind
+    }
 }
 
 extension AtlasItem {
     static let catalog: [AtlasItem] = [
-        .init(label: "Bold",        syntax: "**bold**",                         category: .basics),
-        .init(label: "Italic",      syntax: "*italic*",                         category: .basics),
-        .init(label: "Bold italic", syntax: "***bold italic***",                category: .basics),
-        .init(label: "Strike",      syntax: "~~text~~",                         category: .basics),
-        .init(label: "Code",        syntax: "`code`",                           category: .basics),
-        .init(label: "Link",        syntax: "[label](url)",                     category: .basics),
+        .init(label: "Bold",        syntax: "**bold**",                         category: .basics,    kind: .wrap(prefix: "**",  suffix: "**")),
+        .init(label: "Italic",      syntax: "*italic*",                         category: .basics,    kind: .wrap(prefix: "*",   suffix: "*")),
+        .init(label: "Bold italic", syntax: "***bold italic***",                category: .basics,    kind: .wrap(prefix: "***", suffix: "***")),
+        .init(label: "Strike",      syntax: "~~text~~",                         category: .basics,    kind: .wrap(prefix: "~~",  suffix: "~~")),
+        .init(label: "Code",        syntax: "`code`",                           category: .basics,    kind: .wrap(prefix: "`",   suffix: "`")),
+        .init(label: "Link",        syntax: "[label](url)",                     category: .basics,    kind: .wrap(prefix: "[",   suffix: "](url)")),
 
         .init(label: "H1",          syntax: "# Heading",                        category: .structure),
         .init(label: "H2",          syntax: "## Heading",                       category: .structure),

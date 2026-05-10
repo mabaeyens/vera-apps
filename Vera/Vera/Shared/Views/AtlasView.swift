@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AtlasView: View {
-    let onInsert: (String) -> Void
+    let onTap: (AtlasItem) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var selectedCategory: AtlasCategory = .basics
 
@@ -19,7 +19,7 @@ struct AtlasView: View {
 
                 List(AtlasItem.catalog.filter { $0.category == selectedCategory }) { item in
                     Button {
-                        onInsert(item.syntax)
+                        onTap(item)
                         dismiss()
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {

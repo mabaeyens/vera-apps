@@ -10,7 +10,8 @@ struct EditingModeView: View {
                 set: { viewModel.rawText = $0 }
             ),
             onTextChange: { viewModel.textDidChange() },
-            registerInsert: { viewModel.insertAtCursor = $0 }
+            registerInsert: { viewModel.insertAtCursor = $0 },
+            registerWrap: { viewModel.wrapSelection = $0 }
         )
     }
 }

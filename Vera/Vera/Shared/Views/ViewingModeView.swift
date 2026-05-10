@@ -10,6 +10,9 @@ struct ViewingModeView: View {
         ScrollView {
             Markdown(viewModel.rawText)
                 .markdownTheme(.gitHub)
+                #if os(macOS)
+                .dynamicTypeSize(.xLarge)
+                #endif
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

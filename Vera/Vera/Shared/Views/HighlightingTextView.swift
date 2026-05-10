@@ -10,6 +10,7 @@ struct HighlightingTextView: UIViewRepresentable {
     @Binding var text: String
     let onTextChange: () -> Void
     let registerInsert: (@escaping (String) -> Void) -> Void
+    let registerWrap: (@escaping (String, String) -> Void) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -39,6 +40,9 @@ struct HighlightingTextView: UIViewRepresentable {
 
         registerInsert { [weak coordinator = context.coordinator] snippet in
             coordinator?.insert(snippet)
+        }
+        registerWrap { [weak coordinator = context.coordinator] prefix, suffix in
+            coordinator?.wrap(prefix: prefix, suffix: suffix)
         }
 
         return textView
@@ -89,6 +93,24 @@ struct HighlightingTextView: UIViewRepresentable {
             parent.text = tv.text
             parent.onTextChange()
         }
+
+        func wrap(prefix: String, suffix: String) {
+            guard let tv = textView else { return }
+            let range: UITextRange
+            if let r = lastKnownRange {
+                range = r
+            } else if let r = tv.selectedTextRange {
+                range = r
+            } else {
+                let end = tv.endOfDocument
+                guard let r = tv.textRange(from: end, to: end) else { return }
+                range = r
+            }
+            let selected = tv.text(in: range) ?? ""
+            tv.replace(range, withText: prefix + selected + suffix)
+            parent.text = tv.text
+            parent.onTextChange()
+        }
     }
 }
 
@@ -101,6 +123,7 @@ struct HighlightingTextView: NSViewRepresentable {
     @Binding var text: String
     let onTextChange: () -> Void
     let registerInsert: (@escaping (String) -> Void) -> Void
+    let registerWrap: (@escaping (String, String) -> Void) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -116,9 +139,11 @@ struct HighlightingTextView: NSViewRepresentable {
         textContainer.widthTracksTextView = true
         layoutManager.addTextContainer(textContainer)
 
+        textStorage.highlightr.setTheme(to: "atom-one-light")
+        textStorage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: 15, weight: .regular))
+
         let textView = NSTextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
-        textView.font = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         textView.drawsBackground = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
@@ -135,9 +160,13 @@ struct HighlightingTextView: NSViewRepresentable {
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
+        scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 44, right: 0)
 
         registerInsert { [weak coordinator = context.coordinator] snippet in
             coordinator?.insert(snippet)
+        }
+        registerWrap { [weak coordinator = context.coordinator] prefix, suffix in
+            coordinator?.wrap(prefix: prefix, suffix: suffix)
         }
 
         return scrollView
@@ -153,6 +182,7 @@ struct HighlightingTextView: NSViewRepresentable {
         if let storage = textView.textStorage as? CodeAttributedString {
             let theme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
             storage.highlightr.setTheme(to: theme)
+            storage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: 15, weight: .regular))
         }
     }
 
@@ -177,6 +207,15 @@ struct HighlightingTextView: NSViewRepresentable {
             guard let tv = textView else { return }
             let range = lastKnownRange ?? tv.selectedRange()
             tv.insertText(snippet, replacementRange: range)
+            parent.text = tv.string
+            parent.onTextChange()
+        }
+
+        func wrap(prefix: String, suffix: String) {
+            guard let tv = textView else { return }
+            let range = lastKnownRange ?? tv.selectedRange()
+            let selected = (tv.string as NSString).substring(with: range)
+            tv.insertText(prefix + selected + suffix, replacementRange: range)
             parent.text = tv.string
             parent.onTextChange()
         }

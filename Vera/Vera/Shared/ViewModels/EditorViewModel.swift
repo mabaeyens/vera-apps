@@ -12,6 +12,7 @@ final class EditorViewModel {
     var saveState: SaveState = .saved
     var anchorPoint: CGPoint? = nil
     var insertAtCursor: ((String) -> Void)? = nil
+    var wrapSelection: ((String, String) -> Void)? = nil
 
     enum SaveState { case saved, saving, error(String) }
 
@@ -48,6 +49,14 @@ final class EditorViewModel {
         } else {
             rawText += "\n\(snippet)"
             textDidChange()
+        }
+    }
+
+    func wrapOrInsert(_ syntax: String, prefix: String, suffix: String) {
+        if let wrap = wrapSelection {
+            wrap(prefix, suffix)
+        } else {
+            insertSnippet(syntax)
         }
     }
 
