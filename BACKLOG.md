@@ -1,20 +1,37 @@
 # Vera — Backlog
 
-## Upcoming (prioritized)
+## Phase status
+- **Phase 1** ✅ iCloud scanner + file tree sidebar
+- **Phase 2** ✅ ViewingMode (MarkdownUI) + EditingMode (TextEditor) + auto-save
+- **Phase 3** 🔜 In progress
 
-1. Create Xcode project, add MarkdownUI SPM, set up entitlements — Phase 1.1
-2. Implement `FileNode` model and `CloudScanner` — Phase 1.2–1.3
-3. Implement `FileTreeViewModel` and `FileTreeView` — Phase 1.4–1.5
-4. Platform entry points (macOS NavigationSplitView, iOS NavigationStack) — Phase 1.6
-5. `NSMetadataQuery` watcher for live iCloud sync — Phase 1.7
+---
+
+## Phase 3 — Upcoming (prioritized)
+
+1. **iOS TestFlight distribution** — archive iOS target, upload to App Store Connect, invite testers
+2. **Markdown cheat sheet** — built-in reference sheet bundled as a `.md` resource, rendered by Vera itself; accessible via toolbar button on both platforms
+3. **Atlas drawer** — bottom sheet (iOS) / trailing panel (macOS) with tap-to-insert Markdown snippets
+4. **Syntax highlighting** — `SyntaxHighlightingEditor` using Highlightr (UIViewRepresentable wrapping UITextView)
+5. **Onboarding view** — first-launch explanation of iCloud access and folder picker
+6. **Auto-save robustness** — NSFileVersion conflict handling
+7. **App icon dark/tinted variants** — dark mode and tinted versions of AppIcon for iOS 18+
+
+---
 
 ## Known bugs
 
-*(none yet — project not started)*
+*(none)*
+
+---
 
 ## Notes
 
+- Bundle ID: `com.mab.Vera` — UserDefaults domain is `Vera` (not `com.mab.Vera`)
+- App Sandbox must be OFF on macOS target (crashes pre-main on macOS 26 beta with iCloud entitlements)
+- Root folder stored as security-scoped bookmark in `UserDefaults` key `rootFolderBookmark`
+- To reset folder picker during testing: `defaults delete Vera rootFolderBookmark`
 - MarkdownUI SPM: `https://github.com/gonzalezreal/swift-markdown-ui`
-- iCloud container identifier: `iCloud.com.mab.Vera`
-- Smart Anchor v1 uses proportional approximation; upgrade to TextKit 2 exact mapping only if needed
-- See PLAN.md for full phase breakdown and test table
+- Highlightr SPM: `https://github.com/raspu/Highlightr`
+- Smart Anchor v1 uses proportional approximation; upgrade to TextKit 2 exact mapping only if user reports it as jarring
+- iOS untested — needs TestFlight run before Phase 3 features
