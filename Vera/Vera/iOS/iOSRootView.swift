@@ -4,21 +4,19 @@ import UniformTypeIdentifiers
 
 struct iOSRootView: View {
     @Environment(FileTreeViewModel.self) private var vm
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var selectedURL: URL?
-    @State private var navigationPath = NavigationPath()
+    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showAbout = false
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
 
     var body: some View {
         @Bindable var vm = vm
-        NavigationStack(path: $navigationPath) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             FileTreeView(selectedURL: $selectedURL)
                 .navigationTitle("Vera")
                 .navigationBarTitleDisplayMode(.large)
-                .navigationDestination(for: URL.self) { url in
-                    DocumentView(url: url)
-                }
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
                         Button { showAbout = true } label: {
@@ -37,16 +35,26 @@ struct iOSRootView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $showAbout) {
-                    AboutView()
+        } detail: {
+            if let url = selectedURL {
+                DocumentView(url: url)
+                    .id(url)
+            } else {
+                ContentUnavailableView("Select a file", systemImage: "doc.text")
+            }
+        }
+        .sheet(isPresented: $showAbout) {
+            AboutView()
+        }
+        .sheet(isPresented: $showNewFile) {
+            NewFileSheet { url in
+                selectedURL = url
+                if horizontalSizeClass == .compact {
+                    columnVisibility = .detailOnly
                 }
-                .sheet(isPresented: $showNewFile) {
-                    NewFileSheet { url in
-                        navigationPath.append(url)
-                    }
-                    .environment(vm)
-                    .presentationDetents([.medium])
-                }
+            }
+            .environment(vm)
+            .presentationDetents([.medium])
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {
             if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
@@ -55,10 +63,9 @@ struct iOSRootView: View {
         }) {
             OnboardingView()
         }
-        .onChange(of: selectedURL) { _, newURL in
-            if let url = newURL {
-                navigationPath.append(url)
-                selectedURL = nil
+        .onChange(of: selectedURL) { _, url in
+            if url != nil, horizontalSizeClass == .compact {
+                columnVisibility = .detailOnly
             }
         }
         .fileImporter(

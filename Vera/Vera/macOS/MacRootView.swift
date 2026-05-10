@@ -9,34 +9,40 @@ struct MacRootView: View {
     @State private var showAbout = false
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
-    @AppStorage("sidebar.visible") private var sidebarVisible: Bool = true
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @AppStorage("sidebarPinned") private var sidebarPinned: Bool = true
+
+    // When pinned, always return .all and ignore writes — prevents SwiftUI from
+    // auto-collapsing the sidebar on macOS 26 beta.
+    private var visibilityBinding: Binding<NavigationSplitViewVisibility> {
+        Binding(
+            get: { sidebarPinned ? .all : columnVisibility },
+            set: { if !sidebarPinned { columnVisibility = $0 } }
+        )
+    }
 
     var body: some View {
         @Bindable var vm = vm
-        HStack(spacing: 0) {
-            if sidebarVisible {
-                FileTreeView(selectedURL: $selectedURL)
-                    .frame(minWidth: 200, idealWidth: 260, maxWidth: 340)
-                Divider()
+        NavigationSplitView(columnVisibility: visibilityBinding) {
+            FileTreeView(selectedURL: $selectedURL)
+                .frame(minWidth: 200)
+        } detail: {
+            if let url = selectedURL {
+                DocumentView(url: url)
+                    .id(url)
+            } else {
+                ContentUnavailableView("Select a file", systemImage: "doc.text")
             }
-            Group {
-                if let url = selectedURL {
-                    DocumentView(url: url)
-                        .id(url)
-                } else {
-                    ContentUnavailableView("Select a file", systemImage: "doc.text")
-                }
-            }
-            .frame(minWidth: 400, maxWidth: .infinity)
         }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button {
-                    sidebarVisible.toggle()
+                    sidebarPinned.toggle()
+                    if !sidebarPinned { columnVisibility = .detailOnly }
                 } label: {
                     Image(systemName: "sidebar.left")
                 }
-                .help(sidebarVisible ? "Hide Sidebar" : "Show Sidebar")
+                .help(sidebarPinned ? "Hide Sidebar" : "Show Sidebar")
             }
             ToolbarItem(placement: .automatic) {
                 Button { showNewFile = true } label: {
