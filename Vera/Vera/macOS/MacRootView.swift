@@ -30,6 +30,7 @@ struct MacRootView: View {
         } detail: {
             if let url = selectedURL {
                 DocumentView(url: url)
+                    .id(url)
             } else {
                 ContentUnavailableView("Select a file", systemImage: "doc.text")
             }

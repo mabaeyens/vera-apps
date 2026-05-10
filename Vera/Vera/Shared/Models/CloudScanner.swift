@@ -1,14 +1,14 @@
 import Foundation
 
 enum CloudScanner {
-    @MainActor
-    static func scan(root: URL) throws -> [FileNode] {
-        try scanDirectory(at: root)
+    static func scan(root: URL) async throws -> [FileNode] {
+        try await Task.detached(priority: .userInitiated) {
+            try Self.scanDirectory(at: root)
+        }.value
     }
 
-    @MainActor
     private static func scanDirectory(at url: URL) throws -> [FileNode] {
-        let fm = FileManager.default
+        let fm = FileManager()
 
         let contents = try fm.contentsOfDirectory(
             at: url,

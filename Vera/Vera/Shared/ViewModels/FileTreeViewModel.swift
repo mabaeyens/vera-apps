@@ -23,7 +23,7 @@ final class FileTreeViewModel {
         guard let root = rootURL else { return }
 
         do {
-            roots = try CloudScanner.scan(root: root)
+            roots = try await CloudScanner.scan(root: root)
         } catch {
             roots = []
         }
