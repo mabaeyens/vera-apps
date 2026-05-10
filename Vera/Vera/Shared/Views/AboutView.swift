@@ -29,9 +29,9 @@ struct AboutView: View {
                     "Vera browses and edits any Markdown file anywhere in your iCloud Drive " +
                     "or local storage — no dedicated folder, no vault, no configuration. " +
                     "Your file system is the source of truth; Vera is just a window into it.\n\n" +
-                    "The name comes from the Spanish word vera — meaning side or shore — " +
-                    "as in \"ven a mi vera\" (come to my side). A quiet companion " +
-                    "that stays close to your files.\n\n" +
+                    "The name Vera carries two meanings: the Latin vera, meaning truth — " +
+                    "and the Spanish vera, meaning side or shore, as in \"ven a mi vera\" " +
+                    "(come to my side). A truthful companion that stays close to your files.\n\n" +
                     "Part of the Mira ecosystem."
                 )
                 .font(.subheadline)
