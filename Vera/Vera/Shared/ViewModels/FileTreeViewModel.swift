@@ -9,7 +9,7 @@ final class FileTreeViewModel {
     var isLoading = false
     var needsFolderPicker = false
 
-    private var rootURL: URL?
+    private(set) var rootURL: URL?
     private var refreshTask: Task<Void, Never>?
 
     init() {
@@ -46,6 +46,18 @@ final class FileTreeViewModel {
     func download(_ url: URL) {
         try? FileManager.default.startDownloadingUbiquitousItem(at: url)
         scheduleRefresh()
+    }
+
+    @discardableResult
+    func createFile(named name: String, in folder: URL) async throws -> URL {
+        let filename = name.hasSuffix(".md") ? name : name + ".md"
+        let fileURL = folder.appendingPathComponent(filename)
+        guard !FileManager.default.fileExists(atPath: fileURL.path) else {
+            throw CocoaError(.fileWriteFileExists)
+        }
+        try "".write(to: fileURL, atomically: true, encoding: .utf8)
+        await load()
+        return fileURL
     }
 
     func scheduleRefresh() {

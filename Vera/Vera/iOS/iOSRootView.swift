@@ -7,6 +7,7 @@ struct iOSRootView: View {
     @State private var selectedURL: URL?
     @State private var navigationPath = NavigationPath()
     @State private var showAbout = false
+    @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
 
     var body: some View {
@@ -25,6 +26,12 @@ struct iOSRootView: View {
                         }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
+                        Button { showNewFile = true } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
+                        .disabled(vm.rootURL == nil)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button { vm.needsFolderPicker = true } label: {
                             Image(systemName: "folder")
                         }
@@ -32,6 +39,12 @@ struct iOSRootView: View {
                 }
                 .sheet(isPresented: $showAbout) {
                     AboutView()
+                }
+                .sheet(isPresented: $showNewFile) {
+                    NewFileSheet { url in
+                        navigationPath.append(url)
+                    }
+                    .environment(vm)
                 }
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {

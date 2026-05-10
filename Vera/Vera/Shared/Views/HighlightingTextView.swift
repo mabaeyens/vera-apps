@@ -11,6 +11,7 @@ struct HighlightingTextView: UIViewRepresentable {
     let onTextChange: () -> Void
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
+    let onShowAtlas: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -77,6 +78,38 @@ struct HighlightingTextView: UIViewRepresentable {
             lastKnownRange = textView.selectedTextRange
         }
 
+        // MARK: Context menu (iOS 16+)
+
+        func textView(
+            _ textView: UITextView,
+            editMenuForTextIn range: NSRange,
+            suggestedActions: [UIMenuElement]
+        ) -> UIMenu? {
+            var extras: [UIMenuElement] = []
+
+            let formatAction = UIAction(
+                title: "Format…",
+                image: UIImage(systemName: "wand.and.stars")
+            ) { [weak self] _ in
+                self?.parent.onShowAtlas()
+            }
+            extras.append(formatAction)
+
+            if range.length > 0 {
+                let stripAction = UIAction(
+                    title: "Remove Formatting",
+                    image: UIImage(systemName: "eraser")
+                ) { [weak self] _ in
+                    self?.strip()
+                }
+                extras.append(stripAction)
+            }
+
+            return UIMenu(children: suggestedActions + extras)
+        }
+
+        // MARK: Mutations
+
         func insert(_ snippet: String) {
             guard let tv = textView else { return }
             let range: UITextRange
@@ -111,6 +144,21 @@ struct HighlightingTextView: UIViewRepresentable {
             parent.text = tv.text
             parent.onTextChange()
         }
+
+        func strip() {
+            guard let tv = textView else { return }
+            let range: UITextRange
+            if let r = lastKnownRange {
+                range = r
+            } else if let r = tv.selectedTextRange {
+                range = r
+            } else { return }
+            let selected = tv.text(in: range) ?? ""
+            guard !selected.isEmpty else { return }
+            tv.replace(range, withText: selected.strippingMarkdown())
+            parent.text = tv.text
+            parent.onTextChange()
+        }
     }
 }
 
@@ -124,6 +172,7 @@ struct HighlightingTextView: NSViewRepresentable {
     let onTextChange: () -> Void
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
+    let onShowAtlas: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -203,6 +252,36 @@ struct HighlightingTextView: NSViewRepresentable {
             lastKnownRange = textView?.selectedRange()
         }
 
+        // MARK: Context menu (macOS)
+
+        func textView(
+            _ view: NSTextView,
+            menu: NSMenu,
+            for event: NSEvent,
+            at charIndex: Int
+        ) -> NSMenu? {
+            menu.addItem(.separator())
+
+            let formatItem = NSMenuItem(title: "Format…", action: #selector(showAtlasAction), keyEquivalent: "")
+            formatItem.image = NSImage(systemSymbolName: "wand.and.stars", accessibilityDescription: nil)
+            formatItem.target = self
+            menu.addItem(formatItem)
+
+            if view.selectedRange().length > 0 {
+                let stripItem = NSMenuItem(title: "Remove Formatting", action: #selector(stripAction), keyEquivalent: "")
+                stripItem.image = NSImage(systemSymbolName: "eraser", accessibilityDescription: nil)
+                stripItem.target = self
+                menu.addItem(stripItem)
+            }
+
+            return menu
+        }
+
+        @objc private func showAtlasAction() { parent.onShowAtlas() }
+        @objc private func stripAction() { strip() }
+
+        // MARK: Mutations
+
         func insert(_ snippet: String) {
             guard let tv = textView else { return }
             let range = lastKnownRange ?? tv.selectedRange()
@@ -216,6 +295,16 @@ struct HighlightingTextView: NSViewRepresentable {
             let range = lastKnownRange ?? tv.selectedRange()
             let selected = (tv.string as NSString).substring(with: range)
             tv.insertText(prefix + selected + suffix, replacementRange: range)
+            parent.text = tv.string
+            parent.onTextChange()
+        }
+
+        func strip() {
+            guard let tv = textView else { return }
+            let range = lastKnownRange ?? tv.selectedRange()
+            guard range.length > 0 else { return }
+            let selected = (tv.string as NSString).substring(with: range)
+            tv.insertText(selected.strippingMarkdown(), replacementRange: range)
             parent.text = tv.string
             parent.onTextChange()
         }

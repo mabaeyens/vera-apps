@@ -28,6 +28,9 @@ struct DocumentView: View {
         .navigationTitle(url.deletingPathExtension().lastPathComponent)
         .toolbar { toolbarItems }
         .task { await viewModel.load() }
+        .onChange(of: viewModel.atlasRequested) { _, requested in
+            if requested { showAtlas = true; viewModel.atlasRequested = false }
+        }
         .sheet(isPresented: $showAtlas) {
             AtlasView { item in
                 switch item.kind {
