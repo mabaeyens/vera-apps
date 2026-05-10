@@ -17,16 +17,16 @@
 5. ✅ **About screen** — icon, version, description; iOS + macOS
 6. ✅ **iOS full test pass** — all 23 tests confirmed on build 4 (2026-05-10)
 7. ✅ **macOS full test pass** — all 23 tests confirmed on build 5 (2026-05-10)
+8. ✅ **Atlas: format selected text** — wrapping snippets wrap selection via `registerWrap` coordinator closure
+9. ✅ **macOS sidebar** — `columnVisibility: .all` pins sidebar open by default
+10. ✅ **macOS font sizes** — `.dynamicTypeSize(.xLarge)` on preview; 15pt monospaced on editor
+11. ✅ **macOS editor bottom cut off** — `contentInsets` bottom 44pt on NSScrollView
 
 ## Phase 3 — Remaining
 
 1. **Onboarding view** — first-launch explanation of iCloud access and folder picker
 2. **Auto-save robustness** — `NSFileVersion` conflict handling
 3. **App icon dark/tinted variants** — iOS 18+ dark and tinted AppIcon variants
-4. **Atlas: format selected text** — wrapping snippets (bold, italic, link…) should wrap the selection rather than insert at cursor
-5. **macOS sidebar** — make file tree sidebar visible/pinned by default; currently collapses
-6. **macOS font sizes** — increase MarkdownUI preview font and editor monospaced font; both are too small on macOS
-7. **macOS editor bottom cut off** — bottom of the editing text view is obscured; likely needs inset or safe-area adjustment in `HighlightingTextView` macOS scroll view
 
 ---
 
