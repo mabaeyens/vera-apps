@@ -29,7 +29,7 @@ final class EditorViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            rawText = try DocumentStore.read(url)
+            rawText = try await DocumentStore.read(url)
         } catch {
             rawText = ""
         }
@@ -78,13 +78,13 @@ final class EditorViewModel {
         saveTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self else { return }
-            self.flush()
+            await self.flush()
         }
     }
 
-    private func flush() {
+    private func flush() async {
         do {
-            try DocumentStore.write(url, content: rawText)
+            try await DocumentStore.write(url, content: rawText)
             saveState = .saved
         } catch {
             saveState = .error(error.localizedDescription)

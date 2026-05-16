@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct iOSRootView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedURL: URL?
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showAbout = false
@@ -49,9 +50,7 @@ struct iOSRootView: View {
         .sheet(isPresented: $showNewFile) {
             NewFileSheet { url in
                 selectedURL = url
-                if horizontalSizeClass == .compact {
-                    columnVisibility = .detailOnly
-                }
+                columnVisibility = .detailOnly
             }
             .environment(vm)
             .presentationDetents([.medium])
@@ -64,8 +63,13 @@ struct iOSRootView: View {
             OnboardingView()
         }
         .onChange(of: selectedURL) { _, url in
-            if url != nil, horizontalSizeClass == .compact {
+            if url != nil {
                 columnVisibility = .detailOnly
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await vm.load() }
             }
         }
         .fileImporter(

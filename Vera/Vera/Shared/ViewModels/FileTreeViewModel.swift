@@ -23,6 +23,10 @@ final class FileTreeViewModel {
 
         if rootURL == nil {
             rootURL = restoredBookmark()
+        } else {
+            // Re-acquire security scope after the app returns from background;
+            // iOS may have paused it during suspension.
+            _ = rootURL?.startAccessingSecurityScopedResource()
         }
         needsFolderPicker = rootURL == nil
         guard let root = rootURL else { return }
