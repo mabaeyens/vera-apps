@@ -37,24 +37,11 @@ struct iOSRootView: View {
                     }
                 }
         } detail: {
-            Group {
-                if let url = selectedURL {
-                    DocumentView(url: url)
-                        .id(url)
-                } else {
-                    ContentUnavailableView("Select a file", systemImage: "doc.text")
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        withAnimation {
-                            columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-                        }
-                    } label: {
-                        Image(systemName: "sidebar.left")
-                    }
-                }
+            if let url = selectedURL {
+                DocumentView(url: url)
+                    .id(url)
+            } else {
+                ContentUnavailableView("Select a file", systemImage: "doc.text")
             }
         }
         .sheet(isPresented: $showAbout) {
@@ -73,14 +60,6 @@ struct iOSRootView: View {
             }
         }) {
             OnboardingView()
-        }
-        .onChange(of: selectedURL) { _, url in
-            guard let url else { return }
-            let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
-            if values?.ubiquitousItemDownloadingStatus == .notDownloaded {
-                vm.download(url)
-                Task { @MainActor in selectedURL = nil }
-            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

@@ -7,9 +7,6 @@ struct FileTreeView: View {
 
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
-    #if os(macOS)
-    @State private var hoveredID: UUID?
-    #endif
 
     var body: some View {
         Group {
@@ -51,13 +48,18 @@ struct FileTreeView: View {
         // UUID selection → URL (user taps a file)
         .onChange(of: selectedID) { _, id in
             guard let id else { selectedURL = nil; return }
-            if let node = findNode(id: id, in: vm.roots),
-               case .file(_, _, let url, let state) = node {
-                if state == .cloud { vm.download(url) }
-                vm.pinFile(url)
-                selectedURL = url
+            if let node = findNode(id: id, in: vm.roots) {
+                switch node {
+                case .file(_, _, let url, let state):
+                    if state == .cloud { vm.download(url) }
+                    vm.pinFile(url)
+                    selectedURL = url
+                case .folder:
+                    // Reset selection so NavigationSplitView doesn't push to detail;
+                    // List disclosure (expand/collapse) is independent of the selection binding.
+                    selectedID = nil
+                }
             }
-            // Folder tapped: do not clear selectedURL
         }
         // URL → UUID (programmatic selection e.g. new file created)
         .onChange(of: selectedURL) { _, url in
@@ -77,33 +79,17 @@ struct FileTreeView: View {
         switch node {
         case .folder(_, let name, _):
             Label(name, systemImage: "folder")
-        case .file(let id, let name, let url, let state):
-            HStack {
-                Label(name, systemImage: "doc.text")
-                Spacer()
-                #if os(macOS)
-                if hoveredID == id {
-                    Button { fileToDelete = (url, name) } label: {
-                        Image(systemName: "trash").foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                } else if vm.downloadingURLs.contains(url) {
-                    ProgressView().controlSize(.small)
-                } else if state == .cloud {
-                    cloudBadge(for: url)
-                }
-                #else
-                if vm.downloadingURLs.contains(url) {
-                    ProgressView().controlSize(.small)
-                } else if state == .cloud {
-                    cloudBadge(for: url)
-                }
-                #endif
-            }
-            .contentShape(Rectangle())
+        case .file(_, let name, let url, let state):
             #if os(macOS)
-            .onHover { isHovered in hoveredID = isHovered ? id : nil }
-            #endif
+            MacFileRow(
+                name: name,
+                url: url,
+                downloadState: state,
+                isDownloading: vm.downloadingURLs.contains(url),
+                isOnline: connectivity.isOnline,
+                onDelete: { fileToDelete = (url, name) },
+                onDownload: { vm.download(url) }
+            )
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
                     fileToDelete = (url, name)
@@ -111,7 +97,6 @@ struct FileTreeView: View {
                     Label("Delete", systemImage: "trash")
                 }
             }
-            #if os(macOS)
             .contextMenu {
                 Button(role: .destructive) {
                     fileToDelete = (url, name)
@@ -119,23 +104,27 @@ struct FileTreeView: View {
                     Label("Move to Trash", systemImage: "trash")
                 }
             }
+            #else
+            HStack {
+                Label(name, systemImage: "doc.text")
+                Spacer()
+                if vm.downloadingURLs.contains(url) {
+                    ProgressView().controlSize(.small)
+                } else if state == .cloud {
+                    let icon = connectivity.isOnline ? "icloud.and.arrow.down" : "icloud.slash"
+                    Image(systemName: icon).foregroundStyle(.secondary).font(.caption)
+                }
+            }
+            .contentShape(Rectangle())
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    fileToDelete = (url, name)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
             #endif
         }
-    }
-
-    @ViewBuilder
-    private func cloudBadge(for url: URL) -> some View {
-        let icon = connectivity.isOnline ? "icloud.and.arrow.down" : "icloud.slash"
-        #if os(macOS)
-        Button { if connectivity.isOnline { vm.download(url) } } label: {
-            Image(systemName: icon).foregroundStyle(.secondary).font(.caption)
-        }
-        .buttonStyle(.plain)
-        .disabled(!connectivity.isOnline)
-        .help(connectivity.isOnline ? "Download from iCloud" : "Not available offline")
-        #else
-        Image(systemName: icon).foregroundStyle(.secondary).font(.caption)
-        #endif
     }
 
     private var offlineBanner: some View {
@@ -171,3 +160,44 @@ struct FileTreeView: View {
         return nil
     }
 }
+
+// MARK: - macOS file row with self-contained hover state
+
+#if os(macOS)
+private struct MacFileRow: View {
+    let name: String
+    let url: URL
+    let downloadState: DownloadState
+    let isDownloading: Bool
+    let isOnline: Bool
+    let onDelete: () -> Void
+    let onDownload: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack {
+            Label(name, systemImage: "doc.text")
+            Spacer()
+            if isHovered {
+                Button { onDelete() } label: {
+                    Image(systemName: "trash").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            } else if isDownloading {
+                ProgressView().controlSize(.small)
+            } else if downloadState == .cloud {
+                Button { if isOnline { onDownload() } } label: {
+                    Image(systemName: isOnline ? "icloud.and.arrow.down" : "icloud.slash")
+                        .foregroundStyle(.secondary).font(.caption)
+                }
+                .buttonStyle(.plain)
+                .disabled(!isOnline)
+                .help(isOnline ? "Download from iCloud" : "Not available offline")
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
+    }
+}
+#endif

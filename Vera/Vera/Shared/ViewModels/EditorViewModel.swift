@@ -31,6 +31,16 @@ final class EditorViewModel {
         do {
             rawText = try await DocumentStore.read(url)
         } catch {
+            // File may be an iCloud item mid-download; poll until available (up to 15 s).
+            for _ in 0..<15 {
+                try? await Task.sleep(for: .seconds(1))
+                let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+                    .ubiquitousItemDownloadingStatus
+                if status == .current || status == .downloaded {
+                    rawText = (try? await DocumentStore.read(url)) ?? ""
+                    return
+                }
+            }
             rawText = ""
         }
     }

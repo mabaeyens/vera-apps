@@ -10,7 +10,6 @@ struct MacRootView: View {
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var userHidSidebar = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -27,15 +26,6 @@ struct MacRootView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .navigation) {
-                Button {
-                    userHidSidebar.toggle()
-                    columnVisibility = userHidSidebar ? .detailOnly : .all
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .help(userHidSidebar ? "Show Sidebar" : "Hide Sidebar")
-            }
             ToolbarItem(placement: .automatic) {
                 Button { showNewFile = true } label: {
                     Image(systemName: "square.and.pencil")
@@ -84,11 +74,6 @@ struct MacRootView: View {
         ) { result in
             if case .success(let url) = result {
                 vm.setRoot(url)
-            }
-        }
-        .onChange(of: columnVisibility) { _, v in
-            if !userHidSidebar && v != .all {
-                columnVisibility = .all
             }
         }
         .onChange(of: scenePhase) { _, phase in
