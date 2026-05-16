@@ -14,10 +14,12 @@ struct ViewingModeView: View {
     var body: some View {
         ScrollView {
             Markdown(viewModel.rawText)
-                .markdownTheme(.gitHub)
-                .markdownTextStyle {
-                    FontSize(CGFloat(fontSize))
-                }
+                .markdownTheme(
+                    Theme.gitHub.text {
+                        ForegroundColor(.primary)
+                        FontSize(CGFloat(fontSize))
+                    }
+                )
                 .id(fontSize)
                 .padding()
                 .padding(.bottom, 32)
