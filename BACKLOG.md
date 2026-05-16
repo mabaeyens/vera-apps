@@ -19,9 +19,30 @@
 
 ## Phase 4 — Remaining
 
-*(none — all items complete)*
+1. **edit in preview mode**, keeping the format of the edited block
+2. **animated** V icon
+3. delays when selecting other folders - no activity signal
+4. folder name not updated after switching folders
+5. add contextual format option higher
+6. top of keyboard formatting menu like the iOS Notes app?
+7. keep downloaded files downloaded across sessions, unless cloud is more updated
+8. markdown references rendering issues: blockquote and superindex/footnote
 
 ---
+
+## Pending release (built, not yet shipped)
+
+- **Larger editor font** — iOS bumped from 17pt → 20pt, macOS from 15pt → 17pt. `HighlightingTextView.swift` (both `makeView` and `updateView` for each platform).
+- **Folder name in title bar** — Navigation title now shows `rootURL.lastPathComponent` instead of hardcoded "Vera". iOS: `iOSRootView.swift`. macOS: `MacRootView.swift` sidebar column.
+- **macOS bottom scroll clipping** — Added `.padding(.bottom, 32)` to Markdown content in `ViewingModeView.swift` so the last line isn't clipped by the window edge.
+- **macOS sidebar never autocollapse** — Replaced `visibilityBinding`/`sidebarPinned` with `@State userHidSidebar` + `onChange(of: columnVisibility)` guard that reverts any system-driven collapse. Toolbar button is the only way to hide sidebar. `MacRootView.swift`.
+- **iOS portrait navigation fixed** — Switched iOS `List` to `List(selection: $selectedURL)` with `.tag(url)` on file rows. `NavigationSplitView` now pushes the detail natively on iPhone instead of relying on `columnVisibility = .detailOnly` which doesn't work in compact mode. `FileTreeView.swift` + `iOSRootView.swift`.
+- **Cloud file download on iOS** — When a cloud file is selected, download is triggered and selection is cleared (navigates back). `iOSRootView.swift` `onChange(of: selectedURL)`.
+
+### Shipped in build 12
+- Portrait mode navigation (partial fix — see above for full fix)
+- Background freeze fix (`NSFileCoordinator` off main thread, `DocumentStore.swift`)
+- Foreground refresh (`scenePhase` observer, `iOSRootView.swift`)
 
 ## Open bugs
 

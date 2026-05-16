@@ -14,6 +14,7 @@ struct ViewingModeView: View {
                 .dynamicTypeSize(.xLarge)
                 #endif
                 .padding()
+                .padding(.bottom, 32)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(

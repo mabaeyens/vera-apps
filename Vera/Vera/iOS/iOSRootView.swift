@@ -16,7 +16,7 @@ struct iOSRootView: View {
         @Bindable var vm = vm
         NavigationSplitView(columnVisibility: $columnVisibility) {
             FileTreeView(selectedURL: $selectedURL)
-                .navigationTitle("Vera")
+                .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -50,7 +50,6 @@ struct iOSRootView: View {
         .sheet(isPresented: $showNewFile) {
             NewFileSheet { url in
                 selectedURL = url
-                columnVisibility = .detailOnly
             }
             .environment(vm)
             .presentationDetents([.medium])
@@ -63,8 +62,11 @@ struct iOSRootView: View {
             OnboardingView()
         }
         .onChange(of: selectedURL) { _, url in
-            if url != nil {
-                columnVisibility = .detailOnly
+            guard let url else { return }
+            let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+            if values?.ubiquitousItemDownloadingStatus == .notDownloaded {
+                vm.download(url)
+                Task { @MainActor in selectedURL = nil }
             }
         }
         .onChange(of: scenePhase) { _, phase in

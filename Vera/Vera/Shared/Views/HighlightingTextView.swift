@@ -28,7 +28,7 @@ struct HighlightingTextView: UIViewRepresentable {
 
         // Set theme font before creating the text view; Highlightr's theme overrides textView.font
         textStorage.highlightr.setTheme(to: "atom-one-light")
-        textStorage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: 17, weight: .regular))
+        textStorage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: 20, weight: .regular))
 
         let textView = UITextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
@@ -63,7 +63,7 @@ struct HighlightingTextView: UIViewRepresentable {
         if let storage = uiView.textStorage as? CodeAttributedString {
             let theme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
             storage.highlightr.setTheme(to: theme)
-            storage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: 17, weight: .regular))
+            storage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: 20, weight: .regular))
         }
     }
 
@@ -195,7 +195,7 @@ struct HighlightingTextView: NSViewRepresentable {
         layoutManager.addTextContainer(textContainer)
 
         textStorage.highlightr.setTheme(to: "atom-one-light")
-        textStorage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: 15, weight: .regular))
+        textStorage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: 17, weight: .regular))
 
         let textView = NSTextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
@@ -240,7 +240,7 @@ struct HighlightingTextView: NSViewRepresentable {
         if let storage = textView.textStorage as? CodeAttributedString {
             let theme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
             storage.highlightr.setTheme(to: theme)
-            storage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: 15, weight: .regular))
+            storage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: 17, weight: .regular))
         }
     }
 

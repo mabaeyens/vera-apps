@@ -10,22 +10,14 @@ struct MacRootView: View {
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @AppStorage("sidebarPinned") private var sidebarPinned: Bool = true
-
-    // When pinned, always return .all and ignore writes — prevents SwiftUI from
-    // auto-collapsing the sidebar on macOS 26 beta.
-    private var visibilityBinding: Binding<NavigationSplitViewVisibility> {
-        Binding(
-            get: { sidebarPinned ? .all : columnVisibility },
-            set: { if !sidebarPinned { columnVisibility = $0 } }
-        )
-    }
+    @State private var userHidSidebar = false
 
     var body: some View {
         @Bindable var vm = vm
-        NavigationSplitView(columnVisibility: visibilityBinding) {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             FileTreeView(selectedURL: $selectedURL)
                 .frame(minWidth: 200)
+                .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
         } detail: {
             if let url = selectedURL {
                 DocumentView(url: url)
@@ -37,12 +29,12 @@ struct MacRootView: View {
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 Button {
-                    sidebarPinned.toggle()
-                    if !sidebarPinned { columnVisibility = .detailOnly }
+                    userHidSidebar.toggle()
+                    columnVisibility = userHidSidebar ? .detailOnly : .all
                 } label: {
                     Image(systemName: "sidebar.left")
                 }
-                .help(sidebarPinned ? "Hide Sidebar" : "Show Sidebar")
+                .help(userHidSidebar ? "Show Sidebar" : "Hide Sidebar")
             }
             ToolbarItem(placement: .automatic) {
                 Button { showNewFile = true } label: {
@@ -92,6 +84,11 @@ struct MacRootView: View {
         ) { result in
             if case .success(let url) = result {
                 vm.setRoot(url)
+            }
+        }
+        .onChange(of: columnVisibility) { _, v in
+            if !userHidSidebar && v != .all {
+                columnVisibility = .all
             }
         }
         .onChange(of: scenePhase) { _, phase in

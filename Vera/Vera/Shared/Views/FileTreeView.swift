@@ -25,7 +25,7 @@ struct FileTreeView: View {
                 }
                 .listStyle(.sidebar)
                 #else
-                List(vm.roots, children: \.children) { node in
+                List(vm.roots, children: \.children, selection: $selectedURL) { node in
                     iOSNodeRow(node)
                 }
                 .listStyle(.sidebar)
@@ -61,25 +61,16 @@ struct FileTreeView: View {
         case .folder(_, let name, _):
             Label(name, systemImage: "folder")
         case .file(_, let name, let url, let state):
-            Button {
+            HStack {
+                Label(name, systemImage: "doc.text")
+                Spacer()
                 if state == .cloud {
-                    if connectivity.isOnline { vm.download(url) }
-                } else {
-                    selectedURL = url
+                    Image(systemName: connectivity.isOnline ? "icloud.and.arrow.down" : "icloud.slash")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
                 }
-            } label: {
-                HStack {
-                    Label(name, systemImage: "doc.text")
-                    Spacer()
-                    if state == .cloud {
-                        Image(systemName: connectivity.isOnline ? "icloud.and.arrow.down" : "icloud.slash")
-                            .foregroundStyle(.secondary)
-                            .font(.caption)
-                    }
-                }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .tag(url as URL?)
         }
     }
     #endif
