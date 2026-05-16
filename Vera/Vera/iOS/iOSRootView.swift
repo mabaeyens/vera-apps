@@ -37,11 +37,24 @@ struct iOSRootView: View {
                     }
                 }
         } detail: {
-            if let url = selectedURL {
-                DocumentView(url: url)
-                    .id(url)
-            } else {
-                ContentUnavailableView("Select a file", systemImage: "doc.text")
+            Group {
+                if let url = selectedURL {
+                    DocumentView(url: url)
+                        .id(url)
+                } else {
+                    ContentUnavailableView("Select a file", systemImage: "doc.text")
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        withAnimation {
+                            columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                        }
+                    } label: {
+                        Image(systemName: "sidebar.left")
+                    }
+                }
             }
         }
         .sheet(isPresented: $showAbout) {
