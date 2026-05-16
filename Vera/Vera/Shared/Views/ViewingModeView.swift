@@ -18,6 +18,7 @@ struct ViewingModeView: View {
                 .markdownTextStyle {
                     FontSize(CGFloat(fontSize))
                 }
+                .id(fontSize)
                 .padding()
                 .padding(.bottom, 32)
                 .frame(maxWidth: .infinity, alignment: .leading)
