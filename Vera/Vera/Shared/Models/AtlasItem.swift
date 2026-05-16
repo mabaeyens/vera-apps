@@ -52,6 +52,5 @@ extension AtlasItem {
 
         .init(label: "Task",        syntax: "- [ ] task",                       category: .advanced),
         .init(label: "Done task",   syntax: "- [x] done",                       category: .advanced),
-        .init(label: "Footnote",    syntax: "text[^1]\n\n[^1]: note",           category: .advanced),
     ]
 }

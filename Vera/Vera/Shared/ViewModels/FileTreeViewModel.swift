@@ -8,6 +8,7 @@ final class FileTreeViewModel {
     var selectedURL: URL?
     var isLoading = false
     var needsFolderPicker = false
+    var downloadingURLs: Set<URL> = []
 
     private(set) var rootURL: URL?
     private var refreshTask: Task<Void, Never>?
@@ -24,19 +25,47 @@ final class FileTreeViewModel {
         if rootURL == nil {
             rootURL = restoredBookmark()
         } else {
-            // Re-acquire security scope after the app returns from background;
-            // iOS may have paused it during suspension.
             _ = rootURL?.startAccessingSecurityScopedResource()
         }
         needsFolderPicker = rootURL == nil
         guard let root = rootURL else { return }
 
-        await Task.yield()  // let the run loop render the spinner before the synchronous scan
+        await Task.yield()
         do {
             roots = try await CloudScanner.scan(root: root)
+            repinDownloads()
         } catch {
             roots = []
         }
+    }
+
+    // Re-trigger download for previously opened files that iCloud evicted.
+    private func repinDownloads() {
+        var pinned = pinnedPaths
+        let cloudURLs = cloudFileURLs(in: roots)
+        var cleaned = false
+        for path in pinned {
+            let url = URL(fileURLWithPath: path)
+            if cloudURLs.contains(url) {
+                download(url)
+            } else if !FileManager.default.fileExists(atPath: path) {
+                pinned.remove(path)
+                cleaned = true
+            }
+        }
+        if cleaned { pinnedPaths = pinned }
+    }
+
+    private func cloudFileURLs(in nodes: [FileNode]) -> Set<URL> {
+        var result = Set<URL>()
+        for node in nodes {
+            switch node {
+            case .file(_, _, let url, .cloud): result.insert(url)
+            case .folder(_, _, let children): result.formUnion(cloudFileURLs(in: children))
+            default: break
+            }
+        }
+        return result
     }
 
     func setRoot(_ url: URL) {
@@ -49,8 +78,13 @@ final class FileTreeViewModel {
     }
 
     func download(_ url: URL) {
+        downloadingURLs.insert(url)
         try? FileManager.default.startDownloadingUbiquitousItem(at: url)
         scheduleRefresh()
+    }
+
+    func pinFile(_ url: URL) {
+        pinnedPaths.insert(url.path)
     }
 
     func deleteFile(at url: URL) async throws {
@@ -77,6 +111,19 @@ final class FileTreeViewModel {
             try? await Task.sleep(for: .seconds(1))
             guard !Task.isCancelled else { return }
             await load()
+            downloadingURLs = downloadingURLs.filter { cloudFileURLs(in: roots).contains($0) }
+        }
+    }
+
+    // MARK: - Pinned file persistence
+
+    private var pinnedPaths: Set<String> {
+        get {
+            let arr = UserDefaults.standard.stringArray(forKey: "pinnedFiles") ?? []
+            return Set(arr)
+        }
+        set {
+            UserDefaults.standard.set(Array(newValue), forKey: "pinnedFiles")
         }
     }
 

@@ -7,6 +7,9 @@ struct FileTreeView: View {
 
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
+    #if os(macOS)
+    @State private var hoveredID: UUID?
+    #endif
 
     var body: some View {
         Group {
@@ -20,10 +23,8 @@ struct FileTreeView: View {
                     description: Text("No .md files found in the selected folder.")
                 )
             } else {
-                List(selection: $selectedID) {
-                    OutlineGroup(vm.roots, children: \.children) { node in
-                        nodeRow(node)
-                    }
+                List(vm.roots, id: \.id, children: \.children, selection: $selectedID) { node in
+                    nodeRow(node)
                 }
                 .listStyle(.sidebar)
             }
@@ -49,11 +50,11 @@ struct FileTreeView: View {
         .task { await vm.load() }
         // UUID selection → URL (user taps a file)
         .onChange(of: selectedID) { _, id in
-            guard let id else {
-                selectedURL = nil
-                return
-            }
-            if let url = findURL(id: id, in: vm.roots) {
+            guard let id else { selectedURL = nil; return }
+            if let node = findNode(id: id, in: vm.roots),
+               case .file(_, _, let url, let state) = node {
+                if state == .cloud { vm.download(url) }
+                vm.pinFile(url)
                 selectedURL = url
             }
             // Folder tapped: do not clear selectedURL
@@ -76,13 +77,33 @@ struct FileTreeView: View {
         switch node {
         case .folder(_, let name, _):
             Label(name, systemImage: "folder")
-        case .file(_, let name, let url, let state):
+        case .file(let id, let name, let url, let state):
             HStack {
                 Label(name, systemImage: "doc.text")
                 Spacer()
-                if state == .cloud { cloudBadge(for: url) }
+                #if os(macOS)
+                if hoveredID == id {
+                    Button { fileToDelete = (url, name) } label: {
+                        Image(systemName: "trash").foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                } else if vm.downloadingURLs.contains(url) {
+                    ProgressView().controlSize(.small)
+                } else if state == .cloud {
+                    cloudBadge(for: url)
+                }
+                #else
+                if vm.downloadingURLs.contains(url) {
+                    ProgressView().controlSize(.small)
+                } else if state == .cloud {
+                    cloudBadge(for: url)
+                }
+                #endif
             }
             .contentShape(Rectangle())
+            #if os(macOS)
+            .onHover { isHovered in hoveredID = isHovered ? id : nil }
+            #endif
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
                     fileToDelete = (url, name)
@@ -129,14 +150,11 @@ struct FileTreeView: View {
         .background(.bar)
     }
 
-    private func findURL(id: UUID, in nodes: [FileNode]) -> URL? {
+    private func findNode(id: UUID, in nodes: [FileNode]) -> FileNode? {
         for node in nodes {
-            switch node {
-            case .file(let nid, _, let url, _):
-                if nid == id { return url }
-            case .folder(_, _, let children):
-                if let found = findURL(id: id, in: children) { return found }
-            }
+            if node.id == id { return node }
+            if case .folder(_, _, let children) = node,
+               let found = findNode(id: id, in: children) { return found }
         }
         return nil
     }

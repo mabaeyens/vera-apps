@@ -73,8 +73,8 @@ struct DocumentView: View {
                     .bold()
             }
         }
-        ToolbarItem(placement: .automatic) {
-            if viewModel.mode == .editing {
+        if viewModel.mode == .editing {
+            ToolbarItem(placement: .automatic) {
                 Button { showAtlas = true } label: {
                     Image(systemName: "wand.and.stars")
                 }
