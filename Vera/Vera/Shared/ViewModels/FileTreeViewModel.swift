@@ -44,12 +44,19 @@ final class FileTreeViewModel {
         saveBookmark(url)
         needsFolderPicker = false
         rootURL = url
+        roots = []
         Task { await load() }
     }
 
     func download(_ url: URL) {
         try? FileManager.default.startDownloadingUbiquitousItem(at: url)
         scheduleRefresh()
+    }
+
+    func deleteFile(at url: URL) async throws {
+        try FileManager.default.removeItem(at: url)
+        if selectedURL == url { selectedURL = nil }
+        await load()
     }
 
     @discardableResult

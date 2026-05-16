@@ -126,7 +126,7 @@ struct HighlightingTextView: UIViewRepresentable {
                 extras.append(stripAction)
             }
 
-            return UIMenu(children: suggestedActions + extras)
+            return UIMenu(children: extras + suggestedActions)
         }
 
         // MARK: Mutations
@@ -301,18 +301,19 @@ struct HighlightingTextView: NSViewRepresentable {
             for event: NSEvent,
             at charIndex: Int
         ) -> NSMenu? {
-            menu.addItem(.separator())
-
             let formatItem = NSMenuItem(title: "Format…", action: #selector(showAtlasAction), keyEquivalent: "")
             formatItem.image = NSImage(systemSymbolName: "wand.and.stars", accessibilityDescription: nil)
             formatItem.target = self
-            menu.addItem(formatItem)
+            menu.insertItem(formatItem, at: 0)
 
             if view.selectedRange().length > 0 {
                 let stripItem = NSMenuItem(title: "Remove Formatting", action: #selector(stripAction), keyEquivalent: "")
                 stripItem.image = NSImage(systemSymbolName: "eraser", accessibilityDescription: nil)
                 stripItem.target = self
-                menu.addItem(stripItem)
+                menu.insertItem(stripItem, at: 1)
+                menu.insertItem(.separator(), at: 2)
+            } else {
+                menu.insertItem(.separator(), at: 1)
             }
 
             return menu

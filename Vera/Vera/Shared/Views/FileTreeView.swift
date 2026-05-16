@@ -6,6 +6,7 @@ struct FileTreeView: View {
     @Binding var selectedURL: URL?
 
     @State private var selectedID: UUID?
+    @State private var fileToDelete: (url: URL, name: String)?
 
     var body: some View {
         Group {
@@ -26,6 +27,21 @@ struct FileTreeView: View {
                 }
                 .listStyle(.sidebar)
             }
+        }
+        .confirmationDialog(
+            "Delete \"\(fileToDelete?.name ?? "")\"?",
+            isPresented: Binding(get: { fileToDelete != nil }, set: { if !$0 { fileToDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let url = fileToDelete?.url {
+                    Task { try? await vm.deleteFile(at: url) }
+                }
+                fileToDelete = nil
+            }
+            Button("Cancel", role: .cancel) { fileToDelete = nil }
+        } message: {
+            Text("This file will be permanently deleted.")
         }
         .safeAreaInset(edge: .bottom) {
             if !connectivity.isOnline { offlineBanner }
@@ -67,6 +83,22 @@ struct FileTreeView: View {
                 if state == .cloud { cloudBadge(for: url) }
             }
             .contentShape(Rectangle())
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    fileToDelete = (url, name)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+            #if os(macOS)
+            .contextMenu {
+                Button(role: .destructive) {
+                    fileToDelete = (url, name)
+                } label: {
+                    Label("Move to Trash", systemImage: "trash")
+                }
+            }
+            #endif
         }
     }
 
