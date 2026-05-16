@@ -3,6 +3,11 @@ import MarkdownUI
 
 struct ViewingModeView: View {
     @Bindable var viewModel: EditorViewModel
+    #if os(iOS)
+    @AppStorage("editorFontSize") private var fontSize: Double = 20
+    #else
+    @AppStorage("editorFontSize") private var fontSize: Double = 17
+    #endif
 
     @State private var viewHeight: CGFloat = 0
 
@@ -10,9 +15,9 @@ struct ViewingModeView: View {
         ScrollView {
             Markdown(viewModel.rawText)
                 .markdownTheme(.gitHub)
-                #if os(macOS)
-                .dynamicTypeSize(.xLarge)
-                #endif
+                .markdownTextStyle {
+                    FontSize(CGFloat(fontSize))
+                }
                 .padding()
                 .padding(.bottom, 32)
                 .frame(maxWidth: .infinity, alignment: .leading)

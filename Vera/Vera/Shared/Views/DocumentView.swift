@@ -5,6 +5,11 @@ struct DocumentView: View {
     @State private var viewModel: EditorViewModel
     @State private var showAtlas = false
     @State private var showCheatSheet = false
+    #if os(iOS)
+    @AppStorage("editorFontSize") private var fontSize: Double = 20
+    #else
+    @AppStorage("editorFontSize") private var fontSize: Double = 17
+    #endif
 
     init(url: URL) {
         self.url = url
@@ -81,6 +86,18 @@ struct DocumentView: View {
                 Image(systemName: "book.closed")
             }
             .help("Markdown Reference")
+        }
+        ToolbarItem(placement: .automatic) {
+            Button { fontSize = max(12, fontSize - 1) } label: {
+                Image(systemName: "textformat.size.smaller")
+            }
+            .help("Decrease font size")
+        }
+        ToolbarItem(placement: .automatic) {
+            Button { fontSize = min(32, fontSize + 1) } label: {
+                Image(systemName: "textformat.size.larger")
+            }
+            .help("Increase font size")
         }
         ToolbarItem(placement: .status) {
             saveIndicator
