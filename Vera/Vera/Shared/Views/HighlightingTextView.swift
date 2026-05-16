@@ -61,13 +61,22 @@ struct HighlightingTextView: UIViewRepresentable {
             uiView.text = text
             uiView.selectedRange = sel
         }
-        if let storage = uiView.textStorage as? CodeAttributedString {
-            let theme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
-            storage.highlightr.setTheme(to: theme)
-            storage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
-            // Re-trigger highlighting so the new font applies to all existing text
-            let lang = storage.language
-            storage.language = lang
+        let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
+        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
+            if let storage = uiView.textStorage as? CodeAttributedString {
+                storage.highlightr.setTheme(to: newTheme)
+                storage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+                if storage.length > 0 {
+                    let fullRange = NSRange(location: 0, length: storage.length)
+                    storage.beginEditing()
+                    storage.addAttribute(.font, value: UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular), range: fullRange)
+                    storage.endEditing()
+                }
+                storage.language = nil
+                storage.language = "markdown"
+            }
+            context.coordinator.lastFontSize = fontSize
+            context.coordinator.lastTheme = newTheme
         }
     }
 
@@ -75,6 +84,9 @@ struct HighlightingTextView: UIViewRepresentable {
         let parent: HighlightingTextView
         weak var textView: UITextView?
         private var lastKnownRange: UITextRange?
+
+        var lastFontSize: CGFloat = 0
+        var lastTheme: String = ""
 
         init(_ parent: HighlightingTextView) { self.parent = parent }
 
@@ -242,13 +254,22 @@ struct HighlightingTextView: NSViewRepresentable {
             textView.string = text
             textView.selectedRanges = sel
         }
-        if let storage = textView.textStorage as? CodeAttributedString {
-            let theme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
-            storage.highlightr.setTheme(to: theme)
-            storage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
-            // Re-trigger highlighting so the new font applies to all existing text
-            let lang = storage.language
-            storage.language = lang
+        let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
+        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
+            if let storage = textView.textStorage as? CodeAttributedString {
+                storage.highlightr.setTheme(to: newTheme)
+                storage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+                if storage.length > 0 {
+                    let fullRange = NSRange(location: 0, length: storage.length)
+                    storage.beginEditing()
+                    storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular), range: fullRange)
+                    storage.endEditing()
+                }
+                storage.language = nil
+                storage.language = "markdown"
+            }
+            context.coordinator.lastFontSize = fontSize
+            context.coordinator.lastTheme = newTheme
         }
     }
 
@@ -256,6 +277,9 @@ struct HighlightingTextView: NSViewRepresentable {
         let parent: HighlightingTextView
         weak var textView: NSTextView?
         private var lastKnownRange: NSRange?
+
+        var lastFontSize: CGFloat = 0
+        var lastTheme: String = ""
 
         init(_ parent: HighlightingTextView) { self.parent = parent }
 
