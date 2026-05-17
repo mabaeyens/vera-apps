@@ -79,6 +79,7 @@ struct FileTreeView: View {
         switch node {
         case .folder(_, let name, _):
             Label(name, systemImage: "folder")
+                .selectionDisabled()
         case .file(_, let name, let url, let state):
             #if os(macOS)
             MacFileRow(
@@ -179,12 +180,7 @@ private struct MacFileRow: View {
         HStack {
             Label(name, systemImage: "doc.text")
             Spacer()
-            if isHovered {
-                Button { onDelete() } label: {
-                    Image(systemName: "trash").foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-            } else if isDownloading {
+            if isDownloading {
                 ProgressView().controlSize(.small)
             } else if downloadState == .cloud {
                 Button { if isOnline { onDownload() } } label: {
@@ -194,6 +190,12 @@ private struct MacFileRow: View {
                 .buttonStyle(.plain)
                 .disabled(!isOnline)
                 .help(isOnline ? "Download from iCloud" : "Not available offline")
+            } else {
+                Button { onDelete() } label: {
+                    Image(systemName: "trash").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovered ? 1 : 0.3)
             }
         }
         .contentShape(Rectangle())

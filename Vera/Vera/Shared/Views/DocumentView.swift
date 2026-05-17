@@ -81,6 +81,34 @@ struct DocumentView: View {
                 .help("Snippets")
             }
         }
+        #if os(iOS)
+        if viewModel.mode == .viewing {
+            ToolbarItem(placement: .automatic) {
+                Button { showCheatSheet = true } label: {
+                    Image(systemName: "book.closed")
+                }
+                .help("Markdown Reference")
+            }
+        }
+        ToolbarItem(placement: .automatic) {
+            Menu {
+                Button { fontSize = min(32, fontSize + 1) } label: {
+                    Label("Larger Text", systemImage: "textformat.size.larger")
+                }
+                Button { fontSize = max(12, fontSize - 1) } label: {
+                    Label("Smaller Text", systemImage: "textformat.size.smaller")
+                }
+                if viewModel.mode == .viewing {
+                    Divider()
+                    Button { showCheatSheet = true } label: {
+                        Label("Markdown Reference", systemImage: "book.closed")
+                    }
+                }
+            } label: {
+                Image(systemName: "textformat.size")
+            }
+        }
+        #else
         ToolbarItem(placement: .automatic) {
             Button { showCheatSheet = true } label: {
                 Image(systemName: "book.closed")
@@ -99,6 +127,7 @@ struct DocumentView: View {
             }
             .help("Increase font size")
         }
+        #endif
         ToolbarItem(placement: .status) {
             saveIndicator
         }
