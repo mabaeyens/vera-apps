@@ -8,20 +8,6 @@ struct FileTreeView: View {
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
 
-    // Binding that accepts only file UUIDs — folders never reach selectedID,
-    // so NavigationSplitView never pushes the detail pane on folder tap.
-    private var fileOnlySelection: Binding<UUID?> {
-        Binding(
-            get: { selectedID },
-            set: { newID in
-                guard let newID else { selectedID = nil; return }
-                if let node = findNode(id: newID, in: vm.roots), case .file = node {
-                    selectedID = newID
-                }
-            }
-        )
-    }
-
     var body: some View {
         Group {
             if vm.isLoading && vm.roots.isEmpty {
@@ -34,8 +20,10 @@ struct FileTreeView: View {
                     description: Text("No .md files found in the selected folder.")
                 )
             } else {
-                List(vm.roots, id: \.id, children: \.children, selection: fileOnlySelection) { node in
-                    nodeRow(node)
+                List(selection: $selectedID) {
+                    OutlineGroup(vm.roots, id: \.id, children: \.children) { node in
+                        nodeRow(node)
+                    }
                 }
                 .listStyle(.sidebar)
             }
@@ -87,8 +75,7 @@ struct FileTreeView: View {
         switch node {
         case .folder(_, let name, _):
             Label(name, systemImage: "folder")
-                .selectionDisabled()
-        case .file(_, let name, let url, let state):
+        case .file(let id, let name, let url, let state):
             #if os(macOS)
             MacFileRow(
                 name: name,
@@ -113,6 +100,7 @@ struct FileTreeView: View {
                     Label("Move to Trash", systemImage: "trash")
                 }
             }
+            .tag(id)
             #else
             HStack {
                 Label(name, systemImage: "doc.text")
@@ -132,6 +120,7 @@ struct FileTreeView: View {
                     Label("Delete", systemImage: "trash")
                 }
             }
+            .tag(id)
             #endif
         }
     }
@@ -201,7 +190,7 @@ private struct MacFileRow: View {
             } else {
                 Button { onDelete() } label: {
                     Image(systemName: "trash")
-                        .foregroundStyle(isHovered ? .primary : .tertiary)
+                        .foregroundStyle(isHovered ? .primary : .secondary)
                 }
                 .buttonStyle(.plain)
             }
