@@ -7,6 +7,7 @@ struct FileTreeView: View {
 
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
+    @State private var expandedFolders: Set<UUID> = []
 
     var body: some View {
         Group {
@@ -21,8 +22,8 @@ struct FileTreeView: View {
                 )
             } else {
                 List(selection: $selectedID) {
-                    OutlineGroup(vm.roots, id: \.id, children: \.children) { node in
-                        nodeRow(node)
+                    ForEach(vm.roots) { node in
+                        treeRow(node)
                     }
                 }
                 .listStyle(.sidebar)
@@ -120,8 +121,35 @@ struct FileTreeView: View {
                     Label("Delete", systemImage: "trash")
                 }
             }
+            .contextMenu {
+                Button(role: .destructive) {
+                    fileToDelete = (url, name)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
             .tag(id)
             #endif
+        }
+    }
+
+    @ViewBuilder
+    private func treeRow(_ node: FileNode) -> some View {
+        switch node {
+        case .folder(let id, let name, let children):
+            let isExpanded = Binding(
+                get: { expandedFolders.contains(id) },
+                set: { if $0 { expandedFolders.insert(id) } else { expandedFolders.remove(id) } }
+            )
+            AnyView(
+                DisclosureGroup(isExpanded: isExpanded) {
+                    ForEach(children) { child in treeRow(child) }
+                } label: {
+                    Label(name, systemImage: "folder")
+                }
+            )
+        case .file:
+            AnyView(nodeRow(node))
         }
     }
 
