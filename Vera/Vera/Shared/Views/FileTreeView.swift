@@ -1,5 +1,11 @@
 import SwiftUI
 
+private struct FlatRow: Identifiable {
+    let id: UUID
+    let node: FileNode
+    let depth: Int
+}
+
 struct FileTreeView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(ConnectivityMonitor.self) private var connectivity
@@ -22,8 +28,9 @@ struct FileTreeView: View {
                 )
             } else {
                 List(selection: $selectedID) {
-                    ForEach(vm.roots) { node in
-                        treeRow(node)
+                    ForEach(flattenedRows()) { row in
+                        rowView(for: row.node)
+                            .padding(.leading, CGFloat(row.depth) * 20)
                     }
                 }
                 .listStyle(.sidebar)
@@ -71,11 +78,44 @@ struct FileTreeView: View {
         }
     }
 
+    private func flattenedRows() -> [FlatRow] {
+        var result: [FlatRow] = []
+        func visit(_ nodes: [FileNode], depth: Int) {
+            for node in nodes {
+                result.append(FlatRow(id: node.id, node: node, depth: depth))
+                if case .folder(let id, _, let children) = node,
+                   expandedFolders.contains(id) {
+                    visit(children, depth: depth + 1)
+                }
+            }
+        }
+        visit(vm.roots, depth: 0)
+        return result
+    }
+
     @ViewBuilder
-    private func nodeRow(_ node: FileNode) -> some View {
+    private func rowView(for node: FileNode) -> some View {
         switch node {
-        case .folder(_, let name, _):
-            Label(name, systemImage: "folder")
+        case .folder(let id, let name, _):
+            Button {
+                if expandedFolders.contains(id) {
+                    expandedFolders.remove(id)
+                } else {
+                    expandedFolders.insert(id)
+                }
+            } label: {
+                HStack {
+                    Image(systemName: expandedFolders.contains(id) ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 14)
+                    Label(name, systemImage: "folder")
+                    Spacer()
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
         case .file(let id, let name, let url, let state):
             #if os(macOS)
             MacFileRow(
@@ -87,13 +127,6 @@ struct FileTreeView: View {
                 onDelete: { fileToDelete = (url, name) },
                 onDownload: { vm.download(url) }
             )
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button(role: .destructive) {
-                    fileToDelete = (url, name)
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
             .contextMenu {
                 Button(role: .destructive) {
                     fileToDelete = (url, name)
@@ -133,31 +166,6 @@ struct FileTreeView: View {
         }
     }
 
-    @ViewBuilder
-    private func treeRow(_ node: FileNode) -> some View {
-        switch node {
-        case .folder(let id, let name, let children):
-            let isExpanded = Binding(
-                get: { expandedFolders.contains(id) },
-                set: { if $0 { expandedFolders.insert(id) } else { expandedFolders.remove(id) } }
-            )
-            AnyView(
-                DisclosureGroup(isExpanded: isExpanded) {
-                    ForEach(children) { child in treeRow(child) }
-                } label: {
-                    // Button intercepts the tap before List's navigation system,
-                    // preventing NavigationSplitView from switching to detail on folder tap.
-                    Button { isExpanded.wrappedValue.toggle() } label: {
-                        Label(name, systemImage: "folder")
-                    }
-                    .buttonStyle(.plain)
-                }
-            )
-        case .file:
-            AnyView(nodeRow(node))
-        }
-    }
-
     private var offlineBanner: some View {
         HStack(spacing: 6) {
             Image(systemName: "wifi.slash")
@@ -192,7 +200,7 @@ struct FileTreeView: View {
     }
 }
 
-// MARK: - macOS file row with self-contained hover state
+// MARK: - macOS file row
 
 #if os(macOS)
 private struct MacFileRow: View {
