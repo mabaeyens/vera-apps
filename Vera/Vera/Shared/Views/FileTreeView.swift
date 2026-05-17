@@ -8,6 +8,20 @@ struct FileTreeView: View {
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
 
+    // Binding that accepts only file UUIDs — folders never reach selectedID,
+    // so NavigationSplitView never pushes the detail pane on folder tap.
+    private var fileOnlySelection: Binding<UUID?> {
+        Binding(
+            get: { selectedID },
+            set: { newID in
+                guard let newID else { selectedID = nil; return }
+                if let node = findNode(id: newID, in: vm.roots), case .file = node {
+                    selectedID = newID
+                }
+            }
+        )
+    }
+
     var body: some View {
         Group {
             if vm.isLoading && vm.roots.isEmpty {
@@ -20,7 +34,7 @@ struct FileTreeView: View {
                     description: Text("No .md files found in the selected folder.")
                 )
             } else {
-                List(vm.roots, id: \.id, children: \.children, selection: $selectedID) { node in
+                List(vm.roots, id: \.id, children: \.children, selection: fileOnlySelection) { node in
                     nodeRow(node)
                 }
                 .listStyle(.sidebar)
@@ -48,17 +62,11 @@ struct FileTreeView: View {
         // UUID selection → URL (user taps a file)
         .onChange(of: selectedID) { _, id in
             guard let id else { selectedURL = nil; return }
-            if let node = findNode(id: id, in: vm.roots) {
-                switch node {
-                case .file(_, _, let url, let state):
-                    if state == .cloud { vm.download(url) }
-                    vm.pinFile(url)
-                    selectedURL = url
-                case .folder:
-                    // Reset selection so NavigationSplitView doesn't push to detail;
-                    // List disclosure (expand/collapse) is independent of the selection binding.
-                    selectedID = nil
-                }
+            if let node = findNode(id: id, in: vm.roots),
+               case .file(_, _, let url, let state) = node {
+                if state == .cloud { vm.download(url) }
+                vm.pinFile(url)
+                selectedURL = url
             }
         }
         // URL → UUID (programmatic selection e.g. new file created)
@@ -192,10 +200,10 @@ private struct MacFileRow: View {
                 .help(isOnline ? "Download from iCloud" : "Not available offline")
             } else {
                 Button { onDelete() } label: {
-                    Image(systemName: "trash").foregroundStyle(.secondary)
+                    Image(systemName: "trash")
+                        .foregroundStyle(isHovered ? .primary : .tertiary)
                 }
                 .buttonStyle(.plain)
-                .opacity(isHovered ? 1 : 0.3)
             }
         }
         .contentShape(Rectangle())
