@@ -8,7 +8,7 @@ struct DocumentView: View {
     #if os(iOS)
     @AppStorage("editorFontSize") private var fontSize: Double = 20
     #else
-    @AppStorage("editorFontSize") private var fontSize: Double = 17
+    @AppStorage("editorFontSize") private var fontSize: Double = 20
     #endif
 
     init(url: URL) {
@@ -73,13 +73,11 @@ struct DocumentView: View {
                     .bold()
             }
         }
-        if viewModel.mode == .editing {
-            ToolbarItem(placement: .automatic) {
-                Button { showAtlas = true } label: {
-                    Image(systemName: "wand.and.stars")
-                }
-                .help("Snippets")
+        ToolbarItem(placement: .automatic) {
+            Button { showAtlas = true } label: {
+                Image(systemName: "wand.and.stars")
             }
+            .help("Snippets")
         }
         #if os(iOS)
         if viewModel.mode == .viewing {
