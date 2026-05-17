@@ -30,7 +30,7 @@ struct DocumentView: View {
                 }
             }
         }
-        .navigationTitle(url.deletingPathExtension().lastPathComponent)
+        .navigationTitle("")
         .toolbar { toolbarItems }
         .task { await viewModel.load() }
         .onChange(of: viewModel.atlasRequested) { _, requested in
