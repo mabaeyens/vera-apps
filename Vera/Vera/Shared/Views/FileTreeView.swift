@@ -207,15 +207,16 @@ private struct MacFileRow: View {
             Spacer()
             if isDownloading {
                 ProgressView().controlSize(.small)
-            } else if downloadState == .cloud {
-                Button { if isOnline { onDownload() } } label: {
-                    Image(systemName: isOnline ? "icloud.and.arrow.down" : "icloud.slash")
-                        .foregroundStyle(.secondary).font(.caption)
-                }
-                .buttonStyle(.plain)
-                .disabled(!isOnline)
-                .help(isOnline ? "Download from iCloud" : "Not available offline")
             } else {
+                if downloadState == .cloud {
+                    Button { if isOnline { onDownload() } } label: {
+                        Image(systemName: isOnline ? "icloud.and.arrow.down" : "icloud.slash")
+                            .foregroundStyle(.secondary).font(.caption)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isOnline)
+                    .help(isOnline ? "Download from iCloud" : "Not available offline")
+                }
                 Button { onDelete() } label: {
                     Image(systemName: "trash")
                         .foregroundStyle(isHovered ? .primary : .secondary)
