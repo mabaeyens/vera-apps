@@ -15,10 +15,16 @@ struct ViewingModeView: View {
         ScrollView {
             Markdown(viewModel.rawText)
                 .markdownTheme(
-                    Theme.gitHub.text {
-                        ForegroundColor(.primary)
-                        FontSize(CGFloat(fontSize))
-                    }
+                    Theme.gitHub
+                        .text {
+                            ForegroundColor(.primary)
+                            FontSize(CGFloat(fontSize))
+                        }
+                        .table { configuration in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                configuration.label
+                            }
+                        }
                 )
                 .id(fontSize)
                 .padding()
