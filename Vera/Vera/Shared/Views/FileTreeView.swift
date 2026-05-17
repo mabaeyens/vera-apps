@@ -145,7 +145,12 @@ struct FileTreeView: View {
                 DisclosureGroup(isExpanded: isExpanded) {
                     ForEach(children) { child in treeRow(child) }
                 } label: {
-                    Label(name, systemImage: "folder")
+                    // Button intercepts the tap before List's navigation system,
+                    // preventing NavigationSplitView from switching to detail on folder tap.
+                    Button { isExpanded.wrappedValue.toggle() } label: {
+                        Label(name, systemImage: "folder")
+                    }
+                    .buttonStyle(.plain)
                 }
             )
         case .file:
@@ -199,8 +204,6 @@ private struct MacFileRow: View {
     let onDelete: () -> Void
     let onDownload: () -> Void
 
-    @State private var isHovered = false
-
     var body: some View {
         HStack {
             Label(name, systemImage: "doc.text")
@@ -219,13 +222,12 @@ private struct MacFileRow: View {
                 }
                 Button { onDelete() } label: {
                     Image(systemName: "trash")
-                        .foregroundStyle(isHovered ? .primary : .secondary)
                 }
                 .buttonStyle(.plain)
+                .help("Delete")
             }
         }
         .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
     }
 }
 #endif
