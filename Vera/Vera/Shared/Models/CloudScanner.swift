@@ -3,14 +3,12 @@ import Foundation
 enum CloudScanner {
     // Shallow scan: returns direct .md files + direct subfolders with empty children.
     // Subfolders are loaded lazily when the user expands them in the sidebar.
-    @MainActor
-    static func scan(root: URL) async throws -> [FileNode] {
+    // nonisolated so FileManager work runs on the cooperative thread pool, not the main thread.
+    nonisolated static func scan(root: URL) async throws -> [FileNode] {
         try await scanShallow(at: root)
     }
 
-    @MainActor
-    static func scanShallow(at url: URL) async throws -> [FileNode] {
-        await Task.yield()
+    nonisolated static func scanShallow(at url: URL) async throws -> [FileNode] {
         let contents = try FileManager.default.contentsOfDirectory(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey],
@@ -58,8 +56,7 @@ enum CloudScanner {
         return UUID(uuid: (b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7],b[8],b[9],b[10],b[11],b[12],b[13],b[14],b[15]))
     }
 
-    @MainActor
-    private static func downloadState(for url: URL) -> DownloadState {
+    nonisolated private static func downloadState(for url: URL) -> DownloadState {
         guard
             let values = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]),
             let status = values.ubiquitousItemDownloadingStatus

@@ -102,9 +102,16 @@ final class FileTreeViewModel {
         needsFolderPicker = rootURL == nil
         guard let root = rootURL else { return }
 
-        await Task.yield()
         do {
-            roots = try await CloudScanner.scan(root: root)
+            roots = try await withThrowingTaskGroup(of: [FileNode].self) { group in
+                group.addTask { try await CloudScanner.scan(root: root) }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: 10_000_000_000)
+                    throw URLError(.timedOut)
+                }
+                defer { group.cancelAll() }
+                return try await group.next()!
+            }
             repinDownloads()
             if let pending = pendingExternalURL {
                 openFileInActiveTab(pending)
