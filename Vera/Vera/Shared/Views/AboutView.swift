@@ -2,6 +2,10 @@ import SwiftUI
 
 struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
+    var onReset: (() -> Void)? = nil
+
+    @AppStorage("linterEnabled") private var linterEnabled = true
+    @State private var showResetConfirmation = false
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -40,6 +44,21 @@ struct AboutView: View {
                 .lineSpacing(3)
                 .frame(maxWidth: 360)
 
+                Spacer().frame(height: 24)
+
+                VStack(spacing: 12) {
+                    Toggle("Markdown Linter", isOn: $linterEnabled)
+                        .font(.subheadline)
+                        .frame(maxWidth: 280)
+
+                    if onReset != nil {
+                        Button("Reset Vera…", role: .destructive) {
+                            showResetConfirmation = true
+                        }
+                        .font(.subheadline)
+                    }
+                }
+
                 Spacer()
             }
             .padding(.horizontal, 40)
@@ -54,6 +73,19 @@ struct AboutView: View {
             }
             .buttonStyle(.plain)
             .padding(16)
+        }
+        .confirmationDialog(
+            "Reset Vera?",
+            isPresented: $showResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Reset", role: .destructive) {
+                onReset?()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This will clear your folder selection. Your files are not deleted.")
         }
     }
 

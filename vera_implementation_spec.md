@@ -4,7 +4,7 @@
 
 * **Name:** Vera (part of the *Mira* ecosystem).
 * **Core Concept:** A "Reading-First" Markdown viewer and editor for the Apple ecosystem (iOS/mac macOS).
-* **Philosophy:** **Zero Configuration.** No "Vaults," no "Projects." Vera is a transparent window into the user's **iCloud Drive**.
+* **Philosophy:** **Zero Configuration.** No "Vaults," no "*Projects*." Vera is a transparent window into the user's **iCloud Drive**.
 * **Target User:** Users who want to browse and edit their existing `.md` files without the overhead of database-driven apps (like Obsidian).
 
 ---
@@ -95,4 +95,12 @@ A retractable drawer containing an interactive Markdown toolkit.
 1. Build the "Atlas" Drawer.
 2. Implement the "Tap-to-Insert" logic for all syntax elements.
 3. Add syntax highlighting for the `EditingMode`.
-4.*Final Polish:* Auto-save implementation and UI/UX refinement.
+4. *Final Polish:* Auto-save implementation and UI/UX refinement.
+
+```
+code
+```
+
+
+
+

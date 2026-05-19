@@ -10,16 +10,19 @@ final class EditorViewModel {
     var rawText: String = ""
     var isLoading = false
     var saveState: SaveState = .saved
-    var anchorPoint: CGPoint? = nil
+    var anchorFraction: CGFloat? = nil
+    var readingScrollFraction: CGFloat = 0
     var insertAtCursor: ((String) -> Void)? = nil
     var wrapSelection: ((String, String) -> Void)? = nil
     var stripSelection: (() -> Void)? = nil
     var atlasRequested = false
+    var lintResults: [LintWarning] = []
 
     enum SaveState { case saved, saving, error(String) }
 
     let url: URL
     private var saveTask: Task<Void, Never>?
+    private var lintTask: Task<Void, Never>?
 
     init(url: URL) {
         self.url = url
@@ -46,13 +49,18 @@ final class EditorViewModel {
     }
 
     func enterEditMode(tapY: CGFloat = 0, viewHeight: CGFloat = 0) {
-        anchorPoint = CGPoint(x: 0, y: tapY)
+        if viewHeight > 0 {
+            anchorFraction = tapY / viewHeight
+        } else {
+            // Toolbar Edit button: use the current reading scroll position
+            anchorFraction = readingScrollFraction > 0 ? readingScrollFraction : nil
+        }
         mode = .editing
     }
 
     func exitEditMode() {
         mode = .viewing
-        anchorPoint = nil
+        anchorFraction = nil
     }
 
     func insertSnippet(_ snippet: String) {
@@ -79,6 +87,7 @@ final class EditorViewModel {
     func textDidChange() {
         saveState = .saving
         scheduleSave()
+        scheduleLint()
     }
 
     // MARK: - Private
@@ -89,6 +98,24 @@ final class EditorViewModel {
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self else { return }
             await self.flush()
+        }
+    }
+
+    private func scheduleLint() {
+        let enabled = UserDefaults.standard.object(forKey: "linterEnabled") == nil
+            ? true : UserDefaults.standard.bool(forKey: "linterEnabled")
+        guard enabled else {
+            lintResults = []
+            return
+        }
+        lintTask?.cancel()
+        let snapshot = rawText
+        lintTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            let results = snapshot.lintMarkdown()
+            guard !Task.isCancelled else { return }
+            self?.lintResults = results
         }
     }
 

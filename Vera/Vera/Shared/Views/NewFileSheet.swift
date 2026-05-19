@@ -17,8 +17,8 @@ struct NewFileSheet: View {
 
     private var topLevelFolders: [(name: String, url: URL)] {
         vm.roots.compactMap {
-            if case .folder(_, let name, _) = $0, let root = vm.rootURL {
-                return (name, root.appendingPathComponent(name))
+            if case .folder(_, let name, let url, _) = $0 {
+                return (name, url)
             }
             return nil
         }

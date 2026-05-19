@@ -49,8 +49,7 @@
 			<string>Default</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.apple.uti.markdown</string>
-				<string>com.apple.uti.text</string>
+				<string>net.daringfireball.markdown</string>
 				<string>public.plain-text</string>
 			</array>
 		</dict>

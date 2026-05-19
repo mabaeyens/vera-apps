@@ -13,7 +13,8 @@ struct HighlightingTextView: UIViewRepresentable {
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
     let registerStrip: (@escaping () -> Void) -> Void
-    let onShowAtlas: () -> Void
+    var scrollFraction: CGFloat?
+    var clearAnchor: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -42,6 +43,24 @@ struct HighlightingTextView: UIViewRepresentable {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
         context.coordinator.textView = textView
 
+        // Undo / redo toolbar above keyboard
+        let toolbar = UIToolbar()
+        toolbar.sizeToFit()
+        let undo = UIBarButtonItem(
+            image: UIImage(systemName: "arrow.uturn.backward"),
+            style: .plain,
+            target: nil,
+            action: #selector(UndoManager.undo)
+        )
+        let redo = UIBarButtonItem(
+            image: UIImage(systemName: "arrow.uturn.forward"),
+            style: .plain,
+            target: nil,
+            action: #selector(UndoManager.redo)
+        )
+        toolbar.items = [undo, redo, UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)]
+        textView.inputAccessoryView = toolbar
+
         registerInsert { [weak coordinator = context.coordinator] snippet in
             coordinator?.insert(snippet)
         }
@@ -52,13 +71,34 @@ struct HighlightingTextView: UIViewRepresentable {
             coordinator?.strip()
         }
 
+        // Scroll to anchor position when entering edit mode from preview
+        if let fraction = scrollFraction {
+            let clear = clearAnchor
+            DispatchQueue.main.async { [weak textView] in
+                guard let tv = textView else { return }
+                let total = tv.text.count
+                if total > 0 {
+                    let target = Int(Double(total) * fraction)
+                    let clamped = max(0, min(target, total - 1))
+                    tv.scrollRangeToVisible(NSRange(location: clamped, length: 0))
+                }
+                clear()
+            }
+        }
+
         return textView
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
         if uiView.text != text {
             let sel = uiView.selectedRange
-            uiView.text = text
+            // Use replace() so the change is recorded in the undo manager instead of
+            // clearing it (as uiView.text = ... would do).
+            context.coordinator.isApplyingExternalChange = true
+            if let range = uiView.textRange(from: uiView.beginningOfDocument, to: uiView.endOfDocument) {
+                uiView.replace(range, withText: text)
+            }
+            context.coordinator.isApplyingExternalChange = false
             uiView.selectedRange = sel
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
@@ -87,10 +127,14 @@ struct HighlightingTextView: UIViewRepresentable {
 
         var lastFontSize: CGFloat = 0
         var lastTheme: String = ""
+        // Suppresses the textViewDidChange → binding feedback loop when we push
+        // external text changes (e.g. Atlas insertions) via replace(_:withText:).
+        var isApplyingExternalChange = false
 
         init(_ parent: HighlightingTextView) { self.parent = parent }
 
         func textViewDidChange(_ textView: UITextView) {
+            guard !isApplyingExternalChange else { return }
             parent.text = textView.text
             parent.onTextChange()
         }
@@ -107,14 +151,6 @@ struct HighlightingTextView: UIViewRepresentable {
             suggestedActions: [UIMenuElement]
         ) -> UIMenu? {
             var extras: [UIMenuElement] = []
-
-            let formatAction = UIAction(
-                title: "Format…",
-                image: UIImage(systemName: "wand.and.stars")
-            ) { [weak self] _ in
-                self?.parent.onShowAtlas()
-            }
-            extras.append(formatAction)
 
             if range.length > 0 {
                 let stripAction = UIAction(
@@ -195,7 +231,8 @@ struct HighlightingTextView: NSViewRepresentable {
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
     let registerStrip: (@escaping () -> Void) -> Void
-    let onShowAtlas: () -> Void
+    var scrollFraction: CGFloat?
+    var clearAnchor: () -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -216,6 +253,7 @@ struct HighlightingTextView: NSViewRepresentable {
 
         let textView = NSTextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
+        textView.allowsUndo = true
         textView.drawsBackground = false
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
@@ -244,6 +282,21 @@ struct HighlightingTextView: NSViewRepresentable {
             coordinator?.strip()
         }
 
+        // Scroll to anchor position when entering edit mode from preview
+        if let fraction = scrollFraction {
+            let clear = clearAnchor
+            DispatchQueue.main.async { [weak textView] in
+                guard let tv = textView else { return }
+                let total = tv.string.count
+                if total > 0 {
+                    let target = Int(Double(total) * fraction)
+                    let clamped = max(0, min(target, total - 1))
+                    tv.scrollRangeToVisible(NSRange(location: clamped, length: 0))
+                }
+                clear()
+            }
+        }
+
         return scrollView
     }
 
@@ -251,7 +304,13 @@ struct HighlightingTextView: NSViewRepresentable {
         guard let textView = nsView.documentView as? NSTextView else { return }
         if textView.string != text {
             let sel = textView.selectedRanges
-            textView.string = text
+            // Go through textStorage directly instead of insertText: this updates the
+            // text without touching the undo manager at all (no new entry, no stack clear).
+            if let storage = textView.textStorage {
+                storage.beginEditing()
+                storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: text)
+                storage.endEditing()
+            }
             textView.selectedRanges = sel
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
@@ -301,25 +360,17 @@ struct HighlightingTextView: NSViewRepresentable {
             for event: NSEvent,
             at charIndex: Int
         ) -> NSMenu? {
-            let formatItem = NSMenuItem(title: "Format…", action: #selector(showAtlasAction), keyEquivalent: "")
-            formatItem.image = NSImage(systemSymbolName: "wand.and.stars", accessibilityDescription: nil)
-            formatItem.target = self
-            menu.insertItem(formatItem, at: 0)
-
             if view.selectedRange().length > 0 {
                 let stripItem = NSMenuItem(title: "Remove Formatting", action: #selector(stripAction), keyEquivalent: "")
                 stripItem.image = NSImage(systemSymbolName: "eraser", accessibilityDescription: nil)
                 stripItem.target = self
-                menu.insertItem(stripItem, at: 1)
-                menu.insertItem(.separator(), at: 2)
-            } else {
+                menu.insertItem(stripItem, at: 0)
                 menu.insertItem(.separator(), at: 1)
             }
 
             return menu
         }
 
-        @objc private func showAtlasAction() { parent.onShowAtlas() }
         @objc private func stripAction() { strip() }
 
         // MARK: Mutations

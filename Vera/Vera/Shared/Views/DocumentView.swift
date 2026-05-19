@@ -5,6 +5,7 @@ struct DocumentView: View {
     @State private var viewModel: EditorViewModel
     @State private var showAtlas = false
     @State private var showCheatSheet = false
+    @State private var showIconHelp = false
     #if os(iOS)
     @AppStorage("editorFontSize") private var fontSize: Double = 20
     #else
@@ -60,6 +61,11 @@ struct DocumentView: View {
                 .frame(width: 480, height: 600)
                 #endif
         }
+        #if os(iOS)
+        .sheet(isPresented: $showIconHelp) {
+            IconHelpView()
+        }
+        #endif
     }
 
     @ToolbarContentBuilder
@@ -73,22 +79,19 @@ struct DocumentView: View {
                     .bold()
             }
         }
-        ToolbarItem(placement: .automatic) {
+        #if os(iOS)
+        ToolbarItem(placement: .topBarLeading) {
+            Button { showIconHelp = true } label: {
+                Image(systemName: "questionmark.circle")
+            }
+        }
+        // Explicit .topBarTrailing keeps Atlas visible; .automatic can route elsewhere in compact mode
+        ToolbarItem(placement: .topBarTrailing) {
             Button { showAtlas = true } label: {
                 Image(systemName: "wand.and.stars")
             }
-            .help("Snippets")
         }
-        #if os(iOS)
-        if viewModel.mode == .viewing {
-            ToolbarItem(placement: .automatic) {
-                Button { showCheatSheet = true } label: {
-                    Image(systemName: "book.closed")
-                }
-                .help("Markdown Reference")
-            }
-        }
-        ToolbarItem(placement: .automatic) {
+        ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { fontSize = min(32, fontSize + 1) } label: {
                     Label("Larger Text", systemImage: "textformat.size.larger")
@@ -107,6 +110,23 @@ struct DocumentView: View {
             }
         }
         #else
+        ToolbarItem(placement: .automatic) {
+            Button { showAtlas = true } label: {
+                Image(systemName: "wand.and.stars")
+            }
+            .help("Atlas — AI writing assistant")
+        }
+        if viewModel.mode == .viewing {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(viewModel.rawText, forType: .string)
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .help("Copy all text")
+            }
+        }
         ToolbarItem(placement: .automatic) {
             Button { showCheatSheet = true } label: {
                 Image(systemName: "book.closed")

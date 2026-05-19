@@ -1,15 +1,16 @@
 import Foundation
 
 enum CloudScanner {
-    // Runs on the main actor: FileManager methods are @MainActor in iOS 26 SDK.
-    // Directory enumeration (no file reads) is fast enough that this is fine.
+    // Shallow scan: returns direct .md files + direct subfolders with empty children.
+    // Subfolders are loaded lazily when the user expands them in the sidebar.
     @MainActor
     static func scan(root: URL) async throws -> [FileNode] {
-        try scanDirectory(at: root)
+        try await scanShallow(at: root)
     }
 
     @MainActor
-    private static func scanDirectory(at url: URL) throws -> [FileNode] {
+    static func scanShallow(at url: URL) async throws -> [FileNode] {
+        await Task.yield()
         let contents = try FileManager.default.contentsOfDirectory(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey],
@@ -22,10 +23,13 @@ enum CloudScanner {
         for itemURL in contents {
             let resources = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
             if resources.isDirectory == true {
-                let children = (try? scanDirectory(at: itemURL)) ?? []
-                if !children.isEmpty {
-                    folders.append(.folder(id: stableID(for: itemURL), name: itemURL.lastPathComponent, children: children))
-                }
+                // Children are empty until the user expands the folder (lazy load).
+                folders.append(.folder(
+                    id: stableID(for: itemURL),
+                    name: itemURL.lastPathComponent,
+                    url: itemURL,
+                    children: []
+                ))
             } else if itemURL.pathExtension.lowercased() == "md" {
                 files.append(.file(
                     id: UUID(),
@@ -40,9 +44,9 @@ enum CloudScanner {
         return folders.sorted(by: sort) + files.sorted(by: sort)
     }
 
-    // Generates a deterministic UUID from a folder URL so OutlineGroup/List
-    // preserves expand/collapse state across tree reloads.
-    private static func stableID(for url: URL) -> UUID {
+    // Generates a deterministic UUID from a folder URL so expand/collapse state
+    // is preserved across tree reloads.
+    static func stableID(for url: URL) -> UUID {
         let path = url.standardizedFileURL.path
         var b = [UInt8](repeating: 0, count: 16)
         for (i, byte) in path.utf8.enumerated() {

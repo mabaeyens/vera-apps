@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 struct MacRootView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedURL: URL?
     @State private var showAbout = false
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
@@ -14,15 +13,37 @@ struct MacRootView: View {
     var body: some View {
         @Bindable var vm = vm
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            FileTreeView(selectedURL: $selectedURL)
+            FileTreeView(selectedURL: $vm.selectedURL)
                 .frame(minWidth: 200)
                 .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
+                // Folder picker on sidebar; file picker on detail to avoid SwiftUI conflict
+                .fileImporter(
+                    isPresented: $vm.needsFolderPicker,
+                    allowedContentTypes: [.folder]
+                ) { result in
+                    if case .success(let url) = result {
+                        vm.setRoot(url)
+                    }
+                }
         } detail: {
-            if let url = selectedURL {
-                DocumentView(url: url)
-                    .id(url)
-            } else {
-                ContentUnavailableView("Select a file", systemImage: "doc.text")
+            VStack(spacing: 0) {
+                if vm.tabs.count >= 2 {
+                    TabBarView()
+                }
+                if let url = vm.selectedURL {
+                    DocumentView(url: url)
+                        .id(url)
+                } else {
+                    ContentUnavailableView("Select a file", systemImage: "doc.text")
+                }
+            }
+        }
+        .fileImporter(
+            isPresented: $vm.needsFilePicker,
+            allowedContentTypes: [UTType(filenameExtension: "md") ?? .plainText]
+        ) { result in
+            if case .success(let url) = result {
+                vm.openStandaloneFile(url)
             }
         }
         .toolbar {
@@ -40,6 +61,12 @@ struct MacRootView: View {
                 .help("Choose folder…")
             }
             ToolbarItem(placement: .automatic) {
+                Button { vm.needsFilePicker = true } label: {
+                    Image(systemName: "tray.and.arrow.down")
+                }
+                .help("Open file…")
+            }
+            ToolbarItem(placement: .automatic) {
                 Button { Task { await vm.load() } } label: {
                     Image(systemName: "arrow.clockwise")
                 }
@@ -53,11 +80,11 @@ struct MacRootView: View {
             }
         }
         .sheet(isPresented: $showAbout) {
-            AboutView()
-                .frame(width: 480, height: 520)
+            AboutView(onReset: { vm.resetState() })
+                .frame(width: 480, height: 560)
         }
         .sheet(isPresented: $showNewFile) {
-            NewFileSheet { url in selectedURL = url }
+            NewFileSheet { url in vm.openFileInActiveTab(url) }
                 .environment(vm)
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {
@@ -67,14 +94,6 @@ struct MacRootView: View {
         }) {
             OnboardingView()
                 .frame(width: 440, height: 620)
-        }
-        .fileImporter(
-            isPresented: $vm.needsFolderPicker,
-            allowedContentTypes: [.folder]
-        ) { result in
-            if case .success(let url) = result {
-                vm.setRoot(url)
-            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await vm.load() } }

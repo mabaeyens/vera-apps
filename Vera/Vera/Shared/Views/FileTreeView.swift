@@ -14,20 +14,36 @@ struct FileTreeView: View {
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
     @State private var expandedFolders: Set<UUID> = []
+    @State private var loadedFolderIDs: Set<UUID> = []
 
     var body: some View {
         Group {
-            if vm.isLoading && vm.roots.isEmpty {
+            if vm.isLoading && vm.roots.isEmpty && vm.standaloneFiles.isEmpty {
                 ProgressView("Loading files…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.roots.isEmpty {
-                ContentUnavailableView(
-                    "No Markdown Files",
-                    systemImage: "doc.text",
-                    description: Text("No .md files found in the selected folder.")
-                )
+            } else if vm.roots.isEmpty && vm.standaloneFiles.isEmpty {
+                if vm.loadFailed {
+                    ContentUnavailableView {
+                        Label("Couldn't Load Files", systemImage: "exclamationmark.triangle")
+                    } actions: {
+                        Button("Try Again") { Task { await vm.load() } }
+                    }
+                } else {
+                    ContentUnavailableView(
+                        "No Markdown Files",
+                        systemImage: "doc.text",
+                        description: Text("No .md files found in the selected folder.")
+                    )
+                }
             } else {
                 List(selection: $selectedID) {
+                    if !vm.standaloneFiles.isEmpty {
+                        Section("Standalone") {
+                            ForEach(vm.standaloneFiles) { node in
+                                rowView(for: node)
+                            }
+                        }
+                    }
                     ForEach(flattenedRows()) { row in
                         rowView(for: row.node)
                             .padding(.leading, CGFloat(row.depth) * 20)
@@ -58,20 +74,27 @@ struct FileTreeView: View {
         // UUID selection → URL (user taps a file)
         .onChange(of: selectedID) { _, id in
             guard let id else { selectedURL = nil; return }
+            // Check folder tree first
             if let node = findNode(id: id, in: vm.roots),
                case .file(_, _, let url, let state) = node {
                 if state == .cloud { vm.download(url) }
                 vm.pinFile(url)
-                selectedURL = url
+                vm.openFileInActiveTab(url)
+                return
+            }
+            // Check standalone files
+            if let node = vm.standaloneFiles.first(where: { $0.id == id }),
+               case .file(_, _, let url, _) = node {
+                vm.openFileInActiveTab(url)
             }
         }
-        // URL → UUID (programmatic selection e.g. new file created)
+        // URL → UUID (programmatic selection e.g. new file created or tab switch)
         .onChange(of: selectedURL) { _, url in
             guard let url else {
                 selectedID = nil
                 return
             }
-            let found = findID(url: url, in: vm.roots)
+            let found = findID(url: url, in: vm.roots) ?? findID(url: url, in: vm.standaloneFiles)
             if found != selectedID {
                 selectedID = found
             }
@@ -83,7 +106,7 @@ struct FileTreeView: View {
         func visit(_ nodes: [FileNode], depth: Int) {
             for node in nodes {
                 result.append(FlatRow(id: node.id, node: node, depth: depth))
-                if case .folder(let id, _, let children) = node,
+                if case .folder(let id, _, _, let children) = node,
                    expandedFolders.contains(id) {
                     visit(children, depth: depth + 1)
                 }
@@ -96,12 +119,16 @@ struct FileTreeView: View {
     @ViewBuilder
     private func rowView(for node: FileNode) -> some View {
         switch node {
-        case .folder(let id, let name, _):
+        case .folder(let id, let name, let folderURL, _):
             Button {
                 if expandedFolders.contains(id) {
                     expandedFolders.remove(id)
                 } else {
                     expandedFolders.insert(id)
+                    if !loadedFolderIDs.contains(id) {
+                        loadedFolderIDs.insert(id)
+                        Task { await vm.loadFolderChildren(id: id, url: folderURL) }
+                    }
                 }
             } label: {
                 HStack {
@@ -128,6 +155,10 @@ struct FileTreeView: View {
                 onDownload: { vm.download(url) }
             )
             .contextMenu {
+                Button { vm.openFileInNewTab(url) } label: {
+                    Label("Open in New Tab", systemImage: "plus.rectangle.on.rectangle")
+                }
+                Divider()
                 Button(role: .destructive) {
                     fileToDelete = (url, name)
                 } label: {
@@ -155,6 +186,10 @@ struct FileTreeView: View {
                 }
             }
             .contextMenu {
+                Button { vm.openFileInNewTab(url) } label: {
+                    Label("Open in New Tab", systemImage: "plus.rectangle.on.rectangle")
+                }
+                Divider()
                 Button(role: .destructive) {
                     fileToDelete = (url, name)
                 } label: {
@@ -181,7 +216,7 @@ struct FileTreeView: View {
     private func findNode(id: UUID, in nodes: [FileNode]) -> FileNode? {
         for node in nodes {
             if node.id == id { return node }
-            if case .folder(_, _, let children) = node,
+            if case .folder(_, _, _, let children) = node,
                let found = findNode(id: id, in: children) { return found }
         }
         return nil
@@ -192,7 +227,7 @@ struct FileTreeView: View {
             switch node {
             case .file(let id, _, let nodeURL, _):
                 if nodeURL == url { return id }
-            case .folder(_, _, let children):
+            case .folder(_, _, _, let children):
                 if let found = findID(url: url, in: children) { return found }
             }
         }
@@ -212,6 +247,8 @@ private struct MacFileRow: View {
     let onDelete: () -> Void
     let onDownload: () -> Void
 
+    @State private var isHovered = false
+
     var body: some View {
         HStack {
             Label(name, systemImage: "doc.text")
@@ -228,14 +265,17 @@ private struct MacFileRow: View {
                     .disabled(!isOnline)
                     .help(isOnline ? "Download from iCloud" : "Not available offline")
                 }
-                Button { onDelete() } label: {
-                    Image(systemName: "trash")
+                if isHovered {
+                    Button { onDelete() } label: {
+                        Image(systemName: "trash").foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Delete")
                 }
-                .buttonStyle(.plain)
-                .help("Delete")
             }
         }
         .contentShape(Rectangle())
+        .onHover { isHovered = $0 }
     }
 }
 #endif
