@@ -27,7 +27,12 @@ struct DocumentView: View {
                 case .viewing:
                     ViewingModeView(viewModel: viewModel)
                 case .editing:
-                    EditingModeView(viewModel: viewModel)
+                    EditingModeView(
+                        viewModel: viewModel,
+                        onAtlasRequested: { showAtlas = true },
+                        onCheatSheetRequested: { showCheatSheet = true },
+                        onIconHelpRequested: { showIconHelp = true }
+                    )
                 }
             }
         }
@@ -70,6 +75,8 @@ struct DocumentView: View {
 
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
+        // iOS: clean nav bar — title + Edit/Done only; all tools live in the formatting bar
+        // macOS: tools in toolbar, font size consolidated into one menu
         ToolbarItem(placement: .primaryAction) {
             switch viewModel.mode {
             case .viewing:
@@ -79,37 +86,7 @@ struct DocumentView: View {
                     .bold()
             }
         }
-        #if os(iOS)
-        ToolbarItem(placement: .topBarLeading) {
-            Button { showIconHelp = true } label: {
-                Image(systemName: "questionmark.circle")
-            }
-        }
-        // Explicit .topBarTrailing keeps Atlas visible; .automatic can route elsewhere in compact mode
-        ToolbarItem(placement: .topBarTrailing) {
-            Button { showAtlas = true } label: {
-                Image(systemName: "wand.and.stars")
-            }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Button { fontSize = min(32, fontSize + 1) } label: {
-                    Label("Larger Text", systemImage: "textformat.size.larger")
-                }
-                Button { fontSize = max(12, fontSize - 1) } label: {
-                    Label("Smaller Text", systemImage: "textformat.size.smaller")
-                }
-                if viewModel.mode == .viewing {
-                    Divider()
-                    Button { showCheatSheet = true } label: {
-                        Label("Markdown Reference", systemImage: "book.closed")
-                    }
-                }
-            } label: {
-                Image(systemName: "textformat.size")
-            }
-        }
-        #else
+        #if os(macOS)
         ToolbarItem(placement: .automatic) {
             Button { showAtlas = true } label: {
                 Image(systemName: "wand.and.stars")
@@ -134,16 +111,17 @@ struct DocumentView: View {
             .help("Markdown Reference")
         }
         ToolbarItem(placement: .automatic) {
-            Button { fontSize = max(12, fontSize - 1) } label: {
-                Image(systemName: "textformat.size.smaller")
+            Menu {
+                Button { fontSize = min(32, fontSize + 1) } label: {
+                    Label("Larger Text", systemImage: "textformat.size.larger")
+                }
+                Button { fontSize = max(12, fontSize - 1) } label: {
+                    Label("Smaller Text", systemImage: "textformat.size.smaller")
+                }
+            } label: {
+                Image(systemName: "textformat.size")
             }
-            .help("Decrease font size")
-        }
-        ToolbarItem(placement: .automatic) {
-            Button { fontSize = min(32, fontSize + 1) } label: {
-                Image(systemName: "textformat.size.larger")
-            }
-            .help("Increase font size")
+            .help("Text size")
         }
         #endif
         ToolbarItem(placement: .status) {

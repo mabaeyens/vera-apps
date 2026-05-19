@@ -8,6 +8,9 @@ struct EditingModeView: View {
     @AppStorage("editorFontSize") private var fontSize: Double = 17
     #endif
     @AppStorage("linterEnabled") private var linterEnabled = true
+    var onAtlasRequested: () -> Void = {}
+    var onCheatSheetRequested: () -> Void = {}
+    var onIconHelpRequested: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 0) {
@@ -22,7 +25,10 @@ struct EditingModeView: View {
                 registerWrap: { viewModel.wrapSelection = $0 },
                 registerStrip: { viewModel.stripSelection = $0 },
                 scrollFraction: viewModel.anchorFraction,
-                clearAnchor: { viewModel.anchorFraction = nil }
+                clearAnchor: { viewModel.anchorFraction = nil },
+                onAtlasRequested: onAtlasRequested,
+                onCheatSheetRequested: onCheatSheetRequested,
+                onIconHelpRequested: onIconHelpRequested
             )
             if linterEnabled && !viewModel.lintResults.isEmpty {
                 LintPanelView(warnings: viewModel.lintResults)

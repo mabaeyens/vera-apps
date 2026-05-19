@@ -10,24 +10,26 @@
 
 ---
 
-## Phase 5
+## Phase 5 — Open
 
-1. ⚠️ **Delete file via swipe left in sidebar** — swipe-left action on file rows; show confirmation alert before deleting; no delete without confirmation
-2. **edit in preview mode**, keeping the format of the edited block
-3. **animated** V icon
-4. delays when selecting other folders - no activity signal
-5. folder name not updated after switching folders
-6. add contextual format option higher
-7. top of keyboard formatting menu like the iOS Notes app?
-8. keep downloaded files downloaded across sessions, unless cloud is more updated
-9. markdown references rendering issues: blockquote and superindex/footnote
-10. **`^1` footnote/superscript syntax not working in Atlas** — inserting via Atlas does nothing or renders incorrectly
+1. **Folder selection delay / no activity signal** — partially fixed; full spec in `specs/bug-slow-folder-loading.md`
 
 ---
 
 ## Recently fixed
 
+- ✅ **iOS UI revamp** — preview mode is clean (title + Edit only); working mode has a scrollable formatting bar above the keyboard (undo/redo, bold/italic/~~strike/`code`, heading/list/quote, Atlas, ··· menu with font size + reference + icon help); macOS font size ± consolidated into one menu
+- ✅ **Edit in preview mode** — resolved by design: no inline preview editing; tap Edit to enter working mode
+- ✅ **Swipe-left delete on iOS sidebar** — swipe-left action on file rows with confirmation alert
+- ✅ **Folder name not updated after switching folders**
+- ✅ **Keep iCloud files downloaded across sessions**
+- ✅ **Blockquote and footnote/superscript rendering**
 - ✅ **Cmd+Z undo broken on macOS** — `IsolatedUndoTextView` registered undo in its own isolated manager but the window's undo manager received the actions; Cmd+Z called the empty isolated one. Fix: removed `IsolatedUndoTextView`, use plain `NSTextView` with `allowsUndo = true`; `updateNSView` already bypassed undo clearing via `textStorage.replaceCharacters`.
+
+## Won't fix
+
+- **`^1` footnote/superscript in Atlas** — cannot be delivered
+- **Animated V icon** — dropped
 
 ## Open bugs
 

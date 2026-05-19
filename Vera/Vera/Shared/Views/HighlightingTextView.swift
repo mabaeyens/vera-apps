@@ -15,6 +15,9 @@ struct HighlightingTextView: UIViewRepresentable {
     let registerStrip: (@escaping () -> Void) -> Void
     var scrollFraction: CGFloat?
     var clearAnchor: () -> Void
+    var onAtlasRequested: () -> Void = {}
+    var onCheatSheetRequested: () -> Void = {}
+    var onIconHelpRequested: () -> Void = {}
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -28,7 +31,6 @@ struct HighlightingTextView: UIViewRepresentable {
         textContainer.widthTracksTextView = true
         layoutManager.addTextContainer(textContainer)
 
-        // Set theme font before creating the text view; Highlightr's theme overrides textView.font
         textStorage.highlightr.setTheme(to: "atom-one-light")
         textStorage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
 
@@ -43,23 +45,12 @@ struct HighlightingTextView: UIViewRepresentable {
         textView.textContainerInset = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
         context.coordinator.textView = textView
 
-        // Undo / redo toolbar above keyboard
-        let toolbar = UIToolbar()
-        toolbar.sizeToFit()
-        let undo = UIBarButtonItem(
-            image: UIImage(systemName: "arrow.uturn.backward"),
-            style: .plain,
-            target: nil,
-            action: #selector(UndoManager.undo)
-        )
-        let redo = UIBarButtonItem(
-            image: UIImage(systemName: "arrow.uturn.forward"),
-            style: .plain,
-            target: nil,
-            action: #selector(UndoManager.redo)
-        )
-        toolbar.items = [undo, redo, UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)]
-        textView.inputAccessoryView = toolbar
+        // Store callbacks before building the bar so the more menu closure captures them
+        context.coordinator.onAtlasRequested = onAtlasRequested
+        context.coordinator.onCheatSheetRequested = onCheatSheetRequested
+        context.coordinator.onIconHelpRequested = onIconHelpRequested
+
+        textView.inputAccessoryView = makeFormattingBar(coordinator: context.coordinator)
 
         registerInsert { [weak coordinator = context.coordinator] snippet in
             coordinator?.insert(snippet)
@@ -90,10 +81,14 @@ struct HighlightingTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
+        // Refresh callbacks so the more-menu closure always calls the current SwiftUI handlers
+        context.coordinator.onAtlasRequested = onAtlasRequested
+        context.coordinator.onCheatSheetRequested = onCheatSheetRequested
+        context.coordinator.onIconHelpRequested = onIconHelpRequested
+        context.coordinator.refreshMoreMenu()
+
         if uiView.text != text {
             let sel = uiView.selectedRange
-            // Use replace() so the change is recorded in the undo manager instead of
-            // clearing it (as uiView.text = ... would do).
             context.coordinator.isApplyingExternalChange = true
             if let range = uiView.textRange(from: uiView.beginningOfDocument, to: uiView.endOfDocument) {
                 uiView.replace(range, withText: text)
@@ -120,6 +115,58 @@ struct HighlightingTextView: UIViewRepresentable {
         }
     }
 
+    // MARK: - Formatting bar
+
+    private func makeFormattingBar(coordinator: Coordinator) -> UIView {
+        // UIInputView with .keyboard style blends seamlessly with the keyboard background
+        let container = UIInputView(
+            frame: CGRect(x: 0, y: 0, width: 0, height: 44),
+            inputViewStyle: .keyboard
+        )
+        container.autoresizingMask = [.flexibleWidth]
+
+        // More button (UIMenu — grouped sections replace the scrollable overflow)
+        let moreBtn = UIButton(type: .system)
+        moreBtn.setImage(UIImage(systemName: "ellipsis"), for: .normal)
+        moreBtn.tintColor = .label
+        moreBtn.showsMenuAsPrimaryAction = true
+        coordinator.moreButton = moreBtn
+        coordinator.refreshMoreMenu()
+
+        func iconButton(_ sfName: String, action: Selector) -> UIButton {
+            let b = UIButton(type: .system)
+            b.setImage(UIImage(systemName: sfName), for: .normal)
+            b.tintColor = .label
+            b.addTarget(coordinator, action: action, for: .primaryActionTriggered)
+            return b
+        }
+
+        // Five primary actions fill the bar equally — everything else in ···
+        let stack = UIStackView(arrangedSubviews: [
+            iconButton("bold",         action: #selector(Coordinator.applyBold)),
+            iconButton("italic",       action: #selector(Coordinator.applyItalic)),
+            iconButton("number",       action: #selector(Coordinator.applyHeading)),
+            iconButton("wand.and.stars", action: #selector(Coordinator.triggerAtlas)),
+            moreBtn
+        ])
+        stack.axis = .horizontal
+        stack.distribution = .fillEqually
+        stack.alignment = .fill
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+
+        return container
+    }
+
+    // MARK: - Coordinator
+
     final class Coordinator: NSObject, UITextViewDelegate {
         let parent: HighlightingTextView
         weak var textView: UITextView?
@@ -127,9 +174,12 @@ struct HighlightingTextView: UIViewRepresentable {
 
         var lastFontSize: CGFloat = 0
         var lastTheme: String = ""
-        // Suppresses the textViewDidChange → binding feedback loop when we push
-        // external text changes (e.g. Atlas insertions) via replace(_:withText:).
         var isApplyingExternalChange = false
+
+        var onAtlasRequested: () -> Void = {}
+        var onCheatSheetRequested: () -> Void = {}
+        var onIconHelpRequested: () -> Void = {}
+        weak var moreButton: UIButton?
 
         init(_ parent: HighlightingTextView) { self.parent = parent }
 
@@ -151,18 +201,56 @@ struct HighlightingTextView: UIViewRepresentable {
             suggestedActions: [UIMenuElement]
         ) -> UIMenu? {
             var extras: [UIMenuElement] = []
-
             if range.length > 0 {
                 let stripAction = UIAction(
                     title: "Remove Formatting",
                     image: UIImage(systemName: "eraser")
-                ) { [weak self] _ in
-                    self?.strip()
-                }
+                ) { [weak self] _ in self?.strip() }
                 extras.append(stripAction)
             }
-
             return UIMenu(children: extras + suggestedActions)
+        }
+
+        // MARK: Formatting bar actions
+
+        @objc func performUndo() { textView?.undoManager?.undo() }
+        @objc func performRedo() { textView?.undoManager?.redo() }
+        @objc func applyBold()    { wrap(prefix: "**", suffix: "**") }
+        @objc func applyItalic()  { wrap(prefix: "_", suffix: "_") }
+        @objc func applyStrike()  { wrap(prefix: "~~", suffix: "~~") }
+        @objc func applyCode()    { wrap(prefix: "`", suffix: "`") }
+        @objc func applyHeading() { insert("## ") }
+        @objc func applyList()    { insert("- ") }
+        @objc func applyQuote()   { insert("> ") }
+        @objc func triggerAtlas() { onAtlasRequested() }
+
+        func refreshMoreMenu() {
+            let cheatSheet = onCheatSheetRequested
+            let iconHelp = onIconHelpRequested
+
+            let historyGroup = UIMenu(options: .displayInline, children: [
+                UIAction(title: "Undo", image: UIImage(systemName: "arrow.uturn.backward")) { [weak self] _ in self?.performUndo() },
+                UIAction(title: "Redo", image: UIImage(systemName: "arrow.uturn.forward")) { [weak self] _ in self?.performRedo() }
+            ])
+            let formatGroup = UIMenu(options: .displayInline, children: [
+                UIAction(title: "Strikethrough", image: UIImage(systemName: "strikethrough")) { [weak self] _ in self?.applyStrike() },
+                UIAction(title: "Code", image: UIImage(systemName: "chevron.left.forwardslash.chevron.right")) { [weak self] _ in self?.applyCode() },
+                UIAction(title: "List", image: UIImage(systemName: "list.bullet")) { [weak self] _ in self?.applyList() },
+                UIAction(title: "Quote", image: UIImage(systemName: "text.quote")) { [weak self] _ in self?.applyQuote() }
+            ])
+            let settingsGroup = UIMenu(options: .displayInline, children: [
+                UIAction(title: "Larger Text", image: UIImage(systemName: "textformat.size.larger")) { _ in
+                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
+                    UserDefaults.standard.set(min(32.0, v + 1), forKey: "editorFontSize")
+                },
+                UIAction(title: "Smaller Text", image: UIImage(systemName: "textformat.size.smaller")) { _ in
+                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
+                    UserDefaults.standard.set(max(12.0, v - 1), forKey: "editorFontSize")
+                },
+                UIAction(title: "Markdown Reference", image: UIImage(systemName: "book.closed")) { _ in cheatSheet() },
+                UIAction(title: "Icon Help", image: UIImage(systemName: "questionmark.circle")) { _ in iconHelp() }
+            ])
+            moreButton?.menu = UIMenu(children: [historyGroup, formatGroup, settingsGroup])
         }
 
         // MARK: Mutations
@@ -219,6 +307,10 @@ struct HighlightingTextView: UIViewRepresentable {
     }
 }
 
+private extension Double {
+    func nonZero(default fallback: Double) -> Double { self == 0 ? fallback : self }
+}
+
 // MARK: - macOS
 
 #elseif os(macOS)
@@ -233,6 +325,9 @@ struct HighlightingTextView: NSViewRepresentable {
     let registerStrip: (@escaping () -> Void) -> Void
     var scrollFraction: CGFloat?
     var clearAnchor: () -> Void
+    var onAtlasRequested: () -> Void = {}
+    var onCheatSheetRequested: () -> Void = {}
+    var onIconHelpRequested: () -> Void = {}
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -367,7 +462,6 @@ struct HighlightingTextView: NSViewRepresentable {
                 menu.insertItem(stripItem, at: 0)
                 menu.insertItem(.separator(), at: 1)
             }
-
             return menu
         }
 
