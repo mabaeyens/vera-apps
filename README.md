@@ -6,13 +6,17 @@ A reading-first Markdown viewer and editor for iOS and macOS. Part of the Mira e
 
 ## Features
 
-- **Browse** — recursive file tree of every `.md` file in your chosen folder (iCloud or local); folder name shown in title bar
-- **Read** — rendered Markdown via MarkdownUI (tables, code blocks, task lists)
-- **Edit** — syntax-highlighted editor; double-tap to switch from view to edit mode
-- **Font size** — A− / A+ toolbar buttons adjust editor font size per-session
-- **Atlas** — tap-to-insert syntax snippets; accessible from the toolbar or the text context menu
+- **Browse** — recursive file tree of every `.md` file in your chosen folder (iCloud or local); lazy per-folder expansion; folder name shown in title bar
+- **Read** — rendered Markdown via MarkdownUI (tables, code blocks, task lists); selectable text for copy
+- **Edit** — syntax-highlighted editor; double-tap or Edit button to switch modes; iOS formatting bar (undo/redo, bold, italic, heading, Atlas, more) slides up with the keyboard
+- **Tabs** — open multiple files simultaneously; macOS native tab strip (Cmd+T); iOS bottom tab bar (up to 5 tabs)
+- **Font size** — adjustable editor font size per-session
+- **Atlas** — tap-to-insert syntax snippets; accessible from the toolbar in both preview and edit mode
+- **Linter** — real-time Markdown syntax warnings while editing (debounced, off main thread); toggle in Settings
 - **Remove Formatting** — strip Markdown from selected text via the context menu
 - **New file** — create `.md` files in any folder directly from the sidebar
+- **Open file** — open any `.md` file directly without selecting a folder first; works from the sidebar or Finder (macOS)
+- **Reset** — "Reset Vera" clears folder selection without deleting files; accessible from the About sheet
 - **Offline** — edits and new files work without a connection; iCloud syncs on reconnect
 - **Dark / light** — adaptive; follows system appearance
 - **macOS sidebar** — persistent; only the toolbar button can hide it (never auto-collapses)
@@ -64,6 +68,9 @@ No server, no networking beyond iCloud sync.
 - **Markdown rendering:** MarkdownUI (SPM) — handles tables, code blocks, task lists.
 - **Syntax highlighting:** Highlightr (SPM) — `HighlightingTextView` (`UIViewRepresentable`/`NSViewRepresentable`) wraps `UITextView`/`NSTextView` with `CodeAttributedString`.
 - **Auto-save:** 500 ms debounce via `Task.sleep`; `NSFileVersion` conflict resolution on read; version cleanup after write.
+- **Tabs:** one `EditorViewModel` per tab; macOS native tab strip via `.commands`; iOS bottom tab bar (max 5 tabs); opening a URL already open in another tab navigates to that tab instead of duplicating.
+- **iOS formatting bar:** `UIInputAccessoryView`-based scrollable bar (44 pt, `secondarySystemBackground`) with undo/redo, inline format buttons (bold, italic, strikethrough, code), block shortcuts (heading, list, quote), Atlas trigger, and a `···` UIMenu for font size and help.
+- **Linter:** `String+Markdown.lintMarkdown()` debounced ≥500 ms off main thread; results in `EditorViewModel.lintResults: [LintWarning]`; skips code fences and front matter; toggle in Settings.
 - **macOS sidebar:** `DisclosureGroup` (not `List(children:)`) so folder labels are clickable. Collapse reverted via `onChange(of: columnVisibility)` guard — toolbar button is the only way to hide.
 - **File switching:** `.id(url)` on `DocumentView` forces SwiftUI to recreate the view and `EditorViewModel` on URL change.
 - **Context menu (iOS):** `UITextViewDelegate.textView(_:editMenuForTextIn:suggestedActions:)` appends "Format…" and "Remove Formatting".

@@ -48,7 +48,7 @@ No server, no networking (beyond iCloud sync). 100% local + iCloud.
 - **CloudScanner:** `FileManager()` created in `scan()` (on caller's `@MainActor`), passed into `Task.detached` to avoid implicit `@MainActor` on iOS 26 SDK.
 - **Markdown rendering:** MarkdownUI (SPM) — handles tables, code blocks, task lists.
 - **Syntax highlighting:** Highlightr (SPM) — `HighlightingTextView` (`UIViewRepresentable`/`NSViewRepresentable`) wraps `UITextView`/`NSTextView` with `CodeAttributedString`.
-- **Markdown editing:** `HighlightingTextView` (Phase 3+), not `TextEditor`.
+- **Markdown editing:** `HighlightingTextView`, not `TextEditor`.
 - **Smart Anchor:** Proportional tap-to-offset mapping in `SmartAnchorResolver.swift`. Upgrade to TextKit 2 only if user reports it as jarring.
 - **Auto-save:** 500 ms debounce via `Task.sleep`; `NSFileVersion` conflict resolution on read; version cleanup after write.
 - **macOS sidebar:** `DisclosureGroup` (not `List(children:)`) so folder labels are clickable. Visibility persisted via `@AppStorage("sidebar.visible")` + computed `Binding<NavigationSplitViewVisibility>`.
@@ -57,6 +57,9 @@ No server, no networking (beyond iCloud sync). 100% local + iCloud.
 - **Context menu (macOS):** `NSTextViewDelegate.textView(_:menu:for:at:)` appends the same items as `NSMenuItem` with explicit `target = self` on the Coordinator.
 - **Atlas from context menu:** `EditorViewModel.atlasRequested: Bool` flag observed in `DocumentView` via `.onChange` — avoids direct closure coupling from deep inside the `UIViewRepresentable` coordinator.
 - **Connectivity:** `ConnectivityMonitor` wraps `NWPathMonitor` and publishes `isOnline: Bool`. Injected app-wide via `.environment`. Offline: new files and edits still work (saved locally, sync on reconnect); cloud-only file download is disabled.
+- **Tabs:** one `EditorViewModel` per tab; macOS native tab strip via `.commands`; iOS bottom tab bar (max 5 tabs); opening a URL already open in another tab navigates to that tab instead of duplicating.
+- **iOS formatting bar:** `UIInputAccessoryView`-based scrollable bar (44 pt, `secondarySystemBackground`) with undo/redo, inline format buttons (bold, italic, strikethrough, code), block shortcuts (heading, list, quote), Atlas trigger, and a `···` UIMenu for font size and help.
+- **Linter:** `String+Markdown.lintMarkdown()` debounced ≥500 ms off main thread; results in `EditorViewModel.lintResults: [LintWarning]`; skips code fences and front matter; toggle in Settings.
 - **New file creation:** `FileTreeViewModel.createFile(named:in:)` writes an empty `.md` file, then calls `load()` to refresh the tree. `NewFileSheet` (platform-adaptive) exposes filename field + folder picker.
 
 ## SPM dependencies
