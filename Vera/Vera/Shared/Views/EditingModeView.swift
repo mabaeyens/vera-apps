@@ -4,6 +4,8 @@ struct EditingModeView: View {
     @Bindable var viewModel: EditorViewModel
     #if os(iOS)
     @AppStorage("editorFontSize") private var fontSize: Double = 20
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @State private var isEditing = false
     #else
     @AppStorage("editorFontSize") private var fontSize: Double = 17
     #endif
@@ -28,14 +30,103 @@ struct EditingModeView: View {
                 clearAnchor: { viewModel.anchorFraction = nil },
                 onAtlasRequested: onAtlasRequested,
                 onCheatSheetRequested: onCheatSheetRequested,
-                onIconHelpRequested: onIconHelpRequested
+                onIconHelpRequested: onIconHelpRequested,
+                useInputAccessory: {
+                    #if os(iOS)
+                    return sizeClass != .regular
+                    #else
+                    return true
+                    #endif
+                }(),
+                onEditingChanged: { editing in
+                    #if os(iOS)
+                    isEditing = editing
+                    #endif
+                }
             )
             if linterEnabled && !viewModel.lintResults.isEmpty {
                 LintPanelView(warnings: viewModel.lintResults)
             }
         }
+        #if os(iOS)
+        // On iPad (regular width) the UIKit inputAccessoryView spans the full
+        // keyboard width and overlaps the sidebar. Use a SwiftUI bar instead,
+        // which is naturally constrained to the detail column.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if sizeClass == .regular && isEditing {
+                iPadFormattingBar
+            }
+        }
+        #endif
     }
+
+    #if os(iOS)
+    private var iPadFormattingBar: some View {
+        HStack(spacing: 0) {
+            formatButton("bold")         { viewModel.wrapSelection?("**", "**") }
+            formatButton("italic")       { viewModel.wrapSelection?("_", "_") }
+            formatButton("number")       { viewModel.insertAtCursor?("## ") }
+            formatButton("wand.and.stars") { onAtlasRequested() }
+            Menu {
+                Button { viewModel.wrapSelection?("~~", "~~") } label: {
+                    Label("Strikethrough", systemImage: "strikethrough")
+                }
+                Button { viewModel.wrapSelection?("`", "`") } label: {
+                    Label("Code", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+                Button { viewModel.insertAtCursor?("- ") } label: {
+                    Label("List", systemImage: "list.bullet")
+                }
+                Button { viewModel.insertAtCursor?("> ") } label: {
+                    Label("Quote", systemImage: "text.quote")
+                }
+                Divider()
+                Button {
+                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
+                    UserDefaults.standard.set(min(32.0, v + 1), forKey: "editorFontSize")
+                } label: {
+                    Label("Larger Text", systemImage: "textformat.size.larger")
+                }
+                Button {
+                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
+                    UserDefaults.standard.set(max(12.0, v - 1), forKey: "editorFontSize")
+                } label: {
+                    Label("Smaller Text", systemImage: "textformat.size.smaller")
+                }
+                Divider()
+                Button { onCheatSheetRequested() } label: {
+                    Label("Markdown Reference", systemImage: "book.closed")
+                }
+                Button { onIconHelpRequested() } label: {
+                    Label("Icon Help", systemImage: "questionmark.circle")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+            }
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
+    }
+
+    private func formatButton(_ sfName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: sfName)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+        }
+    }
+    #endif
 }
+
+#if os(iOS)
+private extension Double {
+    func nonZero(default fallback: Double) -> Double { self == 0 ? fallback : self }
+}
+#endif
 
 private struct LintPanelView: View {
     let warnings: [LintWarning]

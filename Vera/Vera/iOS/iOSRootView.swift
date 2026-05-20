@@ -11,6 +11,11 @@ struct iOSRootView: View {
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var showIconHelp = false
+    // Local @State mirrors of vm picker flags.
+    // @Observable property reads via @Bindable are lazy closures — they don't register
+    // as dependencies during body evaluation, so SwiftUI never re-renders on change.
+    // Local @State always invalidates the owner view on write, which is what we need.
+    @State private var showFolderPicker = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -24,43 +29,7 @@ struct iOSRootView: View {
                     FileTreeView(selectedURL: $vm.selectedURL)
                         .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
                         .navigationBarTitleDisplayMode(.large)
-                        .fileImporter(
-                            isPresented: $vm.needsFolderPicker,
-                            allowedContentTypes: [.folder, UTType(filenameExtension: "md") ?? .plainText]
-                        ) { result in
-                            if case .success(let url) = result {
-                                let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-                                if isDir { vm.setRoot(url) } else { vm.openStandaloneFile(url) }
-                            }
-                        }
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button { showAbout = true } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                            }
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button { showIconHelp = true } label: {
-                                    Image(systemName: "questionmark.circle")
-                                }
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { showNewFile = true } label: {
-                                    Image(systemName: "square.and.pencil")
-                                }
-                                .disabled(vm.rootURL == nil)
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { vm.needsFilePicker = true } label: {
-                                    Image(systemName: "tray.and.arrow.down")
-                                }
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { vm.needsFolderPicker = true } label: {
-                                    Image(systemName: "folder")
-                                }
-                            }
-                        }
+                        .toolbar { sharedToolbar }
                         .navigationDestination(item: $vm.selectedURL) { url in
                             VStack(spacing: 0) {
                                 if vm.tabs.count >= 2 { TabBarView() }
@@ -68,59 +37,13 @@ struct iOSRootView: View {
                             }
                         }
                 }
-                // File picker at NavigationStack level — always in the view hierarchy
-                // regardless of whether the sidebar or document screen is active
-                .fileImporter(
-                    isPresented: $vm.needsFilePicker,
-                    allowedContentTypes: [UTType(filenameExtension: "md") ?? .plainText]
-                ) { result in
-                    if case .success(let url) = result {
-                        vm.openStandaloneFile(url)
-                    }
-                }
             } else {
                 // iPad: standard split view
                 NavigationSplitView(columnVisibility: $columnVisibility) {
                     FileTreeView(selectedURL: $vm.selectedURL)
                         .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
                         .navigationBarTitleDisplayMode(.large)
-                        .fileImporter(
-                            isPresented: $vm.needsFolderPicker,
-                            allowedContentTypes: [.folder, UTType(filenameExtension: "md") ?? .plainText]
-                        ) { result in
-                            if case .success(let url) = result {
-                                let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-                                if isDir { vm.setRoot(url) } else { vm.openStandaloneFile(url) }
-                            }
-                        }
-                        .toolbar {
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button { showAbout = true } label: {
-                                    Image(systemName: "info.circle")
-                                }
-                            }
-                            ToolbarItem(placement: .topBarLeading) {
-                                Button { showIconHelp = true } label: {
-                                    Image(systemName: "questionmark.circle")
-                                }
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { showNewFile = true } label: {
-                                    Image(systemName: "square.and.pencil")
-                                }
-                                .disabled(vm.rootURL == nil)
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { vm.needsFilePicker = true } label: {
-                                    Image(systemName: "tray.and.arrow.down")
-                                }
-                            }
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button { vm.needsFolderPicker = true } label: {
-                                    Image(systemName: "folder")
-                                }
-                            }
-                        }
+                        .toolbar { sharedToolbar }
                 } detail: {
                     VStack(spacing: 0) {
                         if vm.tabs.count >= 2 { TabBarView() }
@@ -131,16 +54,21 @@ struct iOSRootView: View {
                         }
                     }
                 }
-                .fileImporter(
-                    isPresented: $vm.needsFilePicker,
-                    allowedContentTypes: [UTType(filenameExtension: "md") ?? .plainText]
-                ) { result in
-                    if case .success(let url) = result {
-                        vm.openStandaloneFile(url)
-                    }
-                }
             }
         }
+        .fileImporter(
+            isPresented: $showFolderPicker,
+            allowedContentTypes: [.folder, UTType(filenameExtension: "md") ?? .plainText]
+        ) { result in
+            showFolderPicker = false
+            vm.needsFolderPicker = false
+            if case .success(let url) = result {
+                let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                if isDir { vm.setRoot(url) } else { vm.openStandaloneFile(url) }
+            }
+        }
+        // Forward vm-driven triggers (onboarding completion, reset) into local @State.
+        .onChange(of: vm.needsFolderPicker) { _, val in if val { showFolderPicker = true } }
         .sheet(isPresented: $showAbout) {
             AboutView(onReset: { vm.resetState() })
         }
@@ -156,7 +84,7 @@ struct iOSRootView: View {
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {
             if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
-                vm.needsFolderPicker = true
+                showFolderPicker = true
             }
         }) {
             OnboardingView()
@@ -168,6 +96,33 @@ struct iOSRootView: View {
                     vm.resetState()
                 }
                 Task { await vm.load() }
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var sharedToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button { showAbout = true } label: {
+                Image(systemName: "info.circle")
+            }
+        }
+        ToolbarItem(placement: .topBarLeading) {
+            Button { showIconHelp = true } label: {
+                Image(systemName: "questionmark.circle")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button { showFolderPicker = true } label: {
+                    Label("Open Folder", systemImage: "folder")
+                }
+                Button { showNewFile = true } label: {
+                    Label("New File", systemImage: "square.and.pencil")
+                }
+                .disabled(vm.rootURL == nil)
+            } label: {
+                Image(systemName: "ellipsis.circle")
             }
         }
     }

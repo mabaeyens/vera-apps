@@ -9,6 +9,9 @@ struct MacRootView: View {
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    // Local @State so SwiftUI tracks it — @Observable binding via @Bindable is lazy
+    // and won't re-render this view when the vm property changes.
+    @State private var showPicker = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -16,15 +19,6 @@ struct MacRootView: View {
             FileTreeView(selectedURL: $vm.selectedURL)
                 .frame(minWidth: 200)
                 .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
-                // Folder picker on sidebar; file picker on detail to avoid SwiftUI conflict
-                .fileImporter(
-                    isPresented: $vm.needsFolderPicker,
-                    allowedContentTypes: [.folder]
-                ) { result in
-                    if case .success(let url) = result {
-                        vm.setRoot(url)
-                    }
-                }
         } detail: {
             VStack(spacing: 0) {
                 if vm.tabs.count >= 2 {
@@ -39,13 +33,17 @@ struct MacRootView: View {
             }
         }
         .fileImporter(
-            isPresented: $vm.needsFilePicker,
-            allowedContentTypes: [UTType(filenameExtension: "md") ?? .plainText]
+            isPresented: $showPicker,
+            allowedContentTypes: [.folder, UTType(filenameExtension: "md") ?? .plainText]
         ) { result in
+            showPicker = false
+            vm.needsFolderPicker = false
             if case .success(let url) = result {
-                vm.openStandaloneFile(url)
+                let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                if isDir { vm.setRoot(url) } else { vm.openStandaloneFile(url) }
             }
         }
+        .onChange(of: vm.needsFolderPicker) { _, val in if val { showPicker = true } }
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button { showNewFile = true } label: {
@@ -55,16 +53,10 @@ struct MacRootView: View {
                 .disabled(vm.rootURL == nil)
             }
             ToolbarItem(placement: .automatic) {
-                Button { vm.needsFolderPicker = true } label: {
+                Button { showPicker = true } label: {
                     Image(systemName: "folder")
                 }
-                .help("Choose folder…")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { vm.needsFilePicker = true } label: {
-                    Image(systemName: "tray.and.arrow.down")
-                }
-                .help("Open file…")
+                .help("Open folder or file…")
             }
             ToolbarItem(placement: .automatic) {
                 Button { Task { await vm.load() } } label: {
@@ -89,7 +81,7 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {
             if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
-                vm.needsFolderPicker = true
+                showPicker = true
             }
         }) {
             OnboardingView()

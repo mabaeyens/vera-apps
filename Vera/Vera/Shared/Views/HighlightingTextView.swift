@@ -18,6 +18,8 @@ struct HighlightingTextView: UIViewRepresentable {
     var onAtlasRequested: () -> Void = {}
     var onCheatSheetRequested: () -> Void = {}
     var onIconHelpRequested: () -> Void = {}
+    var useInputAccessory: Bool = true
+    var onEditingChanged: (Bool) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -50,7 +52,9 @@ struct HighlightingTextView: UIViewRepresentable {
         context.coordinator.onCheatSheetRequested = onCheatSheetRequested
         context.coordinator.onIconHelpRequested = onIconHelpRequested
 
-        textView.inputAccessoryView = makeFormattingBar(coordinator: context.coordinator)
+        if useInputAccessory {
+            textView.inputAccessoryView = makeFormattingBar(coordinator: context.coordinator)
+        }
 
         registerInsert { [weak coordinator = context.coordinator] snippet in
             coordinator?.insert(snippet)
@@ -182,6 +186,14 @@ struct HighlightingTextView: UIViewRepresentable {
         weak var moreButton: UIButton?
 
         init(_ parent: HighlightingTextView) { self.parent = parent }
+
+        func textViewDidBeginEditing(_ textView: UITextView) {
+            parent.onEditingChanged(true)
+        }
+
+        func textViewDidEndEditing(_ textView: UITextView) {
+            parent.onEditingChanged(false)
+        }
 
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingExternalChange else { return }
@@ -316,6 +328,23 @@ private extension Double {
 #elseif os(macOS)
 import AppKit
 
+private final class FormattingTextView: NSTextView {
+    weak var coordinator: HighlightingTextView.Coordinator?
+
+    override func performKeyEquivalent(_ event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.contains(.command) else { return super.performKeyEquivalent(event) }
+        let shift = flags.contains(.shift)
+        switch (event.charactersIgnoringModifiers ?? "", shift) {
+        case ("b", false): coordinator?.applyBold();   return true
+        case ("i", false): coordinator?.applyItalic(); return true
+        case ("x", true):  coordinator?.applyStrike(); return true
+        case ("c", true):  coordinator?.applyCode();   return true
+        default:           return super.performKeyEquivalent(event)
+        }
+    }
+}
+
 struct HighlightingTextView: NSViewRepresentable {
     @Binding var text: String
     var fontSize: CGFloat
@@ -328,6 +357,8 @@ struct HighlightingTextView: NSViewRepresentable {
     var onAtlasRequested: () -> Void = {}
     var onCheatSheetRequested: () -> Void = {}
     var onIconHelpRequested: () -> Void = {}
+    var useInputAccessory: Bool = true   // unused on macOS, kept for shared call site
+    var onEditingChanged: (Bool) -> Void = { _ in }  // unused on macOS
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -346,7 +377,7 @@ struct HighlightingTextView: NSViewRepresentable {
         textStorage.highlightr.setTheme(to: "atom-one-light")
         textStorage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
 
-        let textView = NSTextView(frame: .zero, textContainer: textContainer)
+        let textView = FormattingTextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
         textView.allowsUndo = true
         textView.drawsBackground = false
@@ -360,6 +391,7 @@ struct HighlightingTextView: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 20, height: 12)
         textView.string = text
         context.coordinator.textView = textView
+        textView.coordinator = context.coordinator
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
@@ -455,17 +487,52 @@ struct HighlightingTextView: NSViewRepresentable {
             for event: NSEvent,
             at charIndex: Int
         ) -> NSMenu? {
+            let formatMenu = NSMenu(title: "Format")
+
+            func item(_ title: String, sel: Selector, key: String = "", shift: Bool = false) -> NSMenuItem {
+                let it = NSMenuItem(title: title, action: sel, keyEquivalent: key)
+                it.target = self
+                if shift { it.keyEquivalentModifierMask = [.command, .shift] }
+                return it
+            }
+
+            formatMenu.addItem(item("Bold",          sel: #selector(applyBold),   key: "b"))
+            formatMenu.addItem(item("Italic",        sel: #selector(applyItalic), key: "i"))
+            formatMenu.addItem(item("Strikethrough", sel: #selector(applyStrike), key: "x", shift: true))
+            formatMenu.addItem(item("Code",          sel: #selector(applyCode),   key: "c", shift: true))
+            formatMenu.addItem(.separator())
+            formatMenu.addItem(item("Heading",       sel: #selector(applyHeading)))
+            formatMenu.addItem(item("List Item",     sel: #selector(applyList)))
+            formatMenu.addItem(item("Quote",         sel: #selector(applyQuote)))
+            formatMenu.addItem(.separator())
+            formatMenu.addItem(item("Markdown Reference…", sel: #selector(openCheatSheet)))
+            formatMenu.addItem(item("Icon Help…",          sel: #selector(openIconHelp)))
+
+            let formatItem = NSMenuItem(title: "Format", action: nil, keyEquivalent: "")
+            formatItem.submenu = formatMenu
+            menu.insertItem(formatItem, at: 0)
+            menu.insertItem(.separator(), at: 1)
+
             if view.selectedRange().length > 0 {
                 let stripItem = NSMenuItem(title: "Remove Formatting", action: #selector(stripAction), keyEquivalent: "")
                 stripItem.image = NSImage(systemSymbolName: "eraser", accessibilityDescription: nil)
                 stripItem.target = self
-                menu.insertItem(stripItem, at: 0)
-                menu.insertItem(.separator(), at: 1)
+                menu.insertItem(stripItem, at: 2)
+                menu.insertItem(.separator(), at: 3)
             }
             return menu
         }
 
-        @objc private func stripAction() { strip() }
+        @objc private func stripAction()    { strip() }
+        @objc func applyBold()              { wrap(prefix: "**", suffix: "**") }
+        @objc func applyItalic()            { wrap(prefix: "_", suffix: "_") }
+        @objc func applyStrike()            { wrap(prefix: "~~", suffix: "~~") }
+        @objc func applyCode()              { wrap(prefix: "`", suffix: "`") }
+        @objc private func applyHeading()   { insert("## ") }
+        @objc private func applyList()      { insert("- ") }
+        @objc private func applyQuote()     { insert("> ") }
+        @objc private func openCheatSheet() { parent.onCheatSheetRequested() }
+        @objc private func openIconHelp()   { parent.onIconHelpRequested() }
 
         // MARK: Mutations
 

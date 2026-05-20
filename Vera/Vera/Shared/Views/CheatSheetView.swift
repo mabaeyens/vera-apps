@@ -8,10 +8,12 @@ struct CheatSheetView: View {
         NavigationStack {
             List {
                 ForEach(sections, id: \.title) { section in
-                    Section(section.title) {
+                    Section(isExpanded: .constant(true)) {
                         ForEach(section.entries, id: \.syntax) { entry in
                             CheatEntryRow(entry: entry)
                         }
+                    } header: {
+                        Text(section.title)
                     }
                 }
             }
@@ -41,13 +43,24 @@ private struct CheatEntryRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(entry.syntax)
-                .font(.system(.footnote, design: .monospaced))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.secondary.opacity(0.1))
-                .clipShape(.rect(cornerRadius: 5))
+            HStack(alignment: .center, spacing: 8) {
+                Text(entry.syntax)
+                    .font(.system(.footnote, design: .monospaced))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.secondary.opacity(0.1))
+                    .clipShape(.rect(cornerRadius: 5))
+                if !entry.shortcut.isEmpty {
+                    Text(entry.shortcut)
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.secondary.opacity(0.1))
+                        .clipShape(.rect(cornerRadius: 4))
+                }
+            }
 
             Markdown(entry.preview)
                 .markdownTheme(.gitHub)
@@ -62,6 +75,7 @@ private struct CheatEntryRow: View {
 private struct CheatEntry {
     let syntax: String
     let preview: String
+    var shortcut: String = ""
 }
 
 private struct CheatSection {
@@ -76,11 +90,11 @@ private let sections: [CheatSection] = [
         CheatEntry(syntax: "### Heading 3", preview: "### Heading 3"),
     ]),
     CheatSection(title: "Emphasis", entries: [
-        CheatEntry(syntax: "**bold**",            preview: "**bold**"),
-        CheatEntry(syntax: "*italic*",            preview: "*italic*"),
-        CheatEntry(syntax: "***bold italic***",   preview: "***bold italic***"),
-        CheatEntry(syntax: "~~strikethrough~~",   preview: "~~strikethrough~~"),
-        CheatEntry(syntax: "`inline code`",       preview: "`inline code`"),
+        CheatEntry(syntax: "**bold**",          preview: "**bold**",          shortcut: "⌘B"),
+        CheatEntry(syntax: "*italic*",          preview: "*italic*",          shortcut: "⌘I"),
+        CheatEntry(syntax: "***bold italic***", preview: "***bold italic***"),
+        CheatEntry(syntax: "~~strikethrough~~", preview: "~~strikethrough~~", shortcut: "⌘⇧X"),
+        CheatEntry(syntax: "`inline code`",     preview: "`inline code`",     shortcut: "⌘⇧C"),
     ]),
     CheatSection(title: "Links", entries: [
         CheatEntry(

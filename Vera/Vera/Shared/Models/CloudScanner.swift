@@ -11,40 +11,40 @@ enum CloudScanner {
     nonisolated static func scanShallow(at url: URL) async throws -> [FileNode] {
         let contents = try FileManager.default.contentsOfDirectory(
             at: url,
-            includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles]
         )
 
-        var folders: [FileNode] = []
-        var files: [FileNode] = []
+        struct Dated {
+            let node: FileNode
+            let date: Date
+        }
+        var folders: [Dated] = []
+        var files: [Dated] = []
 
         for itemURL in contents {
-            let resources = try itemURL.resourceValues(forKeys: [.isDirectoryKey])
+            let resources = try itemURL.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey])
+            let modDate = resources.contentModificationDate ?? .distantPast
             if resources.isDirectory == true {
-                // Children are empty until the user expands the folder (lazy load).
-                folders.append(.folder(
-                    id: stableID(for: itemURL),
-                    name: itemURL.lastPathComponent,
-                    url: itemURL,
-                    children: []
+                folders.append(Dated(
+                    node: .folder(id: stableID(for: itemURL), name: itemURL.lastPathComponent, url: itemURL, children: []),
+                    date: modDate
                 ))
             } else if itemURL.pathExtension.lowercased() == "md" {
-                files.append(.file(
-                    id: UUID(),
-                    name: itemURL.lastPathComponent,
-                    url: itemURL,
-                    downloadState: downloadState(for: itemURL)
+                files.append(Dated(
+                    node: .file(id: UUID(), name: itemURL.lastPathComponent, url: itemURL, downloadState: downloadState(for: itemURL)),
+                    date: modDate
                 ))
             }
         }
 
-        let sort: (FileNode, FileNode) -> Bool = { $0.name.localizedCompare($1.name) == .orderedAscending }
-        return folders.sorted(by: sort) + files.sorted(by: sort)
+        let byDateDesc: (Dated, Dated) -> Bool = { $0.date > $1.date }
+        return files.sorted(by: byDateDesc).map(\.node) + folders.sorted(by: byDateDesc).map(\.node)
     }
 
     // Generates a deterministic UUID from a folder URL so expand/collapse state
     // is preserved across tree reloads.
-    static func stableID(for url: URL) -> UUID {
+    nonisolated static func stableID(for url: URL) -> UUID {
         let path = url.standardizedFileURL.path
         var b = [UInt8](repeating: 0, count: 16)
         for (i, byte) in path.utf8.enumerated() {

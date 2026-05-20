@@ -9,7 +9,6 @@ final class FileTreeViewModel {
     var isLoading = false
     var loadFailed = false
     var needsFolderPicker = false
-    var needsFilePicker = false
     var standaloneFiles: [FileNode] = []
     var downloadingURLs: Set<URL> = []
 
