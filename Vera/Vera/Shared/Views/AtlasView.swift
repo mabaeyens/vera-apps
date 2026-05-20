@@ -55,7 +55,7 @@ struct AtlasView: View {
                     .padding(.horizontal, 16)
                 }
             }
-            .navigationTitle("Snippets")
+            .navigationTitle("Format & Snippets")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -145,11 +145,7 @@ struct HighlightingTextView: UIViewRepresentable {
             return b
         }
 
-        // Five primary actions fill the bar equally — everything else in ···
         let stack = UIStackView(arrangedSubviews: [
-            iconButton("bold",         action: #selector(Coordinator.applyBold)),
-            iconButton("italic",       action: #selector(Coordinator.applyItalic)),
-            iconButton("number",       action: #selector(Coordinator.applyHeading)),
             iconButton("wand.and.stars", action: #selector(Coordinator.triggerAtlas)),
             moreBtn
         ])
@@ -509,6 +505,7 @@ struct HighlightingTextView: NSViewRepresentable {
             formatMenu.addItem(item("Icon Help…",          sel: #selector(openIconHelp)))
 
             let formatItem = NSMenuItem(title: "Format", action: nil, keyEquivalent: "")
+            formatItem.image = NSImage(systemSymbolName: "wand.and.stars", accessibilityDescription: nil)
             formatItem.submenu = formatMenu
             menu.insertItem(formatItem, at: 0)
             menu.insertItem(.separator(), at: 1)

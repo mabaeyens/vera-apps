@@ -1,7 +1,7 @@
 import Foundation
 
 enum AtlasCategory: String, CaseIterable, Identifiable {
-    case basics = "Basics"
+    case basics = "Format"
     case structure = "Structure"
     case media = "Media"
     case advanced = "Advanced"

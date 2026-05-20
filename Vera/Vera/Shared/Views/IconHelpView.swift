@@ -12,7 +12,7 @@ struct IconHelpView: View {
                     HelpRow(symbol: "info.circle",       label: "About",         detail: "App version, credits, and reset option")
                 }
                 Section("Document toolbar") {
-                    HelpRow(symbol: "wand.and.stars",  label: "Atlas",       detail: "AI writing assistant — summarise, rewrite, expand, insert snippets, or strip formatting")
+                    HelpRow(symbol: "wand.and.stars",  label: "Wand",        detail: "Format & Snippets — apply bold, italic, code, links and structural snippets; or remove all formatting")
                     HelpRow(symbol: "textformat.size", label: "Text Size",   detail: "Increase or decrease the editor font size; also opens the Markdown Reference cheat sheet")
                     HelpRow(symbol: "pencil",          label: "Edit / Done", detail: "Switch between reading and editing mode")
                 }
