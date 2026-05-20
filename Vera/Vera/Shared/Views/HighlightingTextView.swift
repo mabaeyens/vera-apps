@@ -331,16 +331,16 @@ import AppKit
 private final class FormattingTextView: NSTextView {
     weak var coordinator: HighlightingTextView.Coordinator?
 
-    override func performKeyEquivalent(_ event: NSEvent) -> Bool {
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard flags.contains(.command) else { return super.performKeyEquivalent(event) }
+        guard flags.contains(.command) else { return super.performKeyEquivalent(with: event) }
         let shift = flags.contains(.shift)
         switch (event.charactersIgnoringModifiers ?? "", shift) {
         case ("b", false): coordinator?.applyBold();   return true
         case ("i", false): coordinator?.applyItalic(); return true
         case ("x", true):  coordinator?.applyStrike(); return true
         case ("c", true):  coordinator?.applyCode();   return true
-        default:           return super.performKeyEquivalent(event)
+        default:           return super.performKeyEquivalent(with: event)
         }
     }
 }

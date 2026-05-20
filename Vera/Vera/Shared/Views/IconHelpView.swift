@@ -1,4 +1,3 @@
-#if os(iOS)
 import SwiftUI
 
 struct IconHelpView: View {
@@ -8,26 +7,35 @@ struct IconHelpView: View {
         NavigationStack {
             List {
                 Section("Sidebar") {
-                    HelpRow(symbol: "folder",              label: "Choose Folder",  detail: "Pick a folder to browse its Markdown files")
-                    HelpRow(symbol: "tray.and.arrow.down", label: "Open File",      detail: "Open a standalone .md file from Files")
-                    HelpRow(symbol: "square.and.pencil",   label: "New File",       detail: "Create a new Markdown file in the current folder")
-                    HelpRow(symbol: "info.circle",         label: "About",          detail: "App version, credits, and reset option")
+                    HelpRow(symbol: "folder",            label: "Choose Folder", detail: "Pick a folder to browse its Markdown files")
+                    HelpRow(symbol: "square.and.pencil", label: "New File",      detail: "Create a new Markdown file in the current folder")
+                    HelpRow(symbol: "info.circle",       label: "About",         detail: "App version, credits, and reset option")
                 }
                 Section("Document toolbar") {
-                    HelpRow(symbol: "wand.and.stars",  label: "Atlas",      detail: "AI writing assistant — summarise, rewrite, expand, insert snippets, or strip formatting")
-                    HelpRow(symbol: "textformat.size", label: "Text Size",  detail: "Increase or decrease the editor font size; also opens the Markdown Reference cheat sheet")
-                    HelpRow(symbol: "pencil",          label: "Edit / Done",detail: "Switch between reading and editing mode")
+                    HelpRow(symbol: "wand.and.stars",  label: "Atlas",       detail: "AI writing assistant — summarise, rewrite, expand, insert snippets, or strip formatting")
+                    HelpRow(symbol: "textformat.size", label: "Text Size",   detail: "Increase or decrease the editor font size; also opens the Markdown Reference cheat sheet")
+                    HelpRow(symbol: "pencil",          label: "Edit / Done", detail: "Switch between reading and editing mode")
+                }
+                Section("Keyboard shortcuts") {
+                    HelpRow(symbol: "bold",          label: "⌘B",  detail: "Bold")
+                    HelpRow(symbol: "italic",        label: "⌘I",  detail: "Italic")
+                    HelpRow(symbol: "strikethrough", label: "⌘⇧X", detail: "Strikethrough")
+                    HelpRow(symbol: "chevron.left.forwardslash.chevron.right", label: "⌘⇧C", detail: "Inline code")
                 }
             }
             .navigationTitle("Icon Guide")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
                 }
             }
         }
+        #if os(iOS)
         .presentationDetents([.medium, .large])
+        #endif
     }
 }
 
@@ -54,4 +62,3 @@ private struct HelpRow: View {
         .padding(.vertical, 2)
     }
 }
-#endif

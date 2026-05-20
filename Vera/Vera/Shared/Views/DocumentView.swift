@@ -66,11 +66,12 @@ struct DocumentView: View {
                 .frame(width: 480, height: 600)
                 #endif
         }
-        #if os(iOS)
         .sheet(isPresented: $showIconHelp) {
             IconHelpView()
+                #if os(macOS)
+                .frame(width: 480, height: 560)
+                #endif
         }
-        #endif
     }
 
     @ToolbarContentBuilder
