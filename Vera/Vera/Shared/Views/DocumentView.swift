@@ -76,7 +76,7 @@ struct DocumentView: View {
 
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
-        // iOS: clean nav bar — title + Edit/Done only; all tools live in the formatting bar
+        // iOS: Edit/Done + font size menu (preview mode); edit-mode tools live in the formatting bar
         // macOS: tools in toolbar, font size consolidated into one menu
         ToolbarItem(placement: .primaryAction) {
             switch viewModel.mode {
@@ -87,6 +87,22 @@ struct DocumentView: View {
                     .bold()
             }
         }
+        #if os(iOS)
+        if viewModel.mode == .viewing {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button { fontSize = min(32, fontSize + 1) } label: {
+                        Label("Larger Text", systemImage: "textformat.size.larger")
+                    }
+                    Button { fontSize = max(12, fontSize - 1) } label: {
+                        Label("Smaller Text", systemImage: "textformat.size.smaller")
+                    }
+                } label: {
+                    Image(systemName: "textformat.size")
+                }
+            }
+        }
+        #endif
         #if os(macOS)
         ToolbarItem(placement: .automatic) {
             Button { showAtlas = true } label: {

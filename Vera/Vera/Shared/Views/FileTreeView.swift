@@ -44,10 +44,19 @@ struct FileTreeView: View {
                             }
                         }
                     }
+                    #if os(macOS)
+                    Section(vm.rootURL?.lastPathComponent ?? "") {
+                        ForEach(flattenedRows()) { row in
+                            rowView(for: row.node)
+                                .padding(.leading, CGFloat(row.depth) * 20)
+                        }
+                    }
+                    #else
                     ForEach(flattenedRows()) { row in
                         rowView(for: row.node)
                             .padding(.leading, CGFloat(row.depth) * 20)
                     }
+                    #endif
                 }
                 .listStyle(.sidebar)
             }
