@@ -24,8 +24,18 @@ struct HighlightingTextView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIView(context: Context) -> UITextView {
-        let textStorage = CodeAttributedString()
-        textStorage.language = "markdown"
+        // Guard against Highlightr bundle init failure (nil-unwrap crash on cold launch).
+        // If Highlightr() returns nil, fall back to a plain NSTextStorage.
+        let textStorage: NSTextStorage
+        if Highlightr() != nil {
+            let codeStorage = CodeAttributedString()
+            codeStorage.language = "markdown"
+            codeStorage.highlightr.setTheme(to: "atom-one-light")
+            codeStorage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+            textStorage = codeStorage
+        } else {
+            textStorage = NSTextStorage()
+        }
 
         let layoutManager = NSLayoutManager()
         textStorage.addLayoutManager(layoutManager)
@@ -33,10 +43,10 @@ struct HighlightingTextView: UIViewRepresentable {
         textContainer.widthTracksTextView = true
         layoutManager.addTextContainer(textContainer)
 
-        textStorage.highlightr.setTheme(to: "atom-one-light")
-        textStorage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
-
         let textView = UITextView(frame: .zero, textContainer: textContainer)
+        if !(textStorage is CodeAttributedString) {
+            textView.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        }
         textView.delegate = context.coordinator
         textView.backgroundColor = .clear
         textView.autocorrectionType = .no
@@ -113,6 +123,9 @@ struct HighlightingTextView: UIViewRepresentable {
                 }
                 storage.language = nil
                 storage.language = "markdown"
+            } else {
+                // Plain fallback: update font directly
+                uiView.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
             }
             context.coordinator.lastFontSize = fontSize
             context.coordinator.lastTheme = newTheme
@@ -359,8 +372,18 @@ struct HighlightingTextView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let textStorage = CodeAttributedString()
-        textStorage.language = "markdown"
+        // Guard against Highlightr bundle init failure (nil-unwrap crash on cold launch).
+        // If Highlightr() returns nil, fall back to a plain NSTextStorage.
+        let textStorage: NSTextStorage
+        if Highlightr() != nil {
+            let codeStorage = CodeAttributedString()
+            codeStorage.language = "markdown"
+            codeStorage.highlightr.setTheme(to: "atom-one-light")
+            codeStorage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+            textStorage = codeStorage
+        } else {
+            textStorage = NSTextStorage()
+        }
 
         let layoutManager = NSLayoutManager()
         textStorage.addLayoutManager(layoutManager)
@@ -370,10 +393,10 @@ struct HighlightingTextView: NSViewRepresentable {
         textContainer.widthTracksTextView = true
         layoutManager.addTextContainer(textContainer)
 
-        textStorage.highlightr.setTheme(to: "atom-one-light")
-        textStorage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
-
         let textView = FormattingTextView(frame: .zero, textContainer: textContainer)
+        if !(textStorage is CodeAttributedString) {
+            textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
+        }
         textView.delegate = context.coordinator
         textView.allowsUndo = true
         textView.drawsBackground = false
@@ -449,6 +472,9 @@ struct HighlightingTextView: NSViewRepresentable {
                 }
                 storage.language = nil
                 storage.language = "markdown"
+            } else {
+                // Plain fallback: update font directly on the text view
+                textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
             }
             context.coordinator.lastFontSize = fontSize
             context.coordinator.lastTheme = newTheme

@@ -27,6 +27,12 @@ struct VeraApp: App {
     @State private var fileTreeVM = FileTreeViewModel()
     @State private var connectivity = ConnectivityMonitor()
 
+    init() {
+        // Warm the Highlightr bundle on the main thread before any editor view is
+        // constructed, preventing a nil-unwrap crash on cold launches from external apps.
+        HighlightrWarmup.prime()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {

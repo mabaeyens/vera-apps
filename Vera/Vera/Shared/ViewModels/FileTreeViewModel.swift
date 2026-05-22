@@ -1,6 +1,29 @@
 import Foundation
 import Observation
 
+// MARK: - Error type
+
+enum FileOpenError: LocalizedError, Identifiable {
+    case notMarkdown(URL)
+    case fileNotFound(URL)
+    case accessDenied(URL)
+
+    var id: String { localizedDescription }
+
+    var errorDescription: String? {
+        switch self {
+        case .notMarkdown(let url):
+            return "\"\(url.lastPathComponent)\" is not a Markdown file."
+        case .fileNotFound(let url):
+            return "\"\(url.lastPathComponent)\" could not be found."
+        case .accessDenied(let url):
+            return "Cannot access \"\(url.lastPathComponent)\". Try opening the file again from its original location."
+        }
+    }
+}
+
+// MARK: - ViewModel
+
 @Observable
 @MainActor
 final class FileTreeViewModel {
@@ -11,6 +34,11 @@ final class FileTreeViewModel {
     var needsFolderPicker = false
     var standaloneFiles: [FileNode] = []
     var downloadingURLs: Set<URL> = []
+    var fileOpenError: FileOpenError? = nil
+
+    // Tracks URLs for which we hold an open security-scoped access grant,
+    // so we can release them when their tab is closed.
+    private var accessedURLs: Set<URL> = []
 
     // MARK: - Tab management
 
@@ -63,12 +91,78 @@ final class FileTreeViewModel {
     func closeTab(_ id: UUID) {
         guard tabs.count > 1 else { return }
         guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
+        let closedURL = tabs[idx].url
         tabs.remove(at: idx)
         if activeTabID == id {
             let newIdx = min(idx, tabs.count - 1)
             activeTabID = tabs[newIdx].id
             selectedURL = tabs[newIdx].url
         }
+        releaseAccess(closedURL)
+    }
+
+    // MARK: - Unified file-open coordinator
+
+    /// Single entry point for all file-open gestures: external app, Cmd+O, drag-and-drop, file picker.
+    /// Handles validation, security-scoped access, and routing (in-root / standalone / root-change).
+    func openFile(_ url: URL) {
+        // Start access before stat-ing — required for externally vended URLs.
+        let accessStarted = url.startAccessingSecurityScopedResource()
+
+        let resolved = url.resolvingSymlinksInPath()
+        var isDir: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: resolved.path, isDirectory: &isDir)
+
+        guard exists else {
+            if accessStarted { url.stopAccessingSecurityScopedResource() }
+            fileOpenError = .fileNotFound(url)
+            return
+        }
+
+        if isDir.boolValue {
+            // Directory → set as root (e.g. drag-and-drop of a folder, or Cmd+O folder pick)
+            if accessStarted { url.stopAccessingSecurityScopedResource() }
+            setRoot(resolved)
+            return
+        }
+
+        guard ["md", "markdown"].contains(resolved.pathExtension.lowercased()) else {
+            if accessStarted { url.stopAccessingSecurityScopedResource() }
+            fileOpenError = .notMarkdown(url)
+            return
+        }
+
+        // Track the access grant so we can release it when the tab closes.
+        if accessStarted {
+            accessedURLs.insert(resolved)
+        }
+
+        if let root = rootURL, resolved.path.hasPrefix(root.path) {
+            openFileInActiveTab(resolved)
+        } else if rootURL == nil {
+            pendingExternalURL = resolved
+            setRoot(resolved.deletingLastPathComponent())
+        } else {
+            addStandaloneAndSelect(resolved)
+        }
+    }
+
+    func releaseAccess(_ url: URL) {
+        guard accessedURLs.contains(url) else { return }
+        url.stopAccessingSecurityScopedResource()
+        accessedURLs.remove(url)
+    }
+
+    private func addStandaloneAndSelect(_ url: URL) {
+        let alreadyPresent = standaloneFiles.contains { node in
+            if case .file(_, _, let u, _) = node { return u == url }
+            return false
+        }
+        if !alreadyPresent {
+            let name = url.deletingPathExtension().lastPathComponent
+            standaloneFiles.append(.file(id: UUID(), name: name, url: url, downloadState: .local))
+        }
+        openFileInActiveTab(url)
     }
 
     func activateTab(_ id: UUID) {
@@ -130,31 +224,11 @@ final class FileTreeViewModel {
     }
 
     func openExternalURL(_ url: URL) {
-        _ = url.startAccessingSecurityScopedResource()
-        if let root = rootURL, url.path.hasPrefix(root.path) {
-            openFileInActiveTab(url)
-        } else {
-            pendingExternalURL = url
-            setRoot(url.deletingLastPathComponent())
-        }
+        openFile(url)
     }
 
     func openStandaloneFile(_ url: URL) {
-        _ = url.startAccessingSecurityScopedResource()
-        // If within the current root, navigate there instead
-        if let root = rootURL, url.path.hasPrefix(root.path) {
-            openFileInActiveTab(url)
-            return
-        }
-        let name = url.deletingPathExtension().lastPathComponent
-        let alreadyPresent = standaloneFiles.contains { node in
-            if case .file(_, _, let u, _) = node { return u == url }
-            return false
-        }
-        if !alreadyPresent {
-            standaloneFiles.append(.file(id: UUID(), name: name, url: url, downloadState: .local))
-        }
-        openFileInActiveTab(url)
+        openFile(url)
     }
 
     func resetState() {
@@ -268,6 +342,7 @@ final class FileTreeViewModel {
 
     func deleteFile(at url: URL) async throws {
         try FileManager.default.removeItem(at: url)
+        releaseAccess(url)
         // Remove from standalone files list
         standaloneFiles.removeAll { node in
             if case .file(_, _, let u, _) = node { return u == url }

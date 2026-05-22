@@ -31,6 +31,21 @@ struct MacRootView: View {
             }
         }
         .onChange(of: vm.needsFolderPicker) { _, val in if val { openPicker() } }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            for provider in providers {
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url else { return }
+                    Task { @MainActor in vm.openFile(url) }
+                }
+            }
+            return true
+        }
+        .alert(item: Binding(
+            get: { vm.fileOpenError },
+            set: { vm.fileOpenError = $0 }
+        )) { error in
+            Alert(title: Text("Cannot Open File"), message: Text(error.localizedDescription))
+        }
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 Button { showNewFile = true } label: {
@@ -43,7 +58,8 @@ struct MacRootView: View {
                 Button { openPicker() } label: {
                     Image(systemName: "folder")
                 }
-                .help("Open folder or file…")
+                .help("Open folder or file… (⌘O)")
+                .keyboardShortcut("o", modifiers: .command)
             }
             ToolbarItem(placement: .automatic) {
                 Button { Task { await vm.load() } } label: {
@@ -84,12 +100,15 @@ struct MacRootView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.folder, UTType(filenameExtension: "md") ?? .plainText]
+        panel.allowedContentTypes = [
+            .folder,
+            UTType(filenameExtension: "md")       ?? .plainText,
+            UTType(filenameExtension: "markdown") ?? .plainText,
+        ]
         panel.begin { response in
             vm.needsFolderPicker = false
             guard response == .OK, let url = panel.url else { return }
-            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-            if isDir { vm.setRoot(url) } else { vm.openStandaloneFile(url) }
+            vm.openFile(url)
         }
     }
 }

@@ -58,18 +58,32 @@ struct iOSRootView: View {
         }
         .fileImporter(
             isPresented: $showFolderPicker,
-            allowedContentTypes: [.folder, UTType(filenameExtension: "md") ?? .plainText]
+            allowedContentTypes: [
+                .folder,
+                UTType(filenameExtension: "md")       ?? .plainText,
+                UTType(filenameExtension: "markdown") ?? .plainText,
+            ]
         ) { result in
             showFolderPicker = false
             vm.needsFolderPicker = false
             if case .success(let url) = result {
-                // Security-scoped access must be started before reading resource values on iOS;
-                // without it, isDirectory returns nil and the folder is misrouted to openStandaloneFile.
-                _ = url.startAccessingSecurityScopedResource()
-                let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-                url.stopAccessingSecurityScopedResource()
-                if isDir { vm.setRoot(url) } else { vm.openStandaloneFile(url) }
+                vm.openFile(url)
             }
+        }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            for provider in providers {
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    guard let url else { return }
+                    Task { @MainActor in vm.openFile(url) }
+                }
+            }
+            return true
+        }
+        .alert(item: Binding(
+            get: { vm.fileOpenError },
+            set: { vm.fileOpenError = $0 }
+        )) { error in
+            Alert(title: Text("Cannot Open File"), message: Text(error.localizedDescription))
         }
         // Forward vm-driven triggers (onboarding completion, reset) into local @State.
         .onChange(of: vm.needsFolderPicker) { _, val in if val { showFolderPicker = true } }
