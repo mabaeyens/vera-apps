@@ -42,6 +42,56 @@ private let inlinePatterns: [(regex: NSRegularExpression, kind: InlineMatch.Kind
     }
 }()
 
+// MARK: - HR Attachment
+
+#if os(iOS)
+private final class HRAttachment: NSTextAttachment {
+    private let color: UIColor
+    init(color: UIColor) { self.color = color; super.init(data: nil, ofType: nil) }
+    required init?(coder: NSCoder) { nil }
+    override func attachmentBounds(for textContainer: NSTextContainer?,
+                                   proposedLineFragment lineFrag: CGRect,
+                                   glyphPosition: CGPoint,
+                                   characterIndex: Int) -> CGRect {
+        let pad = textContainer?.lineFragmentPadding ?? 0
+        let w   = (textContainer?.size.width ?? lineFrag.width) - pad * 2
+        return CGRect(x: 0, y: -1, width: max(w, 0), height: 1)
+    }
+    override func image(forBounds imageBounds: CGRect,
+                        textContainer: NSTextContainer?,
+                        characterIndex: Int) -> UIImage? {
+        UIGraphicsImageRenderer(bounds: imageBounds).image { _ in
+            color.setFill()
+            UIRectFill(imageBounds)
+        }
+    }
+}
+#elseif os(macOS)
+private final class HRAttachment: NSTextAttachment {
+    private let color: NSColor
+    init(color: NSColor) { self.color = color; super.init(data: nil, ofType: nil) }
+    required init?(coder: NSCoder) { nil }
+    override func attachmentBounds(for textContainer: NSTextContainer?,
+                                   proposedLineFragment lineFrag: CGRect,
+                                   glyphPosition: CGPoint,
+                                   characterIndex: Int) -> CGRect {
+        let pad = textContainer?.lineFragmentPadding ?? 0
+        let w   = (textContainer?.size.width ?? lineFrag.width) - pad * 2
+        return CGRect(x: 0, y: -1, width: max(w, 0), height: 1)
+    }
+    override func image(forBounds imageBounds: CGRect,
+                        textContainer: NSTextContainer?,
+                        characterIndex: Int) -> NSImage? {
+        let img = NSImage(size: imageBounds.size)
+        img.lockFocus()
+        color.setFill()
+        imageBounds.fill()
+        img.unlockFocus()
+        return img
+    }
+}
+#endif
+
 // MARK: - Renderer
 
 private struct MarkdownRenderer {
@@ -387,9 +437,10 @@ private struct MarkdownRenderer {
         let p = NSMutableParagraphStyle()
         p.paragraphSpacing       = fontSize * 0.4
         p.paragraphSpacingBefore = fontSize * 0.4
-        return NSAttributedString(string: "─────────────────────────────────", attributes: [
-            .font: bodyFont(), .foregroundColor: separatorColor, .paragraphStyle: p,
-        ])
+        let attachment = HRAttachment(color: separatorColor)
+        let str = NSMutableAttributedString(attachment: attachment)
+        str.addAttribute(.paragraphStyle, value: p, range: NSRange(location: 0, length: str.length))
+        return str
     }
 
     // MARK: - Inline formatting

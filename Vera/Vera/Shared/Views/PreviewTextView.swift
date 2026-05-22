@@ -32,7 +32,7 @@ struct PreviewTextView: UIViewRepresentable {
 
     // MARK: Coordinator
 
-    final class Coordinator: NSObject, UIScrollViewDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIScrollViewDelegate {
         var parent: PreviewTextView
         private var lastText = ""
         private var lastFontSize: CGFloat = 0
