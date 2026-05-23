@@ -32,7 +32,7 @@ struct iOSRootView: View {
                         .toolbar { sharedToolbar }
                         .navigationDestination(item: $vm.selectedURL) { url in
                             VStack(spacing: 0) {
-                                if vm.tabs.count >= 2 { TabBarView() }
+                                if vm.tabs.count >= 1 { TabBarView() }
                                 DocumentView(url: url).id(url)
                             }
                         }
@@ -46,7 +46,7 @@ struct iOSRootView: View {
                         .toolbar { sharedToolbar }
                 } detail: {
                     VStack(spacing: 0) {
-                        if vm.tabs.count >= 2 { TabBarView() }
+                        if vm.tabs.count >= 1 { TabBarView() }
                         if let url = vm.selectedURL {
                             DocumentView(url: url).id(url)
                         } else {
@@ -87,6 +87,7 @@ struct iOSRootView: View {
         }
         // Forward vm-driven triggers (onboarding completion, reset) into local @State.
         .onChange(of: vm.needsFolderPicker) { _, val in if val { showFolderPicker = true } }
+        .onReceive(NotificationCenter.default.publisher(for: .veraOpenPicker)) { _ in showFolderPicker = true }
         .sheet(isPresented: $showAbout) {
             AboutView(onReset: { vm.resetState() })
         }
@@ -95,7 +96,7 @@ struct iOSRootView: View {
         }
         .sheet(isPresented: $showNewFile) {
             NewFileSheet { url in
-                vm.openFileInActiveTab(url)
+                vm.openFileInNewTab(url)
             }
             .environment(vm)
             .presentationDetents([.medium])

@@ -46,6 +46,7 @@ final class EditorViewModel {
             }
             rawText = ""
         }
+        if rawText.isEmpty { mode = .editing }
     }
 
     func enterEditMode(tapY: CGFloat = 0, viewHeight: CGFloat = 0) {
@@ -82,6 +83,11 @@ final class EditorViewModel {
         } else {
             insertSnippet(syntax)
         }
+    }
+
+    func applyAutoFix() {
+        rawText = rawText.fixMarkdown()
+        textDidChange()
     }
 
     func textDidChange() {

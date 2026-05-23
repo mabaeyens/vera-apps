@@ -87,6 +87,16 @@ struct DocumentView: View {
                     .bold()
             }
         }
+        if viewModel.mode == .editing {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    viewModel.applyAutoFix()
+                } label: {
+                    Image(systemName: "wand.and.sparkles")
+                }
+                .help("Auto-fix formatting")
+            }
+        }
         #if os(iOS)
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .topBarTrailing) {

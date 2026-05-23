@@ -45,7 +45,7 @@ struct EditingModeView: View {
                 }
             )
             if linterEnabled && !viewModel.lintResults.isEmpty {
-                LintPanelView(warnings: viewModel.lintResults)
+                LintPanelView(warnings: viewModel.lintResults, onFix: { viewModel.applyAutoFix() })
             }
         }
         #if os(iOS)
@@ -130,31 +130,38 @@ private extension Double {
 
 private struct LintPanelView: View {
     let warnings: [LintWarning]
+    let onFix: () -> Void
     @State private var isExpanded = false
 
     var body: some View {
         VStack(spacing: 0) {
             Divider()
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
-            } label: {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.yellow)
-                        .font(.caption)
-                    Text("\(warnings.count) warning\(warnings.count == 1 ? "" : "s")")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+            HStack {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                } label: {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.yellow)
+                            .font(.caption)
+                        Text("\(warnings.count) warning\(warnings.count == 1 ? "" : "s")")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.leading, 12)
+                    .padding(.vertical, 6)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(.bar)
+                .buttonStyle(.plain)
+                Spacer()
+                Button("Auto-fix", action: onFix)
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.mini)
+                    .padding(.trailing, 12)
             }
-            .buttonStyle(.plain)
+            .background(.bar)
 
             if isExpanded {
                 Divider()

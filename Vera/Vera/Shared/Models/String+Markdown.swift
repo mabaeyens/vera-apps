@@ -43,6 +43,92 @@ extension String {
         return s
     }
 
+    func fixMarkdown() -> String {
+        var lines = components(separatedBy: "\n")
+
+        // Pass 1: trailing whitespace + smart-quote replacement (outside code fences)
+        var inFence = false
+        for i in lines.indices {
+            let t = lines[i].trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("```") || t.hasPrefix("~~~") { inFence.toggle() }
+            lines[i] = lines[i].replacingOccurrences(of: "\\s+$", with: "", options: .regularExpression)
+            if !inFence {
+                lines[i] = lines[i]
+                    .replacingOccurrences(of: "\u{201C}", with: "\"")
+                    .replacingOccurrences(of: "\u{201D}", with: "\"")
+                    .replacingOccurrences(of: "\u{2018}", with: "'")
+                    .replacingOccurrences(of: "\u{2019}", with: "'")
+                    .replacingOccurrences(of: "\u{2014}", with: "--")
+                    .replacingOccurrences(of: "\u{2013}", with: "-")
+            }
+        }
+
+        func headingLevel(_ s: String) -> Int {
+            guard s.hasPrefix("#") else { return 0 }
+            var level = 0
+            for c in s { if c == "#" { level += 1 } else { break } }
+            guard level <= 6, s.count > level,
+                  s[s.index(s.startIndex, offsetBy: level)] == " " else { return 0 }
+            return level
+        }
+
+        // Pass 2: blank lines around headings (skip front matter and code fences)
+        var output: [String] = []
+        var inFence2 = false
+        var inFrontMatter = false
+
+        for (i, line) in lines.enumerated() {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            if i == 0 && t == "---" { inFrontMatter = true; output.append(line); continue }
+            if inFrontMatter {
+                output.append(line)
+                if t == "---" || t == "..." { inFrontMatter = false }
+                continue
+            }
+            if t.hasPrefix("```") || t.hasPrefix("~~~") {
+                inFence2.toggle()
+                output.append(line)
+                continue
+            }
+            if inFence2 { output.append(line); continue }
+
+            let level = headingLevel(line)
+            if level > 0 {
+                // Blank line before heading if previous output line is non-empty content
+                if !output.isEmpty && !output[output.count - 1].trimmingCharacters(in: .whitespaces).isEmpty {
+                    output.append("")
+                }
+                output.append(line)
+                // Blank line after heading if next line is non-empty and not also a heading
+                if i + 1 < lines.count {
+                    let next = lines[i + 1]
+                    let nextT = next.trimmingCharacters(in: .whitespaces)
+                    if !nextT.isEmpty && headingLevel(next) == 0 {
+                        output.append("")
+                    }
+                }
+            } else {
+                output.append(line)
+            }
+        }
+
+        // Pass 3: collapse 3+ consecutive blank lines to 2, trim trailing blanks
+        var result: [String] = []
+        var blankRun = 0
+        for line in output {
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                blankRun += 1
+                if blankRun <= 2 { result.append(line) }
+            } else {
+                blankRun = 0
+                result.append(line)
+            }
+        }
+        while result.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { result.removeLast() }
+
+        return result.joined(separator: "\n")
+    }
+
     func lintMarkdown() -> [LintWarning] {
         var warnings: [LintWarning] = []
         var inFrontMatter = false

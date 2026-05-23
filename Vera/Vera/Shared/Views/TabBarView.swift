@@ -5,13 +5,25 @@ struct TabBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(vm.tabs) { tab in
-                        TabItemView(tab: tab, isActive: tab.id == vm.activeTabID)
+            HStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(vm.tabs) { tab in
+                            TabItemView(tab: tab, isActive: tab.id == vm.activeTabID)
+                        }
                     }
+                    .padding(.horizontal, 4)
                 }
-                .padding(.horizontal, 4)
+                Button {
+                    NotificationCenter.default.post(name: .veraOpenPicker, object: nil)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.caption)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 4)
+                .help("Open file in new tab")
             }
             .frame(height: 36)
             .background(.bar)

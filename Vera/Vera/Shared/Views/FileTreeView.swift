@@ -83,18 +83,23 @@ struct FileTreeView: View {
         // UUID selection → URL (user taps a file)
         .onChange(of: selectedID) { _, id in
             guard let id else { selectedURL = nil; return }
+            #if os(macOS)
+            let openInNew = NSEvent.modifierFlags.contains(.command)
+            #else
+            let openInNew = false
+            #endif
             // Check folder tree first
             if let node = findNode(id: id, in: vm.roots),
                case .file(_, _, let url, let state) = node {
                 if state == .cloud { vm.download(url) }
                 vm.pinFile(url)
-                vm.openFileInActiveTab(url)
+                if openInNew { vm.openFileInNewTab(url) } else { vm.openFileInActiveTab(url) }
                 return
             }
             // Check standalone files
             if let node = vm.standaloneFiles.first(where: { $0.id == id }),
                case .file(_, _, let url, _) = node {
-                vm.openFileInActiveTab(url)
+                if openInNew { vm.openFileInNewTab(url) } else { vm.openFileInActiveTab(url) }
             }
         }
         // URL → UUID (programmatic selection e.g. new file created or tab switch)

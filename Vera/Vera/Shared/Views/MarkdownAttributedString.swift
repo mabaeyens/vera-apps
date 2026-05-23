@@ -1,4 +1,5 @@
 import Foundation
+import Highlightr
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
@@ -197,14 +198,15 @@ private struct MarkdownRenderer {
             // Code fence
             if line.hasPrefix("```") || line.hasPrefix("~~~") {
                 let fence = line.hasPrefix("```") ? "```" : "~~~"
-                i += 1  // opening line contains optional language hint — discard it
+                let lang = line.dropFirst(fence.count).trimmingCharacters(in: .whitespaces)
+                i += 1
                 var codeLines: [String] = []
                 while i < lines.count && !lines[i].hasPrefix(fence) {
                     codeLines.append(lines[i])
                     i += 1
                 }
                 if i < lines.count { i += 1 }  // closing fence
-                append(renderCodeBlock(codeLines))
+                append(renderCodeBlock(codeLines, language: lang.isEmpty ? nil : lang))
                 continue
             }
 
@@ -340,10 +342,27 @@ private struct MarkdownRenderer {
         ])
     }
 
-    private func renderCodeBlock(_ codeLines: [String]) -> NSAttributedString {
+    private func renderCodeBlock(_ codeLines: [String], language: String?) -> NSAttributedString {
+        let code = codeLines.joined(separator: "\n")
         let p = NSMutableParagraphStyle()
         p.paragraphSpacing = fontSize * 0.1
-        return NSAttributedString(string: codeLines.joined(separator: "\n"), attributes: [
+
+        if let lang = language,
+           let hl = Highlightr() {
+            hl.setTheme(to: isDarkMode ? "atom-one-dark" : "atom-one-light")
+            if let highlighted = hl.highlight(code, as: lang, fastRender: true) {
+                let wrapped = NSMutableAttributedString(attributedString: highlighted)
+                let fullRange = NSRange(location: 0, length: wrapped.length)
+                wrapped.addAttributes([
+                    .font: monoBlockFont,
+                    .backgroundColor: codeBackground,
+                    .paragraphStyle: p,
+                ], range: fullRange)
+                return wrapped
+            }
+        }
+
+        return NSAttributedString(string: code, attributes: [
             .font: monoBlockFont,
             .foregroundColor: textColor,
             .backgroundColor: codeBackground,
@@ -419,16 +438,38 @@ private struct MarkdownRenderer {
                 .replacingOccurrences(of: " ", with: "")
             return !stripped.isEmpty
         }
-        for (rowIdx, row) in dataRows.enumerated() {
-            let cells = row.components(separatedBy: "|")
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
+        // Collect all cells to compute column widths
+        let parsed: [[String]] = dataRows.map { row in
+            row.components(separatedBy: "|")
+               .map { $0.trimmingCharacters(in: .whitespaces) }
+               .filter { !$0.isEmpty }
+        }
+        let colCount = parsed.map(\.count).max() ?? 0
+        var colWidths = [Int](repeating: 0, count: colCount)
+        for cells in parsed {
+            for (ci, cell) in cells.enumerated() where ci < colCount {
+                colWidths[ci] = max(colWidths[ci], cell.count)
+            }
+        }
+        let p = NSMutableParagraphStyle()
+        p.paragraphSpacing = fontSize * 0.15
+        for (rowIdx, cells) in parsed.enumerated() {
             let isHeader = rowIdx == 0
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: bodyFont(bold: isHeader), .foregroundColor: textColor,
+            var line = ""
+            for ci in 0..<colCount {
+                let cell = ci < cells.count ? cells[ci] : ""
+                let pad = String(repeating: " ", count: colWidths[ci] - cell.count)
+                line += " \(cell)\(pad) │"
+            }
+            if line.hasSuffix(" │") { line = String(line.dropLast(2)) }
+            if rowIdx < dataRows.count - 1 { line += "\n" }
+            var rowAttrs: [NSAttributedString.Key: Any] = [
+                .font: isHeader ? bodyFont(bold: true) : monoBlockFont,
+                .foregroundColor: textColor,
+                .paragraphStyle: p,
             ]
-            let suffix = rowIdx < dataRows.count - 1 ? "\n" : ""
-            out.append(NSAttributedString(string: cells.joined(separator: "\t") + suffix, attributes: attrs))
+            if isHeader { rowAttrs[.backgroundColor] = codeBackground }
+            out.append(NSAttributedString(string: line, attributes: rowAttrs))
         }
         return out
     }

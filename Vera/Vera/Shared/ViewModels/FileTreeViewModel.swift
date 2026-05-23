@@ -138,7 +138,7 @@ final class FileTreeViewModel {
         }
 
         if let root = rootURL, resolved.path.hasPrefix(root.path) {
-            openFileInActiveTab(resolved)
+            openFileInNewTab(resolved)
         } else if rootURL == nil {
             pendingExternalURL = resolved
             setRoot(resolved.deletingLastPathComponent())
@@ -162,7 +162,7 @@ final class FileTreeViewModel {
             let name = url.deletingPathExtension().lastPathComponent
             standaloneFiles.append(.file(id: UUID(), name: name, url: url, downloadState: .local))
         }
-        openFileInActiveTab(url)
+        openFileInNewTab(url)
     }
 
     func activateTab(_ id: UUID) {
@@ -207,7 +207,7 @@ final class FileTreeViewModel {
             }
             repinDownloads()
             if let pending = pendingExternalURL {
-                openFileInActiveTab(pending)
+                openFileInNewTab(pending)
                 pendingExternalURL = nil
             }
         } catch {

@@ -19,7 +19,7 @@ struct MacRootView: View {
                 .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
         } detail: {
             VStack(spacing: 0) {
-                if vm.tabs.count >= 2 {
+                if vm.tabs.count >= 1 {
                     TabBarView()
                 }
                 if let url = vm.selectedURL {
@@ -31,6 +31,7 @@ struct MacRootView: View {
             }
         }
         .onChange(of: vm.needsFolderPicker) { _, val in if val { openPicker() } }
+        .onReceive(NotificationCenter.default.publisher(for: .veraOpenPicker)) { _ in openPicker() }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -79,7 +80,7 @@ struct MacRootView: View {
                 .frame(width: 480, height: 560)
         }
         .sheet(isPresented: $showNewFile) {
-            NewFileSheet { url in vm.openFileInActiveTab(url) }
+            NewFileSheet { url in vm.openFileInNewTab(url) }
                 .environment(vm)
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {
