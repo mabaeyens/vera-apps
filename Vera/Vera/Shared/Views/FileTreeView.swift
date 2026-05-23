@@ -181,17 +181,26 @@ struct FileTreeView: View {
             }
             .tag(id)
             #else
-            HStack {
-                Label(name, systemImage: "doc.text")
-                Spacer()
-                if vm.downloadingURLs.contains(url) {
-                    ProgressView().controlSize(.small)
-                } else if state == .cloud {
-                    let icon = connectivity.isOnline ? "icloud.and.arrow.down" : "icloud.slash"
-                    Image(systemName: icon).foregroundStyle(.secondary).font(.caption)
+            // Button wrapper is required: List(selection:) doesn't fire onChange inside
+            // NavigationStack on iPhone — only NavigationSplitView enables that path.
+            Button {
+                if state == .cloud { vm.download(url) }
+                vm.pinFile(url)
+                vm.openFileInActiveTab(url)
+            } label: {
+                HStack {
+                    Label(name, systemImage: "doc.text")
+                    Spacer()
+                    if vm.downloadingURLs.contains(url) {
+                        ProgressView().controlSize(.small)
+                    } else if state == .cloud {
+                        let icon = connectivity.isOnline ? "icloud.and.arrow.down" : "icloud.slash"
+                        Image(systemName: icon).foregroundStyle(.secondary).font(.caption)
+                    }
                 }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 Button(role: .destructive) {
                     fileToDelete = (url, name)
