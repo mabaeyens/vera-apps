@@ -52,9 +52,11 @@ struct FileTreeView: View {
                         }
                     }
                     #else
-                    ForEach(flattenedRows()) { row in
-                        rowView(for: row.node)
-                            .padding(.leading, CGFloat(row.depth) * 20)
+                    Section(vm.rootURL?.lastPathComponent ?? "") {
+                        ForEach(flattenedRows()) { row in
+                            rowView(for: row.node)
+                                .padding(.leading, CGFloat(row.depth) * 20)
+                        }
                     }
                     #endif
                 }

@@ -120,9 +120,9 @@ final class FileTreeViewModel {
         }
 
         if isDir.boolValue {
-            // Directory → set as root (e.g. drag-and-drop of a folder, or Cmd+O folder pick)
+            // Stop openFile's scope — setRoot starts its own scope and owns it from here.
             if accessStarted { url.stopAccessingSecurityScopedResource() }
-            setRoot(resolved)
+            setRoot(url)
             return
         }
 
@@ -141,7 +141,7 @@ final class FileTreeViewModel {
             openFileInNewTab(resolved)
         } else if rootURL == nil {
             pendingExternalURL = resolved
-            setRoot(resolved.deletingLastPathComponent())
+            setRoot(url.deletingLastPathComponent())
         } else {
             addStandaloneAndSelect(resolved)
         }

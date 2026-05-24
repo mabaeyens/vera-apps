@@ -135,12 +135,12 @@ struct iOSRootView: View {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { showFolderPicker = true } label: {
-                    Label("Open Folder", systemImage: "folder")
+                    Label("Open…", systemImage: "folder")
                 }
                 Button { showNewFile = true } label: {
                     Label("New File", systemImage: "square.and.pencil")
                 }
-                .disabled(vm.rootURL == nil)
+                .disabled(vm.rootURL == nil && vm.standaloneFiles.isEmpty)
                 if vm.tabs.count >= 1 {
                     Button { tabBarVisible.toggle() } label: {
                         Label(

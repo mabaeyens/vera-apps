@@ -2,8 +2,38 @@ import SwiftUI
 
 struct TabBarView: View {
     @Environment(FileTreeViewModel.self) private var vm
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
     @State private var hasTrailingOverflow = false
+
+    private var tabHeight: CGFloat {
+        #if os(macOS)
+        return 40
+        #else
+        return horizontalSizeClass == .regular ? 52 : 40
+        #endif
+    }
+    private var iconFont: Font {
+        #if os(macOS)
+        return .caption
+        #else
+        return horizontalSizeClass == .regular ? .callout : .caption
+        #endif
+    }
+    private var addButtonWidth: CGFloat {
+        #if os(macOS)
+        return 32
+        #else
+        return horizontalSizeClass == .regular ? 44 : 32
+        #endif
+    }
+    private var hideButtonWidth: CGFloat {
+        #if os(macOS)
+        return 28
+        #else
+        return horizontalSizeClass == .regular ? 40 : 28
+        #endif
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -39,23 +69,23 @@ struct TabBarView: View {
                     NotificationCenter.default.post(name: .veraOpenPicker, object: nil)
                 } label: {
                     Image(systemName: "plus")
-                        .font(.caption)
+                        .font(iconFont)
                         .foregroundStyle(.secondary)
-                        .frame(width: 32, height: 40)
+                        .frame(width: addButtonWidth, height: tabHeight)
                 }
                 .buttonStyle(.plain)
                 .help("Open file in new tab")
                 Divider().frame(height: 20)
                 Button { tabBarVisible = false } label: {
                     Image(systemName: "chevron.compact.up")
-                        .font(.caption)
+                        .font(iconFont)
                         .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 40)
+                        .frame(width: hideButtonWidth, height: tabHeight)
                 }
                 .buttonStyle(.plain)
                 .help("Hide tab bar")
             }
-            .frame(height: 40)
+            .frame(height: tabHeight)
             .background(.bar)
             Divider()
         }
@@ -64,8 +94,31 @@ struct TabBarView: View {
 
 private struct TabItemView: View {
     @Environment(FileTreeViewModel.self) private var vm
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     let tab: FileTreeViewModel.TabEntry
     let isActive: Bool
+
+    private var tabHeight: CGFloat {
+        #if os(macOS)
+        return 40
+        #else
+        return horizontalSizeClass == .regular ? 52 : 40
+        #endif
+    }
+    private var closeSize: CGFloat {
+        #if os(macOS)
+        return 14
+        #else
+        return horizontalSizeClass == .regular ? 20 : 14
+        #endif
+    }
+    private var closeFont: CGFloat {
+        #if os(macOS)
+        return 8
+        #else
+        return horizontalSizeClass == .regular ? 11 : 8
+        #endif
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -83,14 +136,14 @@ private struct TabItemView: View {
                     vm.closeTab(tab.id)
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .medium))
+                        .font(.system(size: closeFont, weight: .medium))
                         .foregroundStyle(.secondary)
-                        .frame(width: 14, height: 14)
+                        .frame(width: closeSize, height: closeSize)
                 }
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 10)
-            .frame(height: 40)
+            .frame(height: tabHeight)
 
             // Bottom accent bar for active tab
             if isActive {
