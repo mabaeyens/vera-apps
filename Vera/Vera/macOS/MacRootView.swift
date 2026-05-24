@@ -10,6 +10,7 @@ struct MacRootView: View {
     @State private var showNewFile = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
 
     var body: some View {
         @Bindable var vm = vm
@@ -19,7 +20,7 @@ struct MacRootView: View {
                 .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
         } detail: {
             VStack(spacing: 0) {
-                if vm.tabs.count >= 1 {
+                if vm.tabs.count >= 1 && tabBarVisible {
                     TabBarView()
                 }
                 if let url = vm.selectedURL {
@@ -73,6 +74,14 @@ struct MacRootView: View {
                     Image(systemName: "info.circle")
                 }
                 .help("About Vera")
+            }
+            ToolbarItem(placement: .automatic) {
+                if !tabBarVisible && vm.tabs.count >= 1 {
+                    Button { tabBarVisible = true } label: {
+                        Image(systemName: "chevron.compact.down")
+                    }
+                    .help("Show tab bar")
+                }
             }
         }
         .sheet(isPresented: $showAbout) {

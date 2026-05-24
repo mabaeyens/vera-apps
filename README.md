@@ -7,12 +7,12 @@ A reading-first Markdown viewer and editor for iOS and macOS. Part of the Mira e
 ## Features
 
 - **Browse** — recursive file tree of every `.md` file in your chosen folder (iCloud or local); lazy per-folder expansion; folder name shown in title bar
-- **Read** — rendered Markdown via MarkdownUI (tables, code blocks, task lists); selectable text for copy
-- **Edit** — syntax-highlighted editor; double-tap or Edit button to switch modes; iOS formatting bar (undo/redo, bold, italic, heading, Atlas, more) slides up with the keyboard
-- **Tabs** — open multiple files simultaneously; macOS native tab strip (Cmd+T); iOS bottom tab bar (up to 5 tabs)
+- **Read** — native `PreviewTextView` (UITextView/NSTextView) with full cross-block selection and rich-text copy; syntax-highlighted fenced code blocks (atom-one theme via Highlightr); structured table rendering; selectable text copies rich text to clipboard
+- **Edit** — syntax-highlighted editor; double-tap or Edit button to switch modes; new empty files open directly in edit mode; iOS formatting bar (undo/redo, bold, italic, heading, Atlas, more) slides up with the keyboard
+- **Tabs** — tab bar visible from the first open file; "+" button opens file picker; macOS native tab bar suppressed (no system window-tab chrome); iOS bottom tab bar (up to 5 tabs)
 - **Font size** — adjustable editor font size per-session
 - **Atlas** — tap-to-insert syntax snippets; accessible from the toolbar in both preview and edit mode
-- **Linter** — real-time Markdown syntax warnings while editing (debounced, off main thread); toggle in Settings
+- **Linter** — real-time Markdown syntax warnings while editing (debounced, off main thread); toggle in Settings; **Auto-fix** button repairs heading spacing, collapses blank lines, strips trailing whitespace, replaces smart quotes and dashes
 - **Remove Formatting** — strip Markdown from selected text via the context menu
 - **New file** — create `.md` files in any folder directly from the sidebar
 - **Open file** — open any `.md` file directly without selecting a folder first; works from the sidebar or Finder (macOS)
@@ -65,10 +65,12 @@ No server, no networking beyond iCloud sync.
 
 - **File access — macOS:** No App Sandbox (causes pre-main crash on macOS 26 beta). Folder picker (`.fileImporter`) on first launch; URL persisted as security-scoped bookmark (`withSecurityScope`) in `UserDefaults` key `rootFolderBookmark`.
 - **File access — iOS:** Same `.fileImporter` + security-scoped bookmark flow; bookmark options `[]` (no `withSecurityScope`).
-- **Markdown rendering:** MarkdownUI (SPM) — handles tables, code blocks, task lists.
-- **Syntax highlighting:** Highlightr (SPM) — `HighlightingTextView` (`UIViewRepresentable`/`NSViewRepresentable`) wraps `UITextView`/`NSTextView` with `CodeAttributedString`.
+- **Markdown rendering (preview):** Custom `MarkdownAttributedString` builder producing `NSAttributedString`; displayed in non-editable `PreviewTextView` (`UIViewRepresentable`/`NSViewRepresentable`). Code blocks use Highlightr (atom-one-light/dark). Tables rendered with `│`-separated columns, bolded header row.
+- **Syntax highlighting (editor):** Highlightr (SPM) — `HighlightingTextView` wraps `UITextView`/`NSTextView` with `CodeAttributedString`. Warmed on app launch via `HighlightrWarmup.prime()` to prevent cold-launch crash.
 - **Auto-save:** 500 ms debounce via `Task.sleep`; `NSFileVersion` conflict resolution on read; version cleanup after write.
-- **Tabs:** one `EditorViewModel` per tab; macOS native tab strip via `.commands`; iOS bottom tab bar (max 5 tabs); opening a URL already open in another tab navigates to that tab instead of duplicating.
+- **Tabs:** one `EditorViewModel` per tab; tab bar visible from `count >= 1` (first open file); `NSWindow.allowsAutomaticWindowTabbing = false` suppresses system window-tab bar on macOS; iOS bottom tab bar (max 5 tabs); "+" button posts `.veraOpenPicker` notification to open file picker; opening a URL already open in another tab navigates to that tab instead of duplicating.
+- **Linter auto-fix:** `String+Markdown.fixMarkdown()` — collapses 3+ blank lines to 2, ensures blank lines around headings, strips trailing whitespace, replaces smart quotes/dashes with ASCII equivalents. Callable from lint panel or editor toolbar.
+- **New file edit mode:** `EditorViewModel.load()` sets `mode = .editing` when `rawText.isEmpty`, so new files open with cursor ready.
 - **iOS formatting bar:** `UIInputAccessoryView`-based scrollable bar (44 pt, `secondarySystemBackground`) with undo/redo, inline format buttons (bold, italic, strikethrough, code), block shortcuts (heading, list, quote), Atlas trigger, and a `···` UIMenu for font size and help.
 - **Linter:** `String+Markdown.lintMarkdown()` debounced ≥500 ms off main thread; results in `EditorViewModel.lintResults: [LintWarning]`; skips code fences and front matter; toggle in Settings.
 - **macOS sidebar:** `DisclosureGroup` (not `List(children:)`) so folder labels are clickable. Collapse reverted via `onChange(of: columnVisibility)` guard — toolbar button is the only way to hide.
@@ -82,5 +84,5 @@ No server, no networking beyond iCloud sync.
 
 ## SPM dependencies
 
-- [`swift-markdown-ui`](https://github.com/gonzalezreal/swift-markdown-ui) — Markdown rendering in ViewingMode
-- [`Highlightr`](https://github.com/raspu/Highlightr) — Syntax highlighting in EditingMode
+- [`swift-markdown-ui`](https://github.com/gonzalezreal/swift-markdown-ui) — retained as SPM dependency but no longer used for preview rendering (replaced by `PreviewTextView` + `MarkdownAttributedString`)
+- [`Highlightr`](https://github.com/raspu/Highlightr) — Syntax highlighting in both EditingMode (`HighlightingTextView`) and preview code blocks (`MarkdownAttributedString`)

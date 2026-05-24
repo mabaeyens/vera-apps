@@ -16,6 +16,7 @@ struct iOSRootView: View {
     // as dependencies during body evaluation, so SwiftUI never re-renders on change.
     // Local @State always invalidates the owner view on write, which is what we need.
     @State private var showFolderPicker = false
+    @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
 
     var body: some View {
         @Bindable var vm = vm
@@ -32,7 +33,7 @@ struct iOSRootView: View {
                         .toolbar { sharedToolbar }
                         .navigationDestination(item: $vm.selectedURL) { url in
                             VStack(spacing: 0) {
-                                if vm.tabs.count >= 1 { TabBarView() }
+                                if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
                                 DocumentView(url: url).id(url)
                             }
                         }
@@ -46,7 +47,7 @@ struct iOSRootView: View {
                         .toolbar { sharedToolbar }
                 } detail: {
                     VStack(spacing: 0) {
-                        if vm.tabs.count >= 1 { TabBarView() }
+                        if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
                         if let url = vm.selectedURL {
                             DocumentView(url: url).id(url)
                         } else {
@@ -140,6 +141,14 @@ struct iOSRootView: View {
                     Label("New File", systemImage: "square.and.pencil")
                 }
                 .disabled(vm.rootURL == nil)
+                if vm.tabs.count >= 1 {
+                    Button { tabBarVisible.toggle() } label: {
+                        Label(
+                            tabBarVisible ? "Hide Tab Bar" : "Show Tab Bar",
+                            systemImage: tabBarVisible ? "chevron.compact.up" : "chevron.compact.down"
+                        )
+                    }
+                }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }

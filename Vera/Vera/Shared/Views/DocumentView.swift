@@ -116,9 +116,9 @@ struct DocumentView: View {
         #if os(macOS)
         ToolbarItem(placement: .automatic) {
             Button { showAtlas = true } label: {
-                Image(systemName: "wand.and.stars")
+                Image(systemName: "paintbrush")
             }
-            .help("Atlas — AI writing assistant")
+            .help("Format & Snippets")
         }
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .automatic) {
@@ -138,17 +138,16 @@ struct DocumentView: View {
             .help("Markdown Reference")
         }
         ToolbarItem(placement: .automatic) {
-            Menu {
-                Button { fontSize = min(32, fontSize + 1) } label: {
-                    Label("Larger Text", systemImage: "textformat.size.larger")
-                }
-                Button { fontSize = max(12, fontSize - 1) } label: {
-                    Label("Smaller Text", systemImage: "textformat.size.smaller")
-                }
-            } label: {
-                Image(systemName: "textformat.size")
+            Button { fontSize = max(12, fontSize - 1) } label: {
+                Image(systemName: "textformat.size.smaller")
             }
-            .help("Text size")
+            .help("Smaller Text")
+        }
+        ToolbarItem(placement: .automatic) {
+            Button { fontSize = min(32, fontSize + 1) } label: {
+                Image(systemName: "textformat.size.larger")
+            }
+            .help("Larger Text")
         }
         #endif
         ToolbarItem(placement: .status) {

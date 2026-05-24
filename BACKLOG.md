@@ -48,6 +48,16 @@
 - ✅ **Cheat sheet always expanded** — sections use `Section(isExpanded: .constant(true))`; shortcut badges (⌘B/I/⇧X/⇧C) shown on Emphasis entries
 - ✅ **Swift 6 concurrency warnings in CloudScanner** — `stableID` marked `nonisolated`; sort uses local `Dated` struct instead of accessing `FileNode.name` from nonisolated closure
 
+## Recently fixed (session 2026-05-24)
+
+- ✅ **Linter auto-fix** — `String+Markdown.fixMarkdown()` collapses excess blank lines, adds blank lines around headings, strips trailing whitespace, and replaces Unicode smart quotes and dashes with ASCII equivalents; "Auto-fix" button in lint panel; wand toolbar shortcut triggers fix from any file
+- ✅ **Always-visible tab bar** — tab bar shows as soon as the first file is open (`count >= 1`); "+" button in tab bar opens the file picker
+- ✅ **Suppress system window-tab bar** — `NSWindow.allowsAutomaticWindowTabbing = false` in `VeraApp.init()`; `.handlesExternalEvents(matching: [])` on `WindowGroup` prevents duplicate windows
+- ✅ **Syntax highlighting in preview** — `MarkdownAttributedString` uses Highlightr for fenced code blocks; language hint captured from opening fence line; atom-one-light/dark theme; plain-text fallback if Highlightr unavailable
+- ✅ **Table rendering in preview** — header row bolded; columns separated by `│`; visually structured without requiring TextKit 2 grid layout
+- ✅ **New empty files open in edit mode** — `EditorViewModel.load()` sets `mode = .editing` when `rawText.isEmpty`; cursor is ready immediately on new file creation
+- ✅ **iOS file row tap (critical bug fix)** — `List(selection:)` inside `NavigationStack` on iPhone does not fire `onChange`; fixed by wrapping iOS file rows in `Button` with `.buttonStyle(.plain)` that calls `openFileInActiveTab` directly (commit `54e5748`)
+
 ## Open bugs
 
 *(none)*

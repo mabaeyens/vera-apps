@@ -159,7 +159,7 @@ struct HighlightingTextView: UIViewRepresentable {
         }
 
         let stack = UIStackView(arrangedSubviews: [
-            iconButton("wand.and.stars", action: #selector(Coordinator.triggerAtlas)),
+            iconButton("paintbrush", action: #selector(Coordinator.triggerAtlas)),
             moreBtn
         ])
         stack.axis = .horizontal
@@ -518,20 +518,26 @@ struct HighlightingTextView: NSViewRepresentable {
                 return it
             }
 
-            formatMenu.addItem(item("Bold",          sel: #selector(applyBold),   key: "b"))
-            formatMenu.addItem(item("Italic",        sel: #selector(applyItalic), key: "i"))
-            formatMenu.addItem(item("Strikethrough", sel: #selector(applyStrike), key: "x", shift: true))
-            formatMenu.addItem(item("Code",          sel: #selector(applyCode),   key: "c", shift: true))
+            formatMenu.addItem(item("Bold",          sel: #selector(applyBold),       key: "b"))
+            formatMenu.addItem(item("Italic",        sel: #selector(applyItalic),     key: "i"))
+            formatMenu.addItem(item("Strikethrough", sel: #selector(applyStrike),     key: "x", shift: true))
+            formatMenu.addItem(item("Inline Code",   sel: #selector(applyCode),       key: "c", shift: true))
+            formatMenu.addItem(item("Link",          sel: #selector(applyLink),       key: "k"))
             formatMenu.addItem(.separator())
-            formatMenu.addItem(item("Heading",       sel: #selector(applyHeading)))
-            formatMenu.addItem(item("List Item",     sel: #selector(applyList)))
-            formatMenu.addItem(item("Quote",         sel: #selector(applyQuote)))
+            formatMenu.addItem(item("Heading 1",     sel: #selector(applyH1)))
+            formatMenu.addItem(item("Heading 2",     sel: #selector(applyH2)))
+            formatMenu.addItem(item("Heading 3",     sel: #selector(applyH3)))
+            formatMenu.addItem(item("Bullet List",   sel: #selector(applyList)))
+            formatMenu.addItem(item("Numbered List", sel: #selector(applyNumbered)))
+            formatMenu.addItem(item("Blockquote",    sel: #selector(applyQuote)))
+            formatMenu.addItem(item("Code Block",    sel: #selector(applyCodeBlock)))
+            formatMenu.addItem(item("Table",         sel: #selector(applyTable)))
             formatMenu.addItem(.separator())
             formatMenu.addItem(item("Markdown Reference…", sel: #selector(openCheatSheet)))
             formatMenu.addItem(item("Icon Help…",          sel: #selector(openIconHelp)))
 
             let formatItem = NSMenuItem(title: "Format", action: nil, keyEquivalent: "")
-            formatItem.image = NSImage(systemSymbolName: "wand.and.stars", accessibilityDescription: nil)
+            formatItem.image = NSImage(systemSymbolName: "paintbrush", accessibilityDescription: nil)
             formatItem.submenu = formatMenu
             menu.insertItem(formatItem, at: 0)
             menu.insertItem(.separator(), at: 1)
@@ -551,9 +557,15 @@ struct HighlightingTextView: NSViewRepresentable {
         @objc func applyItalic()            { wrap(prefix: "_", suffix: "_") }
         @objc func applyStrike()            { wrap(prefix: "~~", suffix: "~~") }
         @objc func applyCode()              { wrap(prefix: "`", suffix: "`") }
-        @objc private func applyHeading()   { insert("## ") }
+        @objc private func applyLink()      { wrap(prefix: "[", suffix: "](url)") }
+        @objc private func applyH1()        { insert("# ") }
+        @objc private func applyH2()        { insert("## ") }
+        @objc private func applyH3()        { insert("### ") }
         @objc private func applyList()      { insert("- ") }
+        @objc private func applyNumbered()  { insert("1. ") }
         @objc private func applyQuote()     { insert("> ") }
+        @objc private func applyCodeBlock() { insert("```\n\n```") }
+        @objc private func applyTable()     { insert("| Column 1 | Column 2 |\n|---|---|\n| Cell | Cell |") }
         @objc private func openCheatSheet() { parent.onCheatSheetRequested() }
         @objc private func openIconHelp()   { parent.onIconHelpRequested() }
 

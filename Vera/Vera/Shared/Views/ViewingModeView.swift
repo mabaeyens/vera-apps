@@ -9,7 +9,7 @@ struct ViewingModeView: View {
     #endif
 
     var body: some View {
-        PreviewTextView(
+        MarkdownDocumentView(
             rawText: viewModel.rawText,
             fontSize: CGFloat(fontSize),
             scrollFraction: $viewModel.readingScrollFraction

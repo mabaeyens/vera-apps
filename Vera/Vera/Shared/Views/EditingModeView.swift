@@ -66,7 +66,7 @@ struct EditingModeView: View {
             formatButton("bold")         { viewModel.wrapSelection?("**", "**") }
             formatButton("italic")       { viewModel.wrapSelection?("_", "_") }
             formatButton("number")       { viewModel.insertAtCursor?("## ") }
-            formatButton("wand.and.stars") { onAtlasRequested() }
+            formatButton("paintbrush") { onAtlasRequested() }
             Menu {
                 Button { viewModel.wrapSelection?("~~", "~~") } label: {
                     Label("Strikethrough", systemImage: "strikethrough")
