@@ -111,7 +111,6 @@ struct MacRootView: View {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = [
-            .folder,
             UTType(filenameExtension: "md")       ?? .plainText,
             UTType(filenameExtension: "markdown") ?? .plainText,
         ]

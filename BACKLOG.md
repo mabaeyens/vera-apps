@@ -48,6 +48,12 @@
 - ✅ **Cheat sheet always expanded** — sections use `Section(isExpanded: .constant(true))`; shortcut badges (⌘B/I/⇧X/⇧C) shown on Emphasis entries
 - ✅ **Swift 6 concurrency warnings in CloudScanner** — `stableID` marked `nonisolated`; sort uses local `Dated` struct instead of accessing `FileNode.name` from nonisolated closure
 
+## Recently fixed (session 2026-06-06)
+
+- ✅ **macOS folder picker could not select folders** — removed `.folder` from `NSOpenPanel.allowedContentTypes`; `canChooseDirectories = true` is the correct mechanism; the extra entry conflicted on macOS 26
+- ✅ **Sidebar: VSCode-style Open Files section** — sidebar now shows "Open Files" (collapsible, `@AppStorage`-persisted) above the folder tree; driven by `vm.tabs`; active file has accent-color dot; × closes tab on hover (macOS) / swipe (iOS); standalone files appear here instead of a separate "Standalone" section; folder tree section hidden when `vm.roots` is empty
+- ✅ **Layout audit** — removed redundant `#if os(macOS) … #else … #endif` block in `DocumentView.swift` (identical branches, default font size 20 on both platforms)
+
 ## Recently fixed (session 2026-05-24)
 
 - ✅ **Linter auto-fix** — `String+Markdown.fixMarkdown()` collapses excess blank lines, adds blank lines around headings, strips trailing whitespace, and replaces Unicode smart quotes and dashes with ASCII equivalents; "Auto-fix" button in lint panel; wand toolbar shortcut triggers fix from any file

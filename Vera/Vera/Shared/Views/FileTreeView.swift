@@ -15,13 +15,17 @@ struct FileTreeView: View {
     @State private var fileToDelete: (url: URL, name: String)?
     @State private var expandedFolders: Set<UUID> = []
     @State private var loadedFolderIDs: Set<UUID> = []
+    @AppStorage("openFilesExpanded") private var openFilesExpanded: Bool = true
+    #if os(macOS)
+    @State private var hoveredTabID: UUID?
+    #endif
 
     var body: some View {
         Group {
-            if vm.isLoading && vm.roots.isEmpty && vm.standaloneFiles.isEmpty {
+            if vm.isLoading && vm.roots.isEmpty && vm.standaloneFiles.isEmpty && vm.tabs.isEmpty {
                 ProgressView("Loading files…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.roots.isEmpty && vm.standaloneFiles.isEmpty {
+            } else if vm.roots.isEmpty && vm.standaloneFiles.isEmpty && vm.tabs.isEmpty {
                 if vm.loadFailed {
                     ContentUnavailableView {
                         Label("Couldn't Load Files", systemImage: "exclamationmark.triangle")
@@ -37,28 +41,23 @@ struct FileTreeView: View {
                 }
             } else {
                 List(selection: $selectedID) {
-                    if !vm.standaloneFiles.isEmpty {
-                        Section("Standalone") {
-                            ForEach(vm.standaloneFiles) { node in
-                                rowView(for: node)
+                    if !vm.tabs.isEmpty {
+                        Section(isExpanded: $openFilesExpanded) {
+                            ForEach(vm.tabs) { tab in
+                                openFileRow(tab: tab)
+                            }
+                        } header: {
+                            Text("Open Files")
+                        }
+                    }
+                    if !vm.roots.isEmpty {
+                        Section(vm.rootURL?.lastPathComponent ?? "") {
+                            ForEach(flattenedRows()) { row in
+                                rowView(for: row.node)
+                                    .padding(.leading, CGFloat(row.depth) * 20)
                             }
                         }
                     }
-                    #if os(macOS)
-                    Section(vm.rootURL?.lastPathComponent ?? "") {
-                        ForEach(flattenedRows()) { row in
-                            rowView(for: row.node)
-                                .padding(.leading, CGFloat(row.depth) * 20)
-                        }
-                    }
-                    #else
-                    Section(vm.rootURL?.lastPathComponent ?? "") {
-                        ForEach(flattenedRows()) { row in
-                            rowView(for: row.node)
-                                .padding(.leading, CGFloat(row.depth) * 20)
-                        }
-                    }
-                    #endif
                 }
                 .listStyle(.sidebar)
             }
@@ -125,6 +124,57 @@ struct FileTreeView: View {
         }
         visit(vm.roots, depth: 0)
         return result
+    }
+
+    @ViewBuilder
+    private func openFileRow(tab: FileTreeViewModel.TabEntry) -> some View {
+        let isActive = tab.id == vm.activeTabID
+        #if os(macOS)
+        HStack(spacing: 6) {
+            Circle()
+                .fill(isActive ? Color.accentColor : Color.clear)
+                .frame(width: 6, height: 6)
+            Text(tab.name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer()
+            if hoveredTabID == tab.id {
+                Button { vm.closeTab(tab.id) } label: {
+                    Image(systemName: "xmark").font(.caption2)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .contentShape(Rectangle())
+        .onHover { hoveredTabID = $0 ? tab.id : nil }
+        .onTapGesture { vm.openFileInActiveTab(tab.url) }
+        #else
+        Button {
+            vm.openFileInActiveTab(tab.url)
+        } label: {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(isActive ? Color.accentColor : Color.clear)
+                    .frame(width: 6, height: 6)
+                Text(tab.name)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                Button { vm.closeTab(tab.id) } label: {
+                    Image(systemName: "xmark").font(.caption2).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) { vm.closeTab(tab.id) } label: {
+                Label("Close", systemImage: "xmark")
+            }
+        }
+        #endif
     }
 
     @ViewBuilder
