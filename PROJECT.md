@@ -43,7 +43,7 @@ No server, no networking (beyond iCloud sync). 100% local + iCloud.
 
 ## Key technical decisions
 
-- **File access -- macOS:** No App Sandbox. Folder picker (`.fileImporter`) on first launch; URL persisted as security-scoped bookmark (`withSecurityScope`) in `UserDefaults` key `rootFolderBookmark`.
+- **File access -- macOS:** No App Sandbox (intentional — causes pre-main crash on macOS 26 beta; see M1 in SECURITY_AUDIT.md). Folder picker (`.fileImporter`) on first launch; URL persisted as security-scoped bookmark (`withSecurityScope`) in `UserDefaults` key `rootFolderBookmark`. Pending: move bookmark to Keychain (M2 in SECURITY_AUDIT.md).
 - **File access -- iOS:** Same `.fileImporter` + security-scoped bookmark flow; bookmark options `[]` (no `withSecurityScope`).
 - **CloudScanner:** `FileManager()` created in `scan()` (on caller's `@MainActor`), passed into `Task.detached` to avoid implicit `@MainActor` on iOS 26 SDK.
 - **Markdown rendering (preview):** Custom `MarkdownAttributedString` builder producing `NSAttributedString`; displayed in non-editable `PreviewTextView`. Code blocks use Highlightr (atom-one-light/dark theme). Tables rendered with `│`-separated columns, bolded header row. MarkdownUI is still a package dependency but no longer used for rendering.
@@ -65,10 +65,9 @@ No server, no networking (beyond iCloud sync). 100% local + iCloud.
 
 ## SPM dependencies
 
-**Direct:**
-- MarkdownUI: `https://github.com/gonzalezreal/swift-markdown-ui` -- used for preview rendering (`MarkdownDocumentView`) and `CheatSheetView`
-- Highlightr: `https://github.com/raspu/Highlightr` -- syntax highlighting in editor (`HighlightingTextView`) and preview code blocks (`CopyableCodeBlock`)
+- **Highlightr** (`https://github.com/raspu/Highlightr`) — syntax highlighting in editor (`HighlightingTextView`) and preview code blocks (`MarkdownAttributedString`)
+- **MarkdownUI** (`https://github.com/gonzalezreal/swift-markdown-ui`) — retained as a package dependency; no longer used for preview rendering (replaced by `PreviewTextView` + `MarkdownAttributedString`); still pulled in transitively
 
-**Transitive (pulled in by MarkdownUI, not used directly):**
-- swift-cmark: `https://github.com/apple/swift-cmark` -- C CommonMark parser (MarkdownUI dependency)
-- NetworkImage: `https://github.com/gonzalezreal/NetworkImage` -- remote image loading (MarkdownUI dependency)
+## Privacy
+
+`PrivacyInfo.xcprivacy` exists at `Vera/Vera/PrivacyInfo.xcprivacy` and declares `NSPrivacyAccessedAPICategoryUserDefaults` (reason `CA92.1`). It has not yet been added to the Xcode target — required before the next App Store submission.
