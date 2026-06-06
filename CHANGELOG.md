@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.36
+
+- Security hardening (path traversal fixes, bookmark validation) and HIG accessibility improvements (labels, touch targets, dark mode). VSCode-style sidebar now stays persistent — only the toolbar button toggles it.
+
 ## v1.0.35
 
 - **Security audit** — path traversal hardening, `hasPrefix` → `starts(with:)` migration,
