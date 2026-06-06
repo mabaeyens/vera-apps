@@ -48,6 +48,13 @@
 - ✅ **Cheat sheet always expanded** — sections use `Section(isExpanded: .constant(true))`; shortcut badges (⌘B/I/⇧X/⇧C) shown on Emphasis entries
 - ✅ **Swift 6 concurrency warnings in CloudScanner** — `stableID` marked `nonisolated`; sort uses local `Dated` struct instead of accessing `FileNode.name` from nonisolated closure
 
+## Recently fixed (session 2026-06-06c — security audit)
+
+- ✅ **Filename path-traversal** — `createFile(named:in:)` now rejects names containing `/` or `..` (M3)
+- ✅ **hasPrefix path-containment** — added trailing `/` to `hasPrefix` check so sibling-prefixed dirs no longer match (L2)
+- ✅ **Bookmark URL not validated** — `restoredBookmark()` now verifies the resolved URL is a directory before returning it (L1)
+- ✅ **PrivacyInfo.xcprivacy** — created with `NSPrivacyAccessedAPICategoryUserDefaults / CA92.1`; needs to be added to Xcode target (I2)
+
 ## Recently fixed (session 2026-06-06b — HIG audit)
 
 - ✅ **Nested Button inside Button label (iOS)** — removed inline × button from iOS open-file row; swipe-to-close is the correct iOS pattern

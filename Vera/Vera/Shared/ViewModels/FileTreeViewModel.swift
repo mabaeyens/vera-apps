@@ -137,7 +137,7 @@ final class FileTreeViewModel {
             accessedURLs.insert(resolved)
         }
 
-        if let root = rootURL, resolved.path.hasPrefix(root.path) {
+        if let root = rootURL, resolved.path.hasPrefix(root.path + "/") {
             openFileInNewTab(resolved)
         } else if rootURL == nil {
             pendingExternalURL = resolved
@@ -366,7 +366,11 @@ final class FileTreeViewModel {
 
     @discardableResult
     func createFile(named name: String, in folder: URL) async throws -> URL {
-        let filename = name.hasSuffix(".md") ? name : name + ".md"
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, !trimmed.contains("/"), !trimmed.contains("..") else {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
+        let filename = trimmed.hasSuffix(".md") ? trimmed : trimmed + ".md"
         let fileURL = folder.appendingPathComponent(filename)
         guard !FileManager.default.fileExists(atPath: fileURL.path) else {
             throw CocoaError(.fileWriteFileExists)
@@ -427,6 +431,8 @@ final class FileTreeViewModel {
         ) else { return nil }
         #endif
         if stale { saveBookmark(url) }
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
         _ = url.startAccessingSecurityScopedResource()
         return url
     }
