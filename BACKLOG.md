@@ -1,5 +1,7 @@
 # Vera — Backlog
 
+See [CHANGELOG.md](CHANGELOG.md) for recent changes.
+
 ## Open bugs
 
 *(none)*

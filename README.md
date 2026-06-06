@@ -4,6 +4,8 @@ A reading-first Markdown viewer and editor for iOS and macOS. Part of the Mira e
 
 **Zero configuration.** No vaults, no projects. Vera is a transparent window into your iCloud Drive — it shows every `.md` file you already have.
 
+See [CHANGELOG.md](CHANGELOG.md) for recent changes.
+
 ## Features
 
 - **Browse** — recursive file tree of every `.md` file in your chosen folder (iCloud or local); lazy per-folder expansion; folder name shown in title bar
