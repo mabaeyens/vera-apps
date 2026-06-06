@@ -82,14 +82,12 @@ struct EditingModeView: View {
                 }
                 Divider()
                 Button {
-                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
-                    UserDefaults.standard.set(min(32.0, v + 1), forKey: "editorFontSize")
+                    fontSize = min(32, fontSize + 1)
                 } label: {
                     Label("Larger Text", systemImage: "textformat.size.larger")
                 }
                 Button {
-                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
-                    UserDefaults.standard.set(max(12.0, v - 1), forKey: "editorFontSize")
+                    fontSize = max(12, fontSize - 1)
                 } label: {
                     Label("Smaller Text", systemImage: "textformat.size.smaller")
                 }
@@ -121,12 +119,6 @@ struct EditingModeView: View {
     }
     #endif
 }
-
-#if os(iOS)
-private extension Double {
-    func nonZero(default fallback: Double) -> Double { self == 0 ? fallback : self }
-}
-#endif
 
 private struct LintPanelView: View {
     let warnings: [LintWarning]

@@ -91,6 +91,7 @@ struct DocumentView: View {
                     Image(systemName: "wand.and.sparkles")
                 }
                 .help("Auto-fix formatting")
+                .accessibilityLabel("Auto-fix formatting")
             }
         }
         #if os(iOS)
@@ -106,6 +107,7 @@ struct DocumentView: View {
                 } label: {
                     Image(systemName: "textformat.size")
                 }
+                .accessibilityLabel("Text size")
             }
         }
         #endif
@@ -115,6 +117,7 @@ struct DocumentView: View {
                 Image(systemName: "paintbrush")
             }
             .help("Format & Snippets")
+            .accessibilityLabel("Format and snippets")
         }
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .automatic) {
@@ -125,6 +128,7 @@ struct DocumentView: View {
                     Image(systemName: "doc.on.doc")
                 }
                 .help("Copy all text")
+                .accessibilityLabel("Copy all text")
             }
         }
         ToolbarItem(placement: .automatic) {
@@ -132,18 +136,21 @@ struct DocumentView: View {
                 Image(systemName: "book.closed")
             }
             .help("Markdown Reference")
+            .accessibilityLabel("Markdown reference")
         }
         ToolbarItem(placement: .automatic) {
             Button { fontSize = max(12, fontSize - 1) } label: {
                 Image(systemName: "textformat.size.smaller")
             }
             .help("Smaller Text")
+            .accessibilityLabel("Smaller text")
         }
         ToolbarItem(placement: .automatic) {
             Button { fontSize = min(32, fontSize + 1) } label: {
                 Image(systemName: "textformat.size.larger")
             }
             .help("Larger Text")
+            .accessibilityLabel("Larger text")
         }
         #endif
         ToolbarItem(placement: .status) {

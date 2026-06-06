@@ -79,7 +79,7 @@ struct NewFileSheet: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
-        .onAppear { fieldFocused = true }
+        .task { fieldFocused = true }
     }
 
     #if os(iOS)

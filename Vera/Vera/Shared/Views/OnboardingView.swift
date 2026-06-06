@@ -3,7 +3,7 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(\.dismiss) private var dismiss
 
-    private let brand = Color(red: 28/255, green: 76/255, blue: 78/255)
+    private let brand = Color("BrandTeal", bundle: nil)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,11 +65,9 @@ struct OnboardingView: View {
                 Text("Choose a Folder")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(brand)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
             .padding(.horizontal, 32)
 
             Spacer()
@@ -89,7 +87,7 @@ private struct OnboardingFeatureRow: View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundStyle(Color(red: 28/255, green: 76/255, blue: 78/255))
+                .foregroundStyle(Color("BrandTeal", bundle: nil))
                 .frame(width: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.subheadline.bold())

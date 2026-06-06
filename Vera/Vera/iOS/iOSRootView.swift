@@ -28,7 +28,7 @@ struct iOSRootView: View {
                 // column's toolbar items don't reach the navigation bar.
                 NavigationStack {
                     FileTreeView(selectedURL: $vm.selectedURL)
-                        .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
+                        .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar { sharedToolbar }
                         .navigationDestination(item: $vm.selectedURL) { url in
@@ -42,7 +42,7 @@ struct iOSRootView: View {
                 // iPad: standard split view
                 NavigationSplitView(columnVisibility: $columnVisibility) {
                     FileTreeView(selectedURL: $vm.selectedURL)
-                        .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
+                        .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar { sharedToolbar }
                 } detail: {
@@ -75,16 +75,26 @@ struct iOSRootView: View {
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
                     guard let url else { return }
-                    Task { @MainActor in vm.openFile(url) }
+                    let accessing = url.startAccessingSecurityScopedResource()
+                    Task { @MainActor in
+                        vm.openFile(url)
+                        if accessing { url.stopAccessingSecurityScopedResource() }
+                    }
                 }
             }
             return true
         }
-        .alert(item: Binding(
-            get: { vm.fileOpenError },
-            set: { vm.fileOpenError = $0 }
-        )) { error in
-            Alert(title: Text("Cannot Open File"), message: Text(error.localizedDescription))
+        .alert(
+            "Cannot Open File",
+            isPresented: Binding(
+                get: { vm.fileOpenError != nil },
+                set: { if !$0 { vm.fileOpenError = nil } }
+            ),
+            presenting: vm.fileOpenError
+        ) { _ in
+            Button("OK", role: .cancel) { vm.fileOpenError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
         }
         // Forward vm-driven triggers (onboarding completion, reset) into local @State.
         .onChange(of: vm.needsFolderPicker) { _, val in if val { showFolderPicker = true } }
@@ -122,16 +132,6 @@ struct iOSRootView: View {
 
     @ToolbarContentBuilder
     private var sharedToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button { showAbout = true } label: {
-                Image(systemName: "info.circle")
-            }
-        }
-        ToolbarItem(placement: .topBarLeading) {
-            Button { showIconHelp = true } label: {
-                Image(systemName: "questionmark.circle")
-            }
-        }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
                 Button { showFolderPicker = true } label: {
@@ -149,9 +149,17 @@ struct iOSRootView: View {
                         )
                     }
                 }
+                Divider()
+                Button { showIconHelp = true } label: {
+                    Label("Icon Guide", systemImage: "questionmark.circle")
+                }
+                Button { showAbout = true } label: {
+                    Label("About Vera", systemImage: "info.circle")
+                }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
+            .accessibilityLabel("More options")
         }
     }
 }

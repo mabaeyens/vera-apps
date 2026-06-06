@@ -38,6 +38,7 @@ struct AtlasView: View {
                                 .lineLimit(1)
                         }
                     }
+                    .buttonStyle(.plain)
                 }
 
                 if let strip = onRemoveFormatting {

@@ -17,7 +17,7 @@ struct MacRootView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             FileTreeView(selectedURL: $vm.selectedURL)
                 .frame(minWidth: 200)
-                .navigationTitle(vm.rootURL?.lastPathComponent ?? "Vera")
+                .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
         } detail: {
             VStack(spacing: 0) {
                 if vm.tabs.count >= 1 && tabBarVisible {
@@ -42,11 +42,17 @@ struct MacRootView: View {
             }
             return true
         }
-        .alert(item: Binding(
-            get: { vm.fileOpenError },
-            set: { vm.fileOpenError = $0 }
-        )) { error in
-            Alert(title: Text("Cannot Open File"), message: Text(error.localizedDescription))
+        .alert(
+            "Cannot Open File",
+            isPresented: Binding(
+                get: { vm.fileOpenError != nil },
+                set: { if !$0 { vm.fileOpenError = nil } }
+            ),
+            presenting: vm.fileOpenError
+        ) { _ in
+            Button("OK", role: .cancel) { vm.fileOpenError = nil }
+        } message: { error in
+            Text(error.localizedDescription)
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -54,6 +60,7 @@ struct MacRootView: View {
                     Image(systemName: "square.and.pencil")
                 }
                 .help("New file")
+                .accessibilityLabel("New file")
                 .disabled(vm.rootURL == nil)
             }
             ToolbarItem(placement: .automatic) {
@@ -61,6 +68,7 @@ struct MacRootView: View {
                     Image(systemName: "folder")
                 }
                 .help("Open folder or file… (⌘O)")
+                .accessibilityLabel("Open folder or file")
                 .keyboardShortcut("o", modifiers: .command)
             }
             ToolbarItem(placement: .automatic) {
@@ -68,12 +76,14 @@ struct MacRootView: View {
                     Image(systemName: "arrow.clockwise")
                 }
                 .help("Refresh")
+                .accessibilityLabel("Refresh")
             }
             ToolbarItem(placement: .automatic) {
                 Button { showAbout = true } label: {
                     Image(systemName: "info.circle")
                 }
                 .help("About Vera")
+                .accessibilityLabel("About Vera")
             }
             ToolbarItem(placement: .automatic) {
                 if !tabBarVisible && vm.tabs.count >= 1 {
@@ -81,6 +91,7 @@ struct MacRootView: View {
                         Image(systemName: "chevron.compact.down")
                     }
                     .help("Show tab bar")
+                    .accessibilityLabel("Show tab bar")
                 }
             }
         }

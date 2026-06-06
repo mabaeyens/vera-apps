@@ -6,3 +6,6 @@ DerivedData/
 .build/
 specs/
 .claude/
+
+# Security audit notes (local only)
+SECURITY_AUDIT.md

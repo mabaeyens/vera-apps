@@ -12,58 +12,20 @@ struct AboutView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            VStack(spacing: 0) {
-                Spacer()
-
-                appIcon
-                    .padding(.bottom, 20)
-
-                Text("Vera")
-                    .font(.system(size: 28, weight: .semibold))
-
-                Text("Version \(version)")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 4)
-
-                Spacer().frame(height: 28)
-
-                Text(
-                    "Vera browses and edits any Markdown file anywhere in your iCloud Drive " +
-                    "or local storage — no dedicated folder, no vault, no configuration. " +
-                    "Your file system is the source of truth; Vera is just a window into it.\n\n" +
-                    "The name Vera carries two meanings: the Latin vera, meaning truth — " +
-                    "and the Spanish vera, meaning side or shore, as in \"ven a mi vera\" " +
-                    "(come to my side). A truthful companion that stays close to your files.\n\n" +
-                    "Part of the Mira ecosystem."
-                )
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .lineSpacing(3)
-                .frame(maxWidth: 360)
-
-                Spacer().frame(height: 24)
-
-                VStack(spacing: 12) {
-                    Toggle("Markdown Linter", isOn: $linterEnabled)
-                        .font(.subheadline)
-                        .frame(maxWidth: 280)
-
-                    if onReset != nil {
-                        Button("Reset Vera…", role: .destructive) {
-                            showResetConfirmation = true
-                        }
-                        .font(.subheadline)
+        #if os(iOS)
+        NavigationStack {
+            content
+                .navigationTitle("About")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
                     }
                 }
-
-                Spacer()
-            }
-            .padding(.horizontal, 40)
-            .padding(.vertical, 24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        #else
+        ZStack(alignment: .topTrailing) {
+            content
 
             Button { dismiss() } label: {
                 Image(systemName: "xmark.circle.fill")
@@ -72,8 +34,64 @@ struct AboutView: View {
                     .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Close")
             .padding(16)
         }
+        #endif
+    }
+
+    private var content: some View {
+        VStack(spacing: 0) {
+            Spacer()
+
+            appIcon
+                .padding(.bottom, 20)
+
+            Text("Vera")
+                .font(.title2.weight(.semibold))
+
+            Text("Version \(version)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(.top, 4)
+
+            Spacer().frame(height: 28)
+
+            Text(
+                "Vera browses and edits any Markdown file anywhere in your iCloud Drive " +
+                "or local storage — no dedicated folder, no vault, no configuration. " +
+                "Your file system is the source of truth; Vera is just a window into it.\n\n" +
+                "The name Vera carries two meanings: the Latin vera, meaning truth — " +
+                "and the Spanish vera, meaning side or shore, as in \"ven a mi vera\" " +
+                "(come to my side). A truthful companion that stays close to your files.\n\n" +
+                "Part of the Mira ecosystem."
+            )
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .lineSpacing(3)
+            .frame(maxWidth: 360)
+
+            Spacer().frame(height: 24)
+
+            VStack(spacing: 12) {
+                Toggle("Markdown Linter", isOn: $linterEnabled)
+                    .font(.subheadline)
+                    .frame(maxWidth: 280)
+
+                if onReset != nil {
+                    Button("Reset Vera…", role: .destructive) {
+                        showResetConfirmation = true
+                    }
+                    .font(.subheadline)
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 40)
+        .padding(.vertical, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .confirmationDialog(
             "Reset Vera?",
             isPresented: $showResetConfirmation,

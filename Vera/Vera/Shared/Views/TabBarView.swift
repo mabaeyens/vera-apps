@@ -75,6 +75,7 @@ struct TabBarView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Open file in new tab")
+                .accessibilityLabel("Open file in new tab")
                 Divider().frame(height: 20)
                 Button { tabBarVisible = false } label: {
                     Image(systemName: "chevron.compact.up")
@@ -84,6 +85,7 @@ struct TabBarView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Hide tab bar")
+                .accessibilityLabel("Hide tab bar")
             }
             .frame(height: tabHeight)
             .background(.bar)
@@ -139,8 +141,11 @@ private struct TabItemView: View {
                         .font(.system(size: closeFont, weight: .medium))
                         .foregroundStyle(.secondary)
                         .frame(width: closeSize, height: closeSize)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Close \(tab.name)")
             }
             .padding(.horizontal, 10)
             .frame(height: tabHeight)
@@ -157,5 +162,7 @@ private struct TabItemView: View {
         .onTapGesture {
             vm.activateTab(tab.id)
         }
+        .accessibilityLabel(tab.name)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }

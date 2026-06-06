@@ -8,12 +8,10 @@ struct CheatSheetView: View {
         NavigationStack {
             List {
                 ForEach(sections, id: \.title) { section in
-                    Section(isExpanded: .constant(true)) {
+                    Section(section.title) {
                         ForEach(section.entries, id: \.syntax) { entry in
                             CheatEntryRow(entry: entry)
                         }
-                    } header: {
-                        Text(section.title)
                     }
                 }
             }

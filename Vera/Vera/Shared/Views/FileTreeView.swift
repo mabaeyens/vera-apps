@@ -144,6 +144,7 @@ struct FileTreeView: View {
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Close \(tab.name)")
             }
         }
         .contentShape(Rectangle())
@@ -161,10 +162,6 @@ struct FileTreeView: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer()
-                Button { vm.closeTab(tab.id) } label: {
-                    Image(systemName: "xmark").font(.caption2).foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
             }
             .contentShape(Rectangle())
         }
@@ -336,11 +333,13 @@ private struct MacFileRow: View {
                     .help(isOnline ? "Download from iCloud" : "Not available offline")
                 }
                 if isHovered {
-                    Button { onDelete() } label: {
-                        Image(systemName: "trash").foregroundStyle(.red)
+                    Button(role: .destructive) { onDelete() } label: {
+                        Image(systemName: "trash")
+                            .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
                     .help("Delete")
+                    .accessibilityLabel("Delete \(name)")
                 }
             }
         }

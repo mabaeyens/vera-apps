@@ -48,6 +48,25 @@
 - ✅ **Cheat sheet always expanded** — sections use `Section(isExpanded: .constant(true))`; shortcut badges (⌘B/I/⇧X/⇧C) shown on Emphasis entries
 - ✅ **Swift 6 concurrency warnings in CloudScanner** — `stableID` marked `nonisolated`; sort uses local `Dated` struct instead of accessing `FileNode.name` from nonisolated closure
 
+## Recently fixed (session 2026-06-06b — HIG audit)
+
+- ✅ **Nested Button inside Button label (iOS)** — removed inline × button from iOS open-file row; swipe-to-close is the correct iOS pattern
+- ✅ **Tab × touch target** — expanded hit area to 44×44pt via `contentShape` (was 14pt, below HIG minimum)
+- ✅ **Deprecated `Alert` API** — replaced `Alert(title:message:)` with closure-based `.alert("", isPresented:presenting:)` in both root views
+- ✅ **Missing `accessibilityLabel` on icon buttons** — added labels to all icon-only toolbar, tab bar, and sidebar buttons across all views
+- ✅ **Brand color invisible in dark mode** — extracted `#1C4C4E` to `BrandTeal` named color asset with light/dark adaptive variants
+- ✅ **AboutView dismiss button (iOS)** — replaced ZStack `xmark.circle.fill` overlay with `NavigationStack` + toolbar Done button on iOS; macOS keeps the overlay
+- ✅ **Two leading toolbar buttons** — merged About + Icon Guide into the `ellipsis.circle` menu; leading bar now empty
+- ✅ **`Section(isExpanded: .constant(true))`** — replaced with plain `Section(title)` in CheatSheetView; removes non-interactive disclosure chevrons
+- ✅ **Hardcoded font size in AboutView** — changed `font(.system(size: 28))` to `.font(.title2.weight(.semibold))` for Dynamic Type support
+- ✅ **AtlasView button double-highlight** — added `.buttonStyle(.plain)` to list row buttons
+- ✅ **Font size via raw UserDefaults** — iPad formatting bar now mutates `@AppStorage` binding directly
+- ✅ **Trash icon `.red` on macOS** — button now uses `role: .destructive` for semantic styling
+- ✅ **Drag-and-drop missing security scope** — `startAccessingSecurityScopedResource()` called before opening dropped URLs on iOS
+- ✅ **Nav title fallback** — changed `"Vera"` fallback to `"Files"` when no folder is open
+- ✅ **Onboarding CTA button** — replaced custom-styled button with `.buttonStyle(.borderedProminent) .controlSize(.large)`
+- ✅ **NewFileSheet focus on macOS** — `.onAppear { fieldFocused = true }` → `.task { fieldFocused = true }` for post-layout timing
+
 ## Recently fixed (session 2026-06-06)
 
 - ✅ **macOS folder picker could not select folders** — removed `.folder` from `NSOpenPanel.allowedContentTypes`; `canChooseDirectories = true` is the correct mechanism; the extra entry conflicted on macOS 26
