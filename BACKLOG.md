@@ -10,7 +10,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Pending
 
-- **Re-enable macOS App Sandbox** — blocked on macOS 26 beta crash upstream (M1)
+*(none)*
 
 ---
 
@@ -24,5 +24,5 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 ## Notes
 
 - Reset folder picker: `defaults delete Vera rootFolderBookmark`
-- macOS App Sandbox intentionally disabled — causes pre-main crash on macOS 26 beta (CLAUDE.md constraint)
+- macOS App Sandbox **re-enabled 2026-06-21** on GA macOS 26.5.1 (the beta pre-main crash is resolved). Entitlements: app-sandbox, user-selected.read-write, files.bookmarks.app-scope, network.client.
 - VoiceOver testing pending — `accessibilityLabel` added to all icon buttons but never verified with VoiceOver on a real device

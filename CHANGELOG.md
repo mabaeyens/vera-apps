@@ -11,6 +11,7 @@
 - **Flatter formatting bar** — bold, italic, strikethrough, code, heading, list, quote and snippets are all one tap away (no nested menu); every button has an accessibility label.
 - **Friendlier empty state** — a clear "No Folder Open" screen with a direct Open Folder action.
 - **Reliability & privacy** — fixes a false "Couldn't Load Files" error on launch and moves the folder bookmark into the Keychain.
+- **macOS App Sandbox** — the Mac app now runs sandboxed for stronger isolation, with access limited to the folders you pick and outbound network only to GitHub.
 
 ## v1.0.36
 
