@@ -9,6 +9,7 @@ final class GitHubBrowserModel {
     var repo: String = UserDefaults.standard.string(forKey: "github.lastRepo") ?? ""
 
     var items: [GitHubItem] = []
+    var branch: String = ""
     var isConnected = false
     var isLoading = false
     var errorText: String?
@@ -33,8 +34,9 @@ final class GitHubBrowserModel {
         defer { isLoading = false }
         do {
             let c = client()
-            let branch = try await c.defaultBranch()
-            items = try await c.markdownFiles(branch: branch)
+            let defaultBranch = try await c.defaultBranch()
+            branch = defaultBranch
+            items = try await c.markdownFiles(branch: defaultBranch)
             // Persist the token (Keychain) and last repo only after a successful call.
             CredentialStore.save(token.trimmingCharacters(in: .whitespaces))
             UserDefaults.standard.set(owner.trimmingCharacters(in: .whitespaces), forKey: "github.lastOwner")
@@ -55,6 +57,41 @@ final class GitHubBrowserModel {
 
     func diff(of item: GitHubItem, from base: String, to head: String) async throws -> String? {
         try await client().diff(path: item.path, from: base, to: head)
+    }
+
+    // MARK: - Edit (Spec C3)
+
+    /// Current text + blob SHA on the active branch, for editing.
+    func fileVersion(of item: GitHubItem) async throws -> (text: String, sha: String) {
+        try await client().fileVersion(path: item.path, ref: branch.isEmpty ? "HEAD" : branch)
+    }
+
+    /// Commit edited text straight to the active branch. Returns the commit URL.
+    func commitDirect(_ item: GitHubItem, text: String, sha: String, message: String) async throws -> String? {
+        try await client().commitFile(path: item.path, message: message, text: text, sha: sha, branch: branch)
+    }
+
+    /// Create a new branch off the active branch, commit the edit there, and open a PR.
+    /// Returns the PR URL.
+    func commitViaPullRequest(_ item: GitHubItem, text: String, sha: String, message: String) async throws -> String? {
+        let c = client()
+        let base = branch.isEmpty ? try await c.defaultBranch() : branch
+        let head = "vera/\(slug(item.name))-\(Int(Date().timeIntervalSince1970))"
+        let baseSHA = try await c.headSHA(branch: base)
+        try await c.createBranch(name: head, fromSHA: baseSHA)
+        try await c.commitFile(path: item.path, message: message, text: text, sha: sha, branch: head)
+        return try await c.openPullRequest(
+            title: message,
+            body: "Edited in Vera.",
+            head: head,
+            base: base
+        )
+    }
+
+    private func slug(_ s: String) -> String {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")
+        let lowered = s.lowercased().replacingOccurrences(of: " ", with: "-")
+        return String(lowered.unicodeScalars.filter { allowed.contains($0) }).prefix(40).description
     }
 }
 
@@ -114,7 +151,7 @@ struct GitHubBrowserView: View {
                 VStack(alignment: .leading, spacing: Theme.Space.s) {
                     Text("Vera talks directly to GitHub with your token — nothing is sent anywhere else. The token is stored in your device Keychain.")
                     if let url = URL(string: "https://github.com/settings/personal-access-tokens/new") {
-                        Link("Create a fine-grained token (Contents: Read)…", destination: url)
+                        Link("Create a fine-grained token (Contents: Read, or Read and Write to edit)…", destination: url)
                     }
                 }
             }
@@ -172,6 +209,9 @@ private struct GitHubReadView: View {
     @State private var lastSeen: String?
     @State private var showDiff = false
 
+    // Spec C3 — light edit + commit.
+    @State private var showEdit = false
+
     /// The file has changed since the user last viewed it (and we have a baseline).
     private var hasChanges: Bool {
         guard let latest, let lastSeen else { return false }
@@ -209,10 +249,23 @@ private struct GitHubReadView: View {
                     }
                 }
             }
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showEdit = true
+                } label: {
+                    Label("Edit", systemImage: "square.and.pencil")
+                }
+                .disabled(content == nil)
+            }
         }
         .sheet(isPresented: $showDiff, onDismiss: refreshSeen) {
             if let latest, let lastSeen {
                 GitHubDiffView(model: model, item: item, base: lastSeen, head: latest)
+            }
+        }
+        .sheet(isPresented: $showEdit) {
+            GitHubEditView(model: model, item: item) { newText in
+                content = newText
             }
         }
         .task {

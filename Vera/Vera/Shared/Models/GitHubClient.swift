@@ -58,12 +58,30 @@ struct GitHubClient {
         return data
     }
 
+    /// Send a JSON body (PUT/POST). Used by the write path (Spec C3).
+    private func send(_ method: String, _ path: String, body: [String: Any]) async throws -> Data {
+        guard let url = URL(string: Self.apiBase + path) else { throw GitHubError.badResponse(0) }
+        var req = URLRequest(url: url)
+        req.httpMethod = method
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200...299).contains(code) else { throw GitHubError.badResponse(code) }
+        return data
+    }
+
     private struct RepoMeta: Decodable { let default_branch: String }
     private struct Tree: Decodable {
         struct Node: Decodable { let path: String; let type: String }
         let tree: [Node]
     }
-    private struct Contents: Decodable { let content: String; let encoding: String }
+    private struct Contents: Decodable { let content: String; let encoding: String; let sha: String }
+    private struct RefDTO: Decodable { let object: Object; struct Object: Decodable { let sha: String } }
+    private struct WriteResponse: Decodable { let commit: Commit; struct Commit: Decodable { let html_url: String? } }
+    private struct PullResponse: Decodable { let html_url: String? }
 
     private struct CommitDTO: Decodable {
         let sha: String
@@ -151,5 +169,52 @@ struct GitHubClient {
         let data = try await get("/repos/\(owner)/\(repo)/compare/\(base)...\(head)")
         guard let compare = try? JSONDecoder().decode(CompareDTO.self, from: data) else { throw GitHubError.decoding }
         return compare.files?.first { $0.filename == path }?.patch
+    }
+
+    // MARK: - Write path (Spec C3)
+
+    /// The current text *and* blob SHA of a file on `branch`. The SHA is required to
+    /// commit an update (optimistic concurrency — GitHub rejects a stale SHA).
+    func fileVersion(path: String, ref: String) async throws -> (text: String, sha: String) {
+        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encode(path: path))?ref=\(ref)")
+        guard let c = try? JSONDecoder().decode(Contents.self, from: data),
+              c.encoding == "base64" else { throw GitHubError.decoding }
+        let cleaned = c.content.replacingOccurrences(of: "\n", with: "")
+        guard let decoded = Data(base64Encoded: cleaned),
+              let text = String(data: decoded, encoding: .utf8) else { throw GitHubError.decoding }
+        return (text, c.sha)
+    }
+
+    /// Commit new contents for a file on `branch`. Returns the commit's html_url.
+    @discardableResult
+    func commitFile(path: String, message: String, text: String, sha: String, branch: String) async throws -> String? {
+        let body: [String: Any] = [
+            "message": message,
+            "content": Data(text.utf8).base64EncodedString(),
+            "sha": sha,
+            "branch": branch,
+        ]
+        let data = try await send("PUT", "/repos/\(owner)/\(repo)/contents/\(encode(path: path))", body: body)
+        return (try? JSONDecoder().decode(WriteResponse.self, from: data))?.commit.html_url
+    }
+
+    /// The head commit SHA of `branch`.
+    func headSHA(branch: String) async throws -> String {
+        let data = try await get("/repos/\(owner)/\(repo)/git/ref/heads/\(branch)")
+        guard let ref = try? JSONDecoder().decode(RefDTO.self, from: data) else { throw GitHubError.decoding }
+        return ref.object.sha
+    }
+
+    /// Create a new branch `name` pointing at `fromSHA`.
+    func createBranch(name: String, fromSHA: String) async throws {
+        _ = try await send("POST", "/repos/\(owner)/\(repo)/git/refs",
+                           body: ["ref": "refs/heads/\(name)", "sha": fromSHA])
+    }
+
+    /// Open a pull request. Returns the PR's html_url.
+    func openPullRequest(title: String, body: String, head: String, base: String) async throws -> String? {
+        let data = try await send("POST", "/repos/\(owner)/\(repo)/pulls",
+                                  body: ["title": title, "body": body, "head": head, "base": base])
+        return (try? JSONDecoder().decode(PullResponse.self, from: data))?.html_url
     }
 }

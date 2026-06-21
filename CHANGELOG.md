@@ -2,7 +2,9 @@
 
 ## v1.1.0
 
-- **GitHub (preview)** — connect a repository with a fine-grained token and browse/read its Markdown directly in Vera. The token talks only to GitHub and lives in your device Keychain; the first step toward git-native editing.
+- **GitHub (preview)** — connect a repository with a fine-grained token and browse/read its Markdown directly in Vera. The token talks only to GitHub and lives in your device Keychain.
+- **What changed** — when a repo file has moved on since you last opened it, Vera shows a "What Changed" button and a native diff of the changes — built for skimming the Markdown your agents write.
+- **Light edit & commit** — edit a repo's Markdown in Vera and commit straight to the branch, or open a pull request (Vera makes the branch). Needs a token with Contents: Read and Write.
 - **New brand identity** — a refined teal accent throughout, a consistent design system (spacing, radii, typography), and a refreshed onboarding flow.
 - **Cleaner, less-cramped UI** — primary actions (New File, Open) are now visible buttons instead of hidden behind a `···` menu; the macOS document toolbar is grouped; folders carry a tinted icon so they read distinctly from files.
 - **Focus Mode** — a one-tap distraction-free writing surface that hides the formatting bar and linter.
