@@ -1,17 +1,32 @@
 import SwiftUI
 
 struct DocumentView: View {
-    let url: URL
+    let source: DocumentSource
     @State private var viewModel: EditorViewModel
     @State private var showAtlas = false
     @State private var showCheatSheet = false
     @State private var showIconHelp = false
+    // GitHub source only.
+    @State private var showCommit = false
+    @State private var showDiff = false
+    @State private var latest: GitHubCommit?
+    @State private var lastSeen: String?
     @AppStorage("editorFontSize") private var fontSize: Double = 20
     @AppStorage("focusMode") private var focusMode = false
 
+    init(source: DocumentSource) {
+        self.source = source
+        self._viewModel = State(initialValue: EditorViewModel(source: source))
+    }
+
     init(url: URL) {
-        self.url = url
-        self._viewModel = State(initialValue: EditorViewModel(url: url))
+        self.init(source: .file(url))
+    }
+
+    /// The file changed since the user last opened it (GitHub only).
+    private var hasChanges: Bool {
+        guard source.isGitHub, let latest, let lastSeen else { return false }
+        return latest.sha != lastSeen
     }
 
     var body: some View {
@@ -35,7 +50,18 @@ struct DocumentView: View {
         }
         .navigationTitle("")
         .toolbar { toolbarItems }
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            if case .gitHub(let ref) = source {
+                lastSeen = RepoSeenStore.lastSeen(owner: ref.owner, repo: ref.repo, path: ref.path)
+                latest = await viewModel.latestCommit()
+                // First visit: record the baseline so later visits can diff.
+                if lastSeen == nil, let sha = latest?.sha {
+                    RepoSeenStore.markSeen(owner: ref.owner, repo: ref.repo, path: ref.path, sha: sha)
+                    lastSeen = sha
+                }
+            }
+        }
         .onChange(of: viewModel.atlasRequested) { _, requested in
             if requested { showAtlas = true; viewModel.atlasRequested = false }
         }
@@ -69,6 +95,38 @@ struct DocumentView: View {
                 .frame(width: 480, height: 560)
                 #endif
         }
+        .sheet(isPresented: $showCommit) {
+            if case .gitHub(let ref) = source {
+                GitHubCommitSheet(fileName: source.displayName, branch: ref.branch) { message, openPR in
+                    try await viewModel.commit(message: message, openPR: openPR)
+                }
+                #if os(macOS)
+                .frame(width: 460, height: 360)
+                #endif
+            }
+        }
+        .sheet(isPresented: $showDiff, onDismiss: refreshSeen) {
+            if case .gitHub(let ref) = source, let latest, let lastSeen {
+                GitHubDiffView(
+                    title: source.displayName,
+                    head: latest,
+                    loadDiff: { try await viewModel.diff(from: lastSeen, to: latest.sha) },
+                    onDone: {
+                        RepoSeenStore.markSeen(owner: ref.owner, repo: ref.repo, path: ref.path, sha: latest.sha)
+                    }
+                )
+                #if os(macOS)
+                .frame(width: 560, height: 600)
+                #endif
+            }
+        }
+    }
+
+    /// After the diff sheet closes (it marked the latest commit seen), reflect that.
+    private func refreshSeen() {
+        if case .gitHub(let ref) = source {
+            lastSeen = RepoSeenStore.lastSeen(owner: ref.owner, repo: ref.repo, path: ref.path)
+        }
     }
 
     @ToolbarContentBuilder
@@ -82,6 +140,26 @@ struct DocumentView: View {
             case .editing:
                 Button("Done") { viewModel.exitEditMode() }
                     .bold()
+            }
+        }
+        // GitHub source: commit + "what changed" live next to the editor tools.
+        if source.isGitHub {
+            if hasChanges {
+                ToolbarItem(placement: .automatic) {
+                    Button { showDiff = true } label: {
+                        Image(systemName: "plus.forwardslash.minus")
+                    }
+                    .help("What Changed")
+                    .accessibilityLabel("What changed")
+                }
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { showCommit = true } label: {
+                    Image(systemName: "arrow.up.circle")
+                }
+                .help("Commit…")
+                .accessibilityLabel("Commit")
+                .disabled(viewModel.isLoading)
             }
         }
         if viewModel.mode == .editing {
@@ -180,6 +258,13 @@ struct DocumentView: View {
             }
         case .error(let msg):
             Text(msg).font(.caption).foregroundStyle(.red)
+        case .uncommitted:
+            Text("Uncommitted").font(.caption).foregroundStyle(.secondary)
+        case .committing:
+            HStack(spacing: 4) {
+                ProgressView().controlSize(.small)
+                Text("Committing…").font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 }

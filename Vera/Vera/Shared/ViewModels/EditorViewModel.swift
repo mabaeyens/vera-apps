@@ -18,19 +18,33 @@ final class EditorViewModel {
     var atlasRequested = false
     var lintResults: [LintWarning] = []
 
-    enum SaveState { case saved, saving, error(String) }
+    // `.uncommitted`/`.committing` apply only to GitHub sources (no autosave there).
+    enum SaveState { case saved, saving, error(String), uncommitted, committing }
 
-    let url: URL
+    let source: DocumentSource
+    private var blobSHA: String?            // GitHub: current file blob SHA, for commits
     private var saveTask: Task<Void, Never>?
     private var lintTask: Task<Void, Never>?
 
-    init(url: URL) {
-        self.url = url
+    init(source: DocumentSource) {
+        self.source = source
+    }
+
+    convenience init(url: URL) {
+        self.init(source: .file(url))
     }
 
     func load() async {
         isLoading = true
         defer { isLoading = false }
+        switch source {
+        case .file(let url): await loadFile(url)
+        case .gitHub(let ref): await loadGitHub(ref)
+        }
+        if rawText.isEmpty { mode = .editing }
+    }
+
+    private func loadFile(_ url: URL) async {
         do {
             rawText = try await DocumentStore.read(url)
         } catch {
@@ -46,7 +60,18 @@ final class EditorViewModel {
             }
             rawText = ""
         }
-        if rawText.isEmpty { mode = .editing }
+    }
+
+    private func loadGitHub(_ ref: GitHubFileRef) async {
+        guard let client = gitHubClient() else { rawText = ""; return }
+        do {
+            let version = try await client.fileVersion(path: ref.path, ref: ref.branch)
+            rawText = version.text
+            blobSHA = version.sha
+        } catch {
+            saveState = .error(error.localizedDescription)
+            rawText = ""
+        }
     }
 
     func enterEditMode(tapY: CGFloat = 0, viewHeight: CGFloat = 0) {
@@ -91,9 +116,71 @@ final class EditorViewModel {
     }
 
     func textDidChange() {
-        saveState = .saving
-        scheduleSave()
+        switch source {
+        case .file:
+            saveState = .saving
+            scheduleSave()
+        case .gitHub:
+            // No autosave — a commit is explicit. Just mark the buffer dirty.
+            saveState = .uncommitted
+        }
         scheduleLint()
+    }
+
+    // MARK: - GitHub source
+
+    private func gitHubClient() -> GitHubClient? {
+        guard case .gitHub(let ref) = source, let token = CredentialStore.load() else { return nil }
+        return GitHubClient(owner: ref.owner, repo: ref.repo, token: token)
+    }
+
+    /// The most recent commit that touched this file (for the "What Changed" affordance).
+    func latestCommit() async -> GitHubCommit? {
+        guard case .gitHub(let ref) = source, let client = gitHubClient() else { return nil }
+        return try? await client.latestCommit(path: ref.path)
+    }
+
+    func diff(from base: String, to head: String) async throws -> String? {
+        guard case .gitHub(let ref) = source, let client = gitHubClient() else { return nil }
+        return try await client.diff(path: ref.path, from: base, to: head)
+    }
+
+    /// Commit the current text. `openPR` true → create a branch and open a PR; false →
+    /// commit straight to the file's branch. Returns the GitHub URL to show, if any.
+    func commit(message: String, openPR: Bool) async throws -> URL? {
+        guard case .gitHub(let ref) = source, let client = gitHubClient(), let sha = blobSHA else {
+            return nil
+        }
+        saveState = .committing
+        do {
+            let urlString: String?
+            if openPR {
+                let base = ref.branch
+                let head = "vera/\(slug(ref.path))-\(Int(Date().timeIntervalSince1970))"
+                let baseSHA = try await client.headSHA(branch: base)
+                try await client.createBranch(name: head, fromSHA: baseSHA)
+                try await client.commitFile(path: ref.path, message: message, text: rawText, sha: sha, branch: head)
+                urlString = try await client.openPullRequest(title: message, body: "Edited in Vera.", head: head, base: base)
+                // The viewed branch is unchanged, so blobSHA stays valid.
+            } else {
+                urlString = try await client.commitFile(path: ref.path, message: message, text: rawText, sha: sha, branch: ref.branch)
+                // Refresh the blob SHA so a follow-up commit isn't rejected as stale.
+                if let version = try? await client.fileVersion(path: ref.path, ref: ref.branch) {
+                    blobSHA = version.sha
+                }
+            }
+            saveState = .saved
+            return urlString.flatMap(URL.init(string:))
+        } catch {
+            saveState = .uncommitted
+            throw error
+        }
+    }
+
+    private func slug(_ path: String) -> String {
+        let name = (path as NSString).lastPathComponent.lowercased().replacingOccurrences(of: " ", with: "-")
+        let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
+        return String(name.filter { allowed.contains($0) }.prefix(40))
     }
 
     // MARK: - Private
@@ -126,6 +213,7 @@ final class EditorViewModel {
     }
 
     private func flush() async {
+        guard case .file(let url) = source else { return }
         do {
             try await DocumentStore.write(url, content: rawText)
             saveState = .saved

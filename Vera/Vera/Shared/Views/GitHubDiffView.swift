@@ -46,14 +46,15 @@ enum DiffParser {
 }
 
 /// Native diff reading view: shows the unified diff for one file between the commit
-/// the user last saw and the latest commit. (Spec C2.)
+/// the user last saw and the latest commit. (Spec C2.) Source-agnostic — it's given a
+/// closure that returns the patch, so it doesn't depend on any particular view model.
 struct GitHubDiffView: View {
     @Environment(\.dismiss) private var dismiss
 
-    let model: GitHubBrowserModel
-    let item: GitHubItem
-    let base: String   // last-seen SHA
-    let head: GitHubCommit  // latest commit
+    let title: String
+    let head: GitHubCommit                       // latest commit
+    let loadDiff: () async throws -> String?     // unified-diff patch for the file
+    let onDone: () -> Void                        // mark the latest commit as seen
 
     @State private var lines: [DiffLine]?
     @State private var errorText: String?
@@ -88,7 +89,7 @@ struct GitHubDiffView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
-                        RepoSeenStore.markSeen(owner: model.owner, repo: model.repo, path: item.path, sha: head.sha)
+                        onDone()
                         dismiss()
                     }
                 }
@@ -96,7 +97,7 @@ struct GitHubDiffView: View {
         }
         .task {
             do {
-                if let patch = try await model.diff(of: item, from: base, to: head.sha) {
+                if let patch = try await loadDiff() {
                     lines = DiffParser.parse(patch)
                 } else {
                     lines = []
@@ -120,6 +121,9 @@ struct GitHubDiffView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: Theme.Space.xs) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Text(head.summary)
                 .font(.subheadline.weight(.semibold))
             Text("\(head.authorName) · \(head.shortSHA)")
