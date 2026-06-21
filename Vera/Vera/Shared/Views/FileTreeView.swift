@@ -10,6 +10,7 @@ struct FileTreeView: View {
     @State private var expandedFolders: Set<UUID> = []
     @State private var loadedFolderIDs: Set<UUID> = []
     @AppStorage("openFilesExpanded") private var openFilesExpanded: Bool = true
+    @AppStorage("iCloudFolderExpanded") private var iCloudFolderExpanded: Bool = true
     @State private var savedRepos: [SavedRepo] = RepoListStore.all()
     @State private var repoBrowser = RepoBrowser()
     @State private var expandedRepos: Set<String> = []        // SavedRepo.id
@@ -275,10 +276,12 @@ struct FileTreeView: View {
             }
         }
         if !vm.roots.isEmpty {
-            Section(vm.rootURL?.lastPathComponent ?? "") {
+            Section(isExpanded: $iCloudFolderExpanded) {
                 ForEach(vm.roots) { node in
                     nodeRow(node)
                 }
+            } header: {
+                Text(vm.rootURL?.lastPathComponent ?? "")
             }
         } else if vm.rootURL == nil {
             Section("iCloud") {
@@ -396,7 +399,6 @@ struct FileTreeView: View {
                 isActive: isActive,
                 isDownloading: vm.downloadingURLs.contains(url),
                 isOnline: connectivity.isOnline,
-                onDelete: { fileToDelete = (url, name) },
                 onDownload: { vm.download(url) }
             )
             .contextMenu {
@@ -504,10 +506,7 @@ private struct MacFileRow: View {
     let isActive: Bool
     let isDownloading: Bool
     let isOnline: Bool
-    let onDelete: () -> Void
     let onDownload: () -> Void
-
-    @State private var isHovered = false
 
     var body: some View {
         HStack {
@@ -530,19 +529,9 @@ private struct MacFileRow: View {
                     .disabled(!isOnline)
                     .help(isOnline ? "Download from iCloud" : "Not available offline")
                 }
-                if isHovered {
-                    Button(role: .destructive) { onDelete() } label: {
-                        Image(systemName: "trash")
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Delete")
-                    .accessibilityLabel("Delete \(name)")
-                }
             }
         }
         .contentShape(Rectangle())
-        .onHover { isHovered = $0 }
     }
 }
 #endif
