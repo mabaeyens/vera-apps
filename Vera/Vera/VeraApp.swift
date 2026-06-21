@@ -3,6 +3,7 @@ import SwiftUI
 extension Notification.Name {
     static let veraOpenFile   = Notification.Name("com.mab.vera.openFile")
     static let veraOpenPicker = Notification.Name("com.mab.vera.openPicker")
+    static let veraOpenGitHub = Notification.Name("com.mab.vera.openGitHub")
 }
 
 #if os(macOS)

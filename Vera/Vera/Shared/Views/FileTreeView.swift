@@ -42,6 +42,9 @@ struct FileTreeView: View {
                             NotificationCenter.default.post(name: .veraOpenPicker, object: nil)
                         }
                         .buttonStyle(.borderedProminent)
+                        Button("Open from GitHub…") {
+                            NotificationCenter.default.post(name: .veraOpenGitHub, object: nil)
+                        }
                     }
                 } else {
                     ContentUnavailableView(

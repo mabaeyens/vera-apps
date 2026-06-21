@@ -23,7 +23,10 @@ IMG_*.JPG
 *.provisionprofile
 *.certSigningRequest
 AuthKey_*
-*credentials*
+*-credentials
+*.credentials
+*credentials.json
+*credentials.plist
 *.env
 .env
 *.secret

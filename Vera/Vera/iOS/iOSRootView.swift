@@ -16,6 +16,7 @@ struct iOSRootView: View {
     // as dependencies during body evaluation, so SwiftUI never re-renders on change.
     // Local @State always invalidates the owner view on write, which is what we need.
     @State private var showFolderPicker = false
+    @State private var showGitHub = false
     @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
 
     var body: some View {
@@ -99,6 +100,10 @@ struct iOSRootView: View {
         // Forward vm-driven triggers (onboarding completion, reset) into local @State.
         .onChange(of: vm.needsFolderPicker) { _, val in if val { showFolderPicker = true } }
         .onReceive(NotificationCenter.default.publisher(for: .veraOpenPicker)) { _ in showFolderPicker = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraOpenGitHub)) { _ in showGitHub = true }
+        .sheet(isPresented: $showGitHub) {
+            GitHubBrowserView()
+        }
         .sheet(isPresented: $showAbout) {
             AboutView(onReset: { vm.resetState() })
         }
@@ -149,6 +154,10 @@ struct iOSRootView: View {
         // Only genuinely-secondary items stay in the overflow menu.
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                Button { showGitHub = true } label: {
+                    Label("Open from GitHub…", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+                Divider()
                 if vm.tabs.count >= 1 {
                     Button { tabBarVisible.toggle() } label: {
                         Label(

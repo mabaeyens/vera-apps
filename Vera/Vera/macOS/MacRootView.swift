@@ -8,6 +8,7 @@ struct MacRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showAbout = false
     @State private var showNewFile = false
+    @State private var showGitHub = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
@@ -33,6 +34,11 @@ struct MacRootView: View {
         }
         .onChange(of: vm.needsFolderPicker) { _, val in if val { openPicker() } }
         .onReceive(NotificationCenter.default.publisher(for: .veraOpenPicker)) { _ in openPicker() }
+        .onReceive(NotificationCenter.default.publisher(for: .veraOpenGitHub)) { _ in showGitHub = true }
+        .sheet(isPresented: $showGitHub) {
+            GitHubBrowserView()
+                .frame(width: 520, height: 600)
+        }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
@@ -70,6 +76,13 @@ struct MacRootView: View {
                 .help("Open folder or file… (⌘O)")
                 .accessibilityLabel("Open folder or file")
                 .keyboardShortcut("o", modifiers: .command)
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { showGitHub = true } label: {
+                    Image(systemName: "chevron.left.forwardslash.chevron.right")
+                }
+                .help("Open from GitHub…")
+                .accessibilityLabel("Open from GitHub")
             }
             ToolbarItem(placement: .automatic) {
                 Button { Task { await vm.load() } } label: {
