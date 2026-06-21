@@ -108,6 +108,7 @@ struct GitHubBrowserView: View {
             Section {
                 if model.token.isEmpty {
                     SecureField("Fine-grained token (ghp_…)", text: $model.token)
+                        .accessibilityLabel("GitHub fine-grained token")
                 } else {
                     HStack {
                         Label("Token saved", systemImage: "key.fill")
@@ -118,12 +119,14 @@ struct GitHubBrowserView: View {
                     }
                 }
                 TextField("Owner (e.g. mabaeyens)", text: $model.owner)
+                    .accessibilityLabel("Repository owner")
                     .textContentType(.username)
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     #endif
                 TextField("Repository (e.g. vera-apps)", text: $model.repo)
+                    .accessibilityLabel("Repository name")
                     #if os(iOS)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()

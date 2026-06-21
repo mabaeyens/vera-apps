@@ -11,7 +11,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 ## Pending
 
 - **GitHub auth: PAT vs GitHub App device flow** — today users mint and paste a fine-grained PAT (Contents + Metadata). If TestFlight feedback says that's too much friction, the no-backend-compatible upgrade is GitHub's OAuth **Device Flow** (enter a code at github.com/login/device — needs only a client ID, no server). Don't build pre-emptively; let onboarding feedback trigger it. Full design in [GITHUB_AUTH_SPEC.md](GITHUB_AUTH_SPEC.md).
-- **Accessibility remediation** — static audit done ([ACCESSIBILITY_SPEC.md](ACCESSIBILITY_SPEC.md)). Quick wins: label the iCloud status icons (F1), hide decorative row icons (F3), add `.isSelected` traits (F4). Bigger: Dynamic Type in editor + preview (F2) — the gate for the "Larger Text" Nutrition Label. Then a device VoiceOver pass before filling the App Store Connect accessibility labels.
+- **Accessibility — device pass + Nutrition Label** — code remediation F1–F6 and F8 done (labels, Dynamic Type for mono text, decorative-icon hiding, selection traits, Reduce Motion); see [ACCESSIBILITY_SPEC.md](ACCESSIBILITY_SPEC.md). F5 left as-is, F7 (preview heading/table VoiceOver structure) deferred. **Pending:** on-device VoiceOver + Dynamic Type pass on the core flows, then fill the App Store Connect Accessibility Nutrition Labels (VoiceOver, Larger Text, Voice Control, Reduced Motion, Differentiate Without Color, Sufficient Contrast, Dark Interface).
 
 ---
 

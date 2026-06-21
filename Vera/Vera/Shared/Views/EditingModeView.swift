@@ -5,6 +5,7 @@ struct EditingModeView: View {
     #if os(iOS)
     @AppStorage("editorFontSize") private var fontSize: Double = 20
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isEditing = false
     #else
     @AppStorage("editorFontSize") private var fontSize: Double = 17
@@ -15,6 +16,17 @@ struct EditingModeView: View {
     var onCheatSheetRequested: () -> Void = {}
     var onIconHelpRequested: () -> Void = {}
 
+    /// The user's chosen editor size, scaled for Dynamic Type on iOS so the
+    /// system "Larger Text" setting moves the editor too (macOS has no Dynamic Type;
+    /// the size control is the lever there).
+    private var effectiveFontSize: CGFloat {
+        #if os(iOS)
+        CGFloat(fontSize) * dynamicTypeSize.monoScale
+        #else
+        CGFloat(fontSize)
+        #endif
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             HighlightingTextView(
@@ -22,7 +34,7 @@ struct EditingModeView: View {
                     get: { viewModel.rawText },
                     set: { viewModel.rawText = $0 }
                 ),
-                fontSize: CGFloat(fontSize),
+                fontSize: effectiveFontSize,
                 onTextChange: { viewModel.textDidChange() },
                 registerInsert: { viewModel.insertAtCursor = $0 },
                 registerWrap: { viewModel.wrapSelection = $0 },
@@ -126,13 +138,14 @@ private struct LintPanelView: View {
     let warnings: [LintWarning]
     let onFix: () -> Void
     @State private var isExpanded = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
             Divider()
             HStack {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { isExpanded.toggle() }
                 } label: {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")

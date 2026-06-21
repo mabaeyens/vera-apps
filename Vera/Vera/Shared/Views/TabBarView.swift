@@ -130,7 +130,7 @@ private struct TabItemView: View {
             }
             HStack(spacing: 5) {
                 Text(tab.name)
-                    .font(isActive ? .system(size: 15, weight: .semibold) : .system(size: 15))
+                    .font(isActive ? .subheadline.weight(.semibold) : .subheadline)
                     .foregroundStyle(isActive ? Color.primary : Color.secondary)
                     .lineLimit(1)
                     .frame(maxWidth: 150)

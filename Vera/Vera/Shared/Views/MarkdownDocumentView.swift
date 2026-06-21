@@ -175,6 +175,7 @@ struct HighlightedCodeView: View {
     let language: String?
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var highlighted: AttributedString?
 
     private static let languageMap: [String: String] = [
@@ -210,7 +211,7 @@ struct HighlightedCodeView: View {
                         .textSelection(.enabled)
                 } else {
                     Text(code)
-                        .font(.system(size: 15, design: .monospaced))
+                        .font(.system(size: Theme.Typography.codeSize * dynamicTypeSize.monoScale, design: .monospaced))
                         .foregroundStyle(.primary)
                         .textSelection(.enabled)
                 }
@@ -218,7 +219,7 @@ struct HighlightedCodeView: View {
             .fixedSize(horizontal: true, vertical: false)
             .frame(minWidth: 0, alignment: .leading)
         }
-        .task(id: colorScheme) { highlighted = computeHighlighted() }
+        .task(id: [colorScheme.hashValue, dynamicTypeSize.hashValue]) { highlighted = computeHighlighted() }
     }
 
     private func computeHighlighted() -> AttributedString? {
@@ -228,7 +229,7 @@ struct HighlightedCodeView: View {
         // SF Mono — the same signature monospace the editor uses (see DESIGN.md),
         // including correct bold/italic variants (see applyMonoFont), so a code block
         // reads identically whether you're editing or previewing.
-        applyMonoFont(to: h, size: 15)
+        applyMonoFont(to: h, size: Theme.Typography.codeSize * dynamicTypeSize.monoScale)
         guard let ns = h.highlight(code, as: lang) else { return nil }
         let mutable = NSMutableAttributedString(attributedString: ns)
         mutable.removeAttribute(.backgroundColor,
@@ -354,7 +355,7 @@ struct DocTableBlock: View {
     @ViewBuilder
     private func cellView(text: String, isHeader: Bool, width: CGFloat, isLast: Bool) -> some View {
         Text(attrCell(text))
-            .font(isHeader ? .system(size: 13, weight: .semibold) : .system(size: 13))
+            .font(isHeader ? .footnote.weight(.semibold) : .footnote)
             .foregroundStyle(Color.primary)
             .lineLimit(2)
             .padding(.horizontal, 10)

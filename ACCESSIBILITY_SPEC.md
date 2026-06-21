@@ -1,7 +1,9 @@
 # Spec — Accessibility audit & remediation
 
-**Status:** Audit complete (static / code-only). Remediation proposed, not built.
-**Author:** Miguel A. Baeyens · **Date:** 2026-06-21 · **Scope:** Vera iOS + macOS, v1.1.0
+**Status:** Audit complete. Remediation **F1–F6 and F8 implemented** (builds green,
+iOS + macOS); F5 left as-is (already VoiceOver-readable); **F7 deferred**. A device
+VoiceOver + Dynamic Type pass is still required before claiming VoiceOver / Larger Text.
+**Author:** Miguel A. Baeyens · **Date:** 2026-06-21 · **Scope:** Vera iOS + macOS, target v1.1.1
 
 ## Why
 
@@ -82,6 +84,23 @@ Per platform, only after the noted condition:
 Then: **device VoiceOver + Dynamic Type pass** on the core flows (open folder → pick
 file → read → edit → save; GitHub connect → browse → commit/PR). Only after that, fill
 the Nutrition Label per the table above.
+
+## Remediation status (implemented for v1.1.1)
+
+| ID | Status | What changed |
+|----|--------|--------------|
+| F1 | ✅ Done | iCloud status icons labeled ("In iCloud, not downloaded" / "In iCloud, offline") in `FileTreeView` (iOS row + `MacFileRow`). |
+| F2 | ✅ Done | Dynamic Type for mono text: `DynamicTypeSize.monoScale` (`Theme.swift`); editor scales via `EditingModeView.effectiveFontSize` (iOS); preview code + tables scale (`MarkdownDocumentView`); tab labels use a scalable text style (`TabBarView`). macOS keeps the in-app size control. |
+| F3 | ✅ Done | Decorative leading icons hidden (`MarkdownFileIcon` left as `Label` icon; folder.fill in HStack rows + onboarding icons get `.accessibilityHidden(true)`). |
+| F4 | ✅ Done | `.accessibilityAddTraits(.isSelected)` on the active Open-Files row, active tree file, and `MacFileRow`; indicator dots hidden from VoiceOver. |
+| F5 | ➖ As-is | Save/commit states already render text VoiceOver can read; proactive announcements deferred (low value). |
+| F6 | ✅ Done | Focus collapse (`MacRootView`, `DocumentView`) and lint-panel expand respect `accessibilityReduceMotion`. |
+| F7 | ⏸ Deferred | Heading-trait / table-grid VoiceOver semantics in the preview — larger renderer change, low priority. |
+| F8 | ✅ Done | Explicit `accessibilityLabel`s on the GitHub token / owner / repo fields. |
+
+Both platforms build green. Still pending: the on-device VoiceOver + Dynamic Type pass,
+then fill the Nutrition Label (VoiceOver, Larger Text, Voice Control, Reduced Motion,
+Differentiate Without Color, Sufficient Contrast, Dark Interface).
 
 ## Out of scope
 - Running VoiceOver/Voice Control on device (requires hardware; this audit is static).

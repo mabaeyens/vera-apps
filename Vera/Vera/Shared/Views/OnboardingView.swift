@@ -14,6 +14,7 @@ struct OnboardingView: View {
                 Image(systemName: "doc.text")
                     .font(.system(size: 40, weight: .light))
                     .foregroundStyle(.white)
+                    .accessibilityHidden(true)
             }
             .padding(.bottom, Theme.Space.xl)
 
@@ -87,6 +88,7 @@ private struct OnboardingFeatureRow: View {
                 .font(.title2)
                 .foregroundStyle(Theme.accent)
                 .frame(width: 32)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: Theme.Space.xs / 2) {
                 Text(title).font(.subheadline.bold())
                 Text(description).font(.subheadline).foregroundStyle(.secondary)

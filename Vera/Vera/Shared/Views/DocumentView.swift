@@ -13,6 +13,7 @@ struct DocumentView: View {
     @State private var lastSeen: String?
     @AppStorage("editorFontSize") private var fontSize: Double = 20
     @AppStorage("focusMode") private var focusMode = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(source: DocumentSource) {
         self.source = source
@@ -165,7 +166,7 @@ struct DocumentView: View {
         if viewModel.mode == .editing {
             ToolbarItem(placement: .automatic) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
+                    withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { focusMode.toggle() }
                 } label: {
                     Image(systemName: focusMode ? "circle.dashed.inset.filled" : "circle.dashed")
                 }

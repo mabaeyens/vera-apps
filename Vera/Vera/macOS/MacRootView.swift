@@ -15,6 +15,7 @@ struct MacRootView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
     @AppStorage("focusMode") private var focusMode: Bool = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         @Bindable var vm = vm
@@ -36,7 +37,7 @@ struct MacRootView: View {
             }
         }
         .onChange(of: focusMode) { _, isFocused in
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                 columnVisibility = isFocused ? .detailOnly : .all
             }
         }

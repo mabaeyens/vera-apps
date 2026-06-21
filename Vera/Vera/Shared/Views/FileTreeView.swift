@@ -238,6 +238,7 @@ struct FileTreeView: View {
                 } label: {
                     HStack(spacing: Theme.Space.s) {
                         Image(systemName: "folder.fill").foregroundStyle(Theme.accent)
+                            .accessibilityHidden(true)
                         Text(node.name)
                     }
                 }
@@ -322,6 +323,7 @@ struct FileTreeView: View {
                     HStack(spacing: Theme.Space.s) {
                         Image(systemName: "folder.fill")
                             .foregroundStyle(Theme.accent)
+                            .accessibilityHidden(true)
                         Text(name)
                     }
                 }
@@ -357,6 +359,7 @@ struct FileTreeView: View {
             Circle()
                 .fill(isActive ? Color.accentColor : Color.clear)
                 .frame(width: 6, height: 6)
+                .accessibilityHidden(true)
             Text(tab.name)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -373,6 +376,7 @@ struct FileTreeView: View {
         .contentShape(Rectangle())
         .onHover { hoveredTabID = $0 ? tab.id : nil }
         .onTapGesture { vm.activateTab(tab.id) }
+        .accessibilityAddTraits(isActive ? .isSelected : [])
         #else
         Button {
             vm.activateTab(tab.id)
@@ -381,6 +385,7 @@ struct FileTreeView: View {
                 Circle()
                     .fill(isActive ? Color.accentColor : Color.clear)
                     .frame(width: 6, height: 6)
+                    .accessibilityHidden(true)
                 Text(tab.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -394,6 +399,7 @@ struct FileTreeView: View {
                 Label("Close", systemImage: "xmark")
             }
         }
+        .accessibilityAddTraits(isActive ? .isSelected : [])
         #endif
     }
 
@@ -444,6 +450,7 @@ struct FileTreeView: View {
                     } else if state == .cloud {
                         let icon = connectivity.isOnline ? "icloud.and.arrow.down" : "icloud.slash"
                         Image(systemName: icon).foregroundStyle(.secondary).font(.caption)
+                            .accessibilityLabel(connectivity.isOnline ? "In iCloud, not downloaded" : "In iCloud, offline")
                     }
                 }
                 .contentShape(Rectangle())
@@ -467,6 +474,7 @@ struct FileTreeView: View {
                     Label("Delete", systemImage: "trash")
                 }
             }
+            .accessibilityAddTraits(isActive ? .isSelected : [])
             .tag(id)
             #endif
         }
@@ -538,10 +546,12 @@ private struct MacFileRow: View {
                     .buttonStyle(.plain)
                     .disabled(!isOnline)
                     .help(isOnline ? "Download from iCloud" : "Not available offline")
+                    .accessibilityLabel(isOnline ? "Download from iCloud" : "In iCloud, offline")
                 }
             }
         }
         .contentShape(Rectangle())
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 #endif
