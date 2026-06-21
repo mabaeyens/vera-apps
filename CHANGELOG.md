@@ -3,13 +3,14 @@
 ## v1.1.0
 
 - **GitHub (preview)** — connect a repository with a fine-grained token and browse/read its Markdown directly in Vera. The token talks only to GitHub and lives in your device Keychain.
-- **GitHub repos in the sidebar** — connected repos appear in their own sidebar section and **sync across your devices** via iCloud (add one on your Mac, it's there on your iPhone). The token itself stays on each device.
+- **Browse GitHub repos in the sidebar** — connected repos appear as a browsable folder/file tree right in the sidebar (expand to drill into folders and Markdown files, just like an iCloud folder), and **sync across your devices** via iCloud. Opening a repo file gives it a tab alongside your local files. The token stays on each device.
 - **Full editor for GitHub files** — repo Markdown opens in the same editor as your local files: view/edit toggle, syntax highlighting, formatting bar, snippets, auto-fix and Focus Mode. Commit straight to the branch or open a pull request. Needs a token with Contents: Read and Write.
 - **What changed** — when a repo file has moved on since you last opened it, Vera shows a "What Changed" button and a native diff of the changes — built for skimming the Markdown your agents write.
 - **New brand identity** — a refined teal accent throughout, a consistent design system (spacing, radii, typography), and a refreshed onboarding flow.
 - **Cleaner, less-cramped UI** — primary actions (New File, Open) are now visible buttons instead of hidden behind a `···` menu; the macOS document toolbar is grouped; folders carry a tinted icon so they read distinctly from files.
 - **Focus Mode** — a one-tap distraction-free writing surface that hides the formatting bar and linter, now on iPhone as well as iPad.
 - **Flatter formatting bar** — bold, italic, strikethrough, code, heading, list, quote and snippets are all one tap away (no nested menu); every button has an accessibility label.
+- **Markdown file icon** — Markdown files now use the Markdown mark (by dcurtis) instead of a generic document icon; dependencies are credited in About.
 - **Friendlier empty state** — a clear "No Folder Open" screen with a direct Open Folder action.
 - **Reliability & privacy** — fixes a false "Couldn't Load Files" error on launch and moves the folder bookmark into the Keychain.
 - **macOS App Sandbox** — the Mac app now runs sandboxed for stronger isolation, with access limited to the folders you pick and outbound network only to GitHub.

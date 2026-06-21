@@ -11,9 +11,17 @@ struct FileTreeView: View {
     @State private var loadedFolderIDs: Set<UUID> = []
     @AppStorage("openFilesExpanded") private var openFilesExpanded: Bool = true
     @State private var savedRepos: [SavedRepo] = RepoListStore.all()
+    @State private var repoBrowser = RepoBrowser()
+    @State private var expandedRepos: Set<String> = []        // SavedRepo.id
+    @State private var expandedRepoFolders: Set<String> = []  // "repoID|nodeID"
     #if os(macOS)
     @State private var hoveredTabID: UUID?
     #endif
+
+    /// id of the source shown in the active tab — used to highlight the active row.
+    private var activeSourceID: String? {
+        vm.tabs.first(where: { $0.id == vm.activeTabID })?.source.id
+    }
 
     /// No iCloud folder, standalone files, or open tabs.
     private var iCloudEmpty: Bool {
@@ -129,32 +137,12 @@ struct FileTreeView: View {
         return nil
     }
 
-    /// Synced GitHub repos — visually distinct from the iCloud folder tree. Tapping a
-    /// repo opens the browser pre-filled (Spec C); rows can be removed.
+    /// Synced GitHub repos — a browsable tree alongside the iCloud folders. Expanding a
+    /// repo loads its Markdown tree (one API call); tapping a file opens it as a tab.
     @ViewBuilder private var gitHubSection: some View {
         Section("GitHub") {
             ForEach(savedRepos) { repo in
-                Button {
-                    NotificationCenter.default.post(name: .veraOpenGitHub, object: repo)
-                } label: {
-                    Label {
-                        Text(repo.displayName).lineLimit(1).truncationMode(.middle)
-                    } icon: {
-                        Image(systemName: "chevron.left.forwardslash.chevron.right")
-                            .foregroundStyle(Theme.accent)
-                    }
-                }
-                .buttonStyle(.plain)
-                .swipeActions(edge: .trailing) {
-                    Button(role: .destructive) { RepoListStore.remove(repo) } label: {
-                        Label("Remove", systemImage: "trash")
-                    }
-                }
-                .contextMenu {
-                    Button(role: .destructive) { RepoListStore.remove(repo) } label: {
-                        Label("Remove Repository", systemImage: "trash")
-                    }
-                }
+                repoNode(repo)
             }
             Button {
                 NotificationCenter.default.post(name: .veraOpenGitHub, object: nil)
@@ -163,6 +151,114 @@ struct FileTreeView: View {
                     .foregroundStyle(Theme.accent)
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    private func repoNode(_ repo: SavedRepo) -> some View {
+        DisclosureGroup(isExpanded: repoBinding(repo)) {
+            repoContent(repo)
+        } label: {
+            Label {
+                Text(repo.displayName).lineLimit(1).truncationMode(.middle)
+            } icon: {
+                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                    .foregroundStyle(Theme.accent)
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                RepoListStore.remove(repo); repoBrowser.forget(repo)
+            } label: { Label("Remove", systemImage: "trash") }
+        }
+        .contextMenu {
+            Button(role: .destructive) {
+                RepoListStore.remove(repo); repoBrowser.forget(repo)
+            } label: { Label("Remove Repository", systemImage: "trash") }
+        }
+    }
+
+    /// Expanding a repo loads its tree; with no token on this device, it instead opens
+    /// the connect sheet pre-filled so the user can add the token once.
+    private func repoBinding(_ repo: SavedRepo) -> Binding<Bool> {
+        Binding(
+            get: { expandedRepos.contains(repo.id) },
+            set: { isOpen in
+                if isOpen {
+                    guard CredentialStore.hasToken else {
+                        NotificationCenter.default.post(name: .veraOpenGitHub, object: repo)
+                        return
+                    }
+                    expandedRepos.insert(repo.id)
+                    Task { await repoBrowser.loadIfNeeded(repo) }
+                } else {
+                    expandedRepos.remove(repo.id)
+                }
+            }
+        )
+    }
+
+    @ViewBuilder private func repoContent(_ repo: SavedRepo) -> some View {
+        switch repoBrowser.state(for: repo) {
+        case .idle, .loading:
+            HStack(spacing: Theme.Space.s) {
+                ProgressView().controlSize(.small)
+                Text("Loading…").font(.caption).foregroundStyle(.secondary)
+            }
+        case .failed(let message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.red)
+        case .loaded(let nodes):
+            if nodes.isEmpty {
+                Text("No Markdown files").font(.caption).foregroundStyle(.secondary)
+            } else {
+                ForEach(nodes) { node in
+                    repoNodeRow(node, repoID: repo.id)
+                }
+            }
+        }
+    }
+
+    /// Recursive GitHub tree row (AnyView for the same reason as `nodeRow`).
+    private func repoNodeRow(_ node: RepoTreeNode, repoID: String) -> AnyView {
+        if node.isFolder {
+            let key = repoID + "|" + node.id
+            return AnyView(
+                DisclosureGroup(isExpanded: Binding(
+                    get: { expandedRepoFolders.contains(key) },
+                    set: { isOpen in
+                        if isOpen { expandedRepoFolders.insert(key) }
+                        else { expandedRepoFolders.remove(key) }
+                    }
+                )) {
+                    ForEach(node.children) { child in
+                        repoNodeRow(child, repoID: repoID)
+                    }
+                } label: {
+                    HStack(spacing: Theme.Space.s) {
+                        Image(systemName: "folder.fill").foregroundStyle(Theme.accent)
+                        Text(node.name)
+                    }
+                }
+            )
+        } else if let ref = node.ref {
+            let isActive = activeSourceID == DocumentSource.gitHub(ref).id
+            return AnyView(
+                Button {
+                    vm.openInNewTab(.gitHub(ref))
+                } label: {
+                    Label {
+                        Text(node.name).fontWeight(isActive ? .medium : .regular)
+                            .lineLimit(1).truncationMode(.middle)
+                    } icon: {
+                        MarkdownFileIcon()
+                            .foregroundStyle(isActive ? Theme.accent : .secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+            )
+        } else {
+            return AnyView(EmptyView())
         }
     }
 
