@@ -10,7 +10,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Pending
 
-*(none)*
+- **GitHub auth: PAT vs GitHub App device flow** — today users mint and paste a fine-grained PAT (Contents + Metadata). If TestFlight feedback says that's too much friction, the no-backend-compatible upgrade is GitHub's OAuth **Device Flow** (enter a code at github.com/login/device — needs only a client ID, no server). Don't build pre-emptively; let onboarding feedback trigger it. Full design in [GITHUB_AUTH_SPEC.md](GITHUB_AUTH_SPEC.md).
 
 ---
 
