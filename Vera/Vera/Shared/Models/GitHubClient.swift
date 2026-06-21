@@ -7,6 +7,19 @@ struct GitHubItem: Identifiable, Hashable {
     var name: String { (path as NSString).lastPathComponent }
 }
 
+/// A commit that touched a given file. (Spec C2.)
+struct GitHubCommit: Identifiable, Hashable {
+    let sha: String
+    let message: String
+    let authorName: String
+    let date: Date?
+    var id: String { sha }
+
+    /// First line of the commit message.
+    var summary: String { message.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? message }
+    var shortSHA: String { String(sha.prefix(7)) }
+}
+
 enum GitHubError: LocalizedError {
     case badResponse(Int)
     case notMarkdown
@@ -52,6 +65,30 @@ struct GitHubClient {
     }
     private struct Contents: Decodable { let content: String; let encoding: String }
 
+    private struct CommitDTO: Decodable {
+        let sha: String
+        let commit: Commit
+        struct Commit: Decodable {
+            let message: String
+            let author: Author
+            struct Author: Decodable { let name: String; let date: String }
+        }
+    }
+    private struct CompareDTO: Decodable {
+        let files: [FileChange]?
+        struct FileChange: Decodable {
+            let filename: String
+            let status: String
+            let patch: String?
+        }
+    }
+
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
     func defaultBranch() async throws -> String {
         let data = try await get("/repos/\(owner)/\(repo)")
         guard let meta = try? JSONDecoder().decode(RepoMeta.self, from: data) else { throw GitHubError.decoding }
@@ -81,5 +118,38 @@ struct GitHubClient {
         guard let decoded = Data(base64Encoded: cleaned),
               let text = String(data: decoded, encoding: .utf8) else { throw GitHubError.decoding }
         return text
+    }
+
+    private func encode(path: String) -> String {
+        path.split(separator: "/")
+            .map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
+            .joined(separator: "/")
+    }
+
+    /// Commit history for a single file, newest first. (Spec C2.)
+    func commits(path: String, limit: Int = 20) async throws -> [GitHubCommit] {
+        let data = try await get("/repos/\(owner)/\(repo)/commits?path=\(encode(path: path))&per_page=\(limit)")
+        guard let dtos = try? JSONDecoder().decode([CommitDTO].self, from: data) else { throw GitHubError.decoding }
+        return dtos.map {
+            GitHubCommit(
+                sha: $0.sha,
+                message: $0.commit.message,
+                authorName: $0.commit.author.name,
+                date: Self.isoFormatter.date(from: $0.commit.author.date)
+            )
+        }
+    }
+
+    /// The most recent commit that touched `path`, or nil if none.
+    func latestCommit(path: String) async throws -> GitHubCommit? {
+        try await commits(path: path, limit: 1).first
+    }
+
+    /// The unified-diff patch for `path` between two commits, or nil if GitHub
+    /// omitted it (e.g. the file is unchanged or the diff is too large). (Spec C2.)
+    func diff(path: String, from base: String, to head: String) async throws -> String? {
+        let data = try await get("/repos/\(owner)/\(repo)/compare/\(base)...\(head)")
+        guard let compare = try? JSONDecoder().decode(CompareDTO.self, from: data) else { throw GitHubError.decoding }
+        return compare.files?.first { $0.filename == path }?.patch
     }
 }

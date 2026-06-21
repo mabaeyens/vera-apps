@@ -48,6 +48,14 @@ final class GitHubBrowserModel {
     func contents(of item: GitHubItem) async throws -> String {
         try await client().fileContents(path: item.path)
     }
+
+    func latestCommit(of item: GitHubItem) async throws -> GitHubCommit? {
+        try await client().latestCommit(path: item.path)
+    }
+
+    func diff(of item: GitHubItem, from base: String, to head: String) async throws -> String? {
+        try await client().diff(path: item.path, from: base, to: head)
+    }
 }
 
 struct GitHubBrowserView: View {
@@ -159,6 +167,17 @@ private struct GitHubReadView: View {
     @State private var content: String?
     @State private var errorText: String?
 
+    // Spec C2 — "what changed since you last looked".
+    @State private var latest: GitHubCommit?
+    @State private var lastSeen: String?
+    @State private var showDiff = false
+
+    /// The file has changed since the user last viewed it (and we have a baseline).
+    private var hasChanges: Bool {
+        guard let latest, let lastSeen else { return false }
+        return latest.sha != lastSeen
+    }
+
     var body: some View {
         Group {
             if let content {
@@ -180,9 +199,42 @@ private struct GitHubReadView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task {
-            do { content = try await model.contents(of: item) }
-            catch { errorText = error.localizedDescription }
+        .toolbar {
+            if hasChanges {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showDiff = true
+                    } label: {
+                        Label("What Changed", systemImage: "plus.forwardslash.minus")
+                    }
+                }
+            }
         }
+        .sheet(isPresented: $showDiff, onDismiss: refreshSeen) {
+            if let latest, let lastSeen {
+                GitHubDiffView(model: model, item: item, base: lastSeen, head: latest)
+            }
+        }
+        .task {
+            await load()
+        }
+    }
+
+    private func load() async {
+        do { content = try await model.contents(of: item) }
+        catch { errorText = error.localizedDescription }
+
+        lastSeen = RepoSeenStore.lastSeen(owner: model.owner, repo: model.repo, path: item.path)
+        latest = try? await model.latestCommit(of: item)
+        // First visit: record the baseline silently so future visits can diff.
+        if lastSeen == nil, let sha = latest?.sha {
+            RepoSeenStore.markSeen(owner: model.owner, repo: model.repo, path: item.path, sha: sha)
+            lastSeen = sha
+        }
+    }
+
+    /// After the diff sheet closes it has marked the latest commit as seen — reflect that.
+    private func refreshSeen() {
+        lastSeen = RepoSeenStore.lastSeen(owner: model.owner, repo: model.repo, path: item.path)
     }
 }
