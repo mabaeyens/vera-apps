@@ -65,6 +65,7 @@ struct HighlightingTextView: UIViewRepresentable {
         if useInputAccessory {
             textView.inputAccessoryView = makeFormattingBar(coordinator: context.coordinator)
         }
+        context.coordinator.lastUseInputAccessory = useInputAccessory
 
         registerInsert { [weak coordinator = context.coordinator] snippet in
             coordinator?.insert(snippet)
@@ -100,6 +101,14 @@ struct HighlightingTextView: UIViewRepresentable {
         context.coordinator.onCheatSheetRequested = onCheatSheetRequested
         context.coordinator.onIconHelpRequested = onIconHelpRequested
         context.coordinator.refreshMoreMenu()
+
+        // Focus Mode toggles the keyboard formatting bar at runtime. reloadInputViews()
+        // swaps it in/out live while the text view is first responder.
+        if useInputAccessory != context.coordinator.lastUseInputAccessory {
+            uiView.inputAccessoryView = useInputAccessory ? makeFormattingBar(coordinator: context.coordinator) : nil
+            uiView.reloadInputViews()
+            context.coordinator.lastUseInputAccessory = useInputAccessory
+        }
 
         if uiView.text != text {
             let sel = uiView.selectedRange
@@ -198,6 +207,7 @@ struct HighlightingTextView: UIViewRepresentable {
 
         var lastFontSize: CGFloat = 0
         var lastTheme: String = ""
+        var lastUseInputAccessory: Bool?
         var isApplyingExternalChange = false
 
         var onAtlasRequested: () -> Void = {}

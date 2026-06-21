@@ -34,7 +34,9 @@ struct EditingModeView: View {
                 onIconHelpRequested: onIconHelpRequested,
                 useInputAccessory: {
                     #if os(iOS)
-                    return sizeClass != .regular
+                    // iPhone: the keyboard formatting bar is the inputAccessoryView.
+                    // Focus Mode hides it (matching how it hides the iPad bar below).
+                    return sizeClass != .regular && !focusMode
                     #else
                     return true
                     #endif
