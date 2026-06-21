@@ -17,7 +17,7 @@ struct MacRootView: View {
     var body: some View {
         @Bindable var vm = vm
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            FileTreeView(selectedURL: $vm.selectedURL)
+            FileTreeView(selectedSource: $vm.selectedSource)
                 .frame(minWidth: 200)
                 .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
         } detail: {
@@ -25,9 +25,9 @@ struct MacRootView: View {
                 if vm.tabs.count >= 1 && tabBarVisible {
                     TabBarView()
                 }
-                if let url = vm.selectedURL {
-                    DocumentView(url: url)
-                        .id(url)
+                if let source = vm.selectedSource {
+                    DocumentView(source: source)
+                        .id(source)
                 } else {
                     ContentUnavailableView("Select a file", systemImage: "doc.text")
                 }

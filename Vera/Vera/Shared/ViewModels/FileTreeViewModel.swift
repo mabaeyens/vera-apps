@@ -28,7 +28,7 @@ enum FileOpenError: LocalizedError, Identifiable {
 @MainActor
 final class FileTreeViewModel {
     var roots: [FileNode] = []
-    var selectedURL: URL?
+    var selectedSource: DocumentSource?
     var isLoading = false
     var loadFailed = false
     var needsFolderPicker = false
@@ -44,61 +44,65 @@ final class FileTreeViewModel {
 
     struct TabEntry: Identifiable {
         let id: UUID
-        var url: URL
-        var name: String { url.deletingPathExtension().lastPathComponent }
+        var source: DocumentSource
+        var name: String { source.displayName }
 
-        init(url: URL) {
+        init(source: DocumentSource) {
             self.id = UUID()
-            self.url = url
+            self.source = source
         }
     }
 
     var tabs: [TabEntry] = []
     var activeTabID: UUID? = nil
 
-    func openFileInActiveTab(_ url: URL) {
-        if let existing = tabs.first(where: { $0.url == url }) {
+    func openInActiveTab(_ source: DocumentSource) {
+        if let existing = tabs.first(where: { $0.source == source }) {
             activeTabID = existing.id
-            selectedURL = url
+            selectedSource = source
             return
         }
         if tabs.isEmpty {
-            let entry = TabEntry(url: url)
+            let entry = TabEntry(source: source)
             tabs = [entry]
             activeTabID = entry.id
         } else if let idx = tabs.firstIndex(where: { $0.id == activeTabID }) {
-            tabs[idx].url = url
+            tabs[idx].source = source
         } else {
-            let entry = TabEntry(url: url)
+            let entry = TabEntry(source: source)
             tabs.append(entry)
             activeTabID = entry.id
         }
-        selectedURL = url
+        selectedSource = source
     }
 
-    func openFileInNewTab(_ url: URL) {
-        if let existing = tabs.first(where: { $0.url == url }) {
+    func openInNewTab(_ source: DocumentSource) {
+        if let existing = tabs.first(where: { $0.source == source }) {
             activeTabID = existing.id
-            selectedURL = url
+            selectedSource = source
             return
         }
-        let entry = TabEntry(url: url)
+        let entry = TabEntry(source: source)
         tabs.append(entry)
         activeTabID = entry.id
-        selectedURL = url
+        selectedSource = source
     }
+
+    // URL convenience wrappers — keep every existing iCloud call site unchanged.
+    func openFileInActiveTab(_ url: URL) { openInActiveTab(.file(url)) }
+    func openFileInNewTab(_ url: URL) { openInNewTab(.file(url)) }
 
     func closeTab(_ id: UUID) {
         guard tabs.count > 1 else { return }
         guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
-        let closedURL = tabs[idx].url
+        let closed = tabs[idx].source
         tabs.remove(at: idx)
         if activeTabID == id {
             let newIdx = min(idx, tabs.count - 1)
             activeTabID = tabs[newIdx].id
-            selectedURL = tabs[newIdx].url
+            selectedSource = tabs[newIdx].source
         }
-        releaseAccess(closedURL)
+        if case .file(let url) = closed { releaseAccess(url) }
     }
 
     // MARK: - Unified file-open coordinator
@@ -168,7 +172,7 @@ final class FileTreeViewModel {
     func activateTab(_ id: UUID) {
         guard let entry = tabs.first(where: { $0.id == id }) else { return }
         activeTabID = entry.id
-        selectedURL = entry.url
+        selectedSource = entry.source
     }
 
     // MARK: - State
@@ -272,7 +276,7 @@ final class FileTreeViewModel {
         activeTabID = nil
         rootURL = nil
         downloadingURLs = []
-        selectedURL = nil
+        selectedSource = nil
         isLoading = false
         loadFailed = false
         pendingExternalURL = nil
@@ -381,16 +385,16 @@ final class FileTreeViewModel {
         // Patch the folder tree in-place (avoids a full re-scan)
         roots = removingFile(url: url, from: roots)
         // Handle tabs: close the deleted file's tab or clear selection
-        if let tabToClose = tabs.first(where: { $0.url == url }) {
+        if let tabToClose = tabs.first(where: { $0.source == .file(url) }) {
             if tabs.count == 1 {
                 tabs = []
                 activeTabID = nil
-                selectedURL = nil
+                selectedSource = nil
             } else {
                 closeTab(tabToClose.id)
             }
-        } else if selectedURL == url {
-            selectedURL = nil
+        } else if selectedSource == .file(url) {
+            selectedSource = nil
         }
     }
 

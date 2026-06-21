@@ -3,7 +3,7 @@ import SwiftUI
 struct FileTreeView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(ConnectivityMonitor.self) private var connectivity
-    @Binding var selectedURL: URL?
+    @Binding var selectedSource: DocumentSource?
 
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
@@ -90,9 +90,11 @@ struct FileTreeView: View {
         .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChangeExternally)) { _ in
             savedRepos = RepoListStore.all()
         }
-        // UUID selection → URL (user taps a file)
+        // macOS List selection → open the iCloud file. (The editor is driven by the
+        // active tab / selectedSource; deselection here must NOT clear it, otherwise
+        // opening a GitHub file — which sets selectedID to nil — would close itself.)
         .onChange(of: selectedID) { _, id in
-            guard let id else { selectedURL = nil; return }
+            guard let id else { return }
             // Check folder tree first
             if let node = findNode(id: id, in: vm.roots),
                case .file(_, _, let url, let state) = node {
@@ -107,15 +109,13 @@ struct FileTreeView: View {
                 vm.openFileInNewTab(url)
             }
         }
-        // URL → UUID (programmatic selection e.g. new file created or tab switch)
-        .onChange(of: selectedURL) { _, url in
-            guard let url else {
+        // Active source → highlight the matching iCloud row (file sources only).
+        .onChange(of: selectedSource) { _, source in
+            if case .file(let url)? = source {
+                let found = findID(url: url, in: vm.roots) ?? findID(url: url, in: vm.standaloneFiles)
+                if found != selectedID { selectedID = found }
+            } else if selectedID != nil {
                 selectedID = nil
-                return
-            }
-            let found = findID(url: url, in: vm.roots) ?? findID(url: url, in: vm.standaloneFiles)
-            if found != selectedID {
-                selectedID = found
             }
         }
     }
@@ -123,7 +123,10 @@ struct FileTreeView: View {
     /// The file currently shown in the active tab — highlighted in the tree so the
     /// sidebar and the editor stay visually connected.
     private var activeFileURL: URL? {
-        vm.tabs.first { $0.id == vm.activeTabID }?.url
+        if case .file(let url)? = vm.tabs.first(where: { $0.id == vm.activeTabID })?.source {
+            return url
+        }
+        return nil
     }
 
     /// Synced GitHub repos — visually distinct from the iCloud folder tree. Tapping a
@@ -260,10 +263,10 @@ struct FileTreeView: View {
         }
         .contentShape(Rectangle())
         .onHover { hoveredTabID = $0 ? tab.id : nil }
-        .onTapGesture { vm.openFileInActiveTab(tab.url) }
+        .onTapGesture { vm.activateTab(tab.id) }
         #else
         Button {
-            vm.openFileInActiveTab(tab.url)
+            vm.activateTab(tab.id)
         } label: {
             HStack(spacing: 6) {
                 Circle()

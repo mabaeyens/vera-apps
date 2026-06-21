@@ -29,29 +29,29 @@ struct iOSRootView: View {
                 // NavigationSplitView in compact mode collapses differently and the detail
                 // column's toolbar items don't reach the navigation bar.
                 NavigationStack {
-                    FileTreeView(selectedURL: $vm.selectedURL)
+                    FileTreeView(selectedSource: $vm.selectedSource)
                         .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar { sharedToolbar }
-                        .navigationDestination(item: $vm.selectedURL) { url in
+                        .navigationDestination(item: $vm.selectedSource) { source in
                             VStack(spacing: 0) {
                                 if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
-                                DocumentView(url: url).id(url)
+                                DocumentView(source: source).id(source)
                             }
                         }
                 }
             } else {
                 // iPad: standard split view
                 NavigationSplitView(columnVisibility: $columnVisibility) {
-                    FileTreeView(selectedURL: $vm.selectedURL)
+                    FileTreeView(selectedSource: $vm.selectedSource)
                         .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar { sharedToolbar }
                 } detail: {
                     VStack(spacing: 0) {
                         if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
-                        if let url = vm.selectedURL {
-                            DocumentView(url: url).id(url)
+                        if let source = vm.selectedSource {
+                            DocumentView(source: source).id(source)
                         } else {
                             ContentUnavailableView("Select a file", systemImage: "doc.text")
                         }
