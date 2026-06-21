@@ -9,3 +9,8 @@ specs/
 
 # Security audit notes (local only)
 SECURITY_AUDIT.md
+
+# Local artifacts
+validate-summary.md
+*.af
+IMG_*.JPG

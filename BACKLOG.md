@@ -10,8 +10,6 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Pending
 
-- **PrivacyInfo.xcprivacy** — file created at `Vera/Vera/PrivacyInfo.xcprivacy`; must be dragged into the Vera target in Xcode to be bundled (I2)
-- **Keychain for bookmark** — move `rootFolderBookmark` from `UserDefaults` to Keychain (`kSecClassGenericPassword`); low urgency while macOS sandbox is off (M2)
 - **Re-enable macOS App Sandbox** — blocked on macOS 26 beta crash upstream (M1)
 
 ---

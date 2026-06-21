@@ -113,7 +113,7 @@ struct iOSRootView: View {
             .presentationDetents([.medium])
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {
-            if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
+            if BookmarkStore.load() == nil {
                 showFolderPicker = true
             }
         }) {

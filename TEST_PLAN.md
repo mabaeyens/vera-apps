@@ -4,6 +4,27 @@ Manual release checklist. Each release section lists the specific features intro
 
 ---
 
+## Release 1.0.37 (build 37) — 2026-06-21
+
+### Launch: no false "Couldn't Load Files"
+- [ ] macOS & iOS: cold launch with a previously-selected folder → sidebar populates directly; the "Couldn't Load Files" error does **not** flash (transient cold-iCloud scan now retries before erroring)
+- [ ] Refresh / reopen still recovers if a scan genuinely fails (folder really removed → picker appears)
+
+### Keychain bookmark migration (M2)
+- [ ] Update from a build that stored the bookmark in UserDefaults → folder still loads on first launch (migrated to Keychain), no re-pick required
+- [ ] Relaunch again → folder still loads (now read from Keychain)
+- [ ] `defaults read Vera rootFolderBookmark` no longer returns the bookmark blob after first launch
+- [ ] About → "Reset Vera…" → folder selection cleared; relaunch shows folder picker
+
+### Privacy manifest
+- [ ] `PrivacyInfo.xcprivacy` present in the built app (macOS `Contents/Resources/`, iOS app root) — verified in build 37
+
+### Regression
+- [ ] Open folder, open files, switch/close tabs, create new file — all still work
+- [ ] VoiceOver reads accessibility labels on toolbar/sidebar icon buttons
+
+---
+
 ## Release 1.0.36 (build 36) — 2026-06-06
 
 ### macOS folder picker fix

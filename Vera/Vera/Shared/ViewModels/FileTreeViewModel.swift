@@ -175,14 +175,30 @@ final class FileTreeViewModel {
 
     private(set) var rootURL: URL?
     private var refreshTask: Task<Void, Never>?
+    // Coalesces concurrent load() callers — at launch both FileTreeView's
+    // .task and MacRootView's scenePhase==.active fire load() at once.
+    private var loadTask: Task<Void, Never>?
     private var pendingExternalURL: URL?
 
     init() {
         let hasSeen = UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
-        needsFolderPicker = hasSeen && UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil
+        needsFolderPicker = hasSeen && BookmarkStore.load() == nil
     }
 
     func load() async {
+        // Coalesce concurrent callers so launch doesn't run two parallel scans
+        // of the same iCloud directory (which can contend and spuriously fail).
+        if let existing = loadTask {
+            await existing.value
+            return
+        }
+        let task = Task { await performLoad() }
+        loadTask = task
+        await task.value
+        loadTask = nil
+    }
+
+    private func performLoad() async {
         isLoading = true
         loadFailed = false
         defer { isLoading = false }
@@ -195,32 +211,46 @@ final class FileTreeViewModel {
         needsFolderPicker = rootURL == nil
         guard let root = rootURL else { return }
 
-        do {
-            roots = try await withThrowingTaskGroup(of: [FileNode].self) { group in
-                group.addTask { try await CloudScanner.scan(root: root) }
-                group.addTask {
-                    try await Task.sleep(nanoseconds: 10_000_000_000)
-                    throw URLError(.timedOut)
+        // On a cold launch the iCloud container may not be materialised yet, so
+        // the first scan can throw transiently. Retry a few times with a short
+        // backoff before surfacing a hard error to the user.
+        for attempt in 0..<3 {
+            do {
+                roots = try await withThrowingTaskGroup(of: [FileNode].self) { group in
+                    group.addTask { try await CloudScanner.scan(root: root) }
+                    group.addTask {
+                        try await Task.sleep(nanoseconds: 10_000_000_000)
+                        throw URLError(.timedOut)
+                    }
+                    defer { group.cancelAll() }
+                    return try await group.next()!
                 }
-                defer { group.cancelAll() }
-                return try await group.next()!
+                loadFailed = false
+                repinDownloads()
+                if let pending = pendingExternalURL {
+                    openFileInNewTab(pending)
+                    pendingExternalURL = nil
+                }
+                return
+            } catch {
+                // If the root directory itself is gone, clear the stale bookmark
+                // and show the picker — no point retrying.
+                if !FileManager.default.fileExists(atPath: root.path) {
+                    BookmarkStore.remove()
+                    rootURL = nil
+                    roots = []
+                    needsFolderPicker = true
+                    return
+                }
+                // Transient (e.g. iCloud not ready): back off and retry.
+                if attempt < 2 {
+                    try? await Task.sleep(nanoseconds: 400_000_000)
+                }
             }
-            repinDownloads()
-            if let pending = pendingExternalURL {
-                openFileInNewTab(pending)
-                pendingExternalURL = nil
-            }
-        } catch {
-            loadFailed = true
-            // If the root directory itself is gone, clear the stale bookmark and show picker
-            if !FileManager.default.fileExists(atPath: root.path) {
-                UserDefaults.standard.removeObject(forKey: "rootFolderBookmark")
-                rootURL = nil
-                roots = []
-                needsFolderPicker = true
-            }
-            // Otherwise (transient iCloud error): keep existing roots so sidebar isn't blanked
         }
+        // Retries exhausted and the folder still exists — surface the error but
+        // keep any existing roots so the sidebar isn't blanked.
+        loadFailed = true
     }
 
     func openExternalURL(_ url: URL) {
@@ -232,7 +262,7 @@ final class FileTreeViewModel {
     }
 
     func resetState() {
-        UserDefaults.standard.removeObject(forKey: "rootFolderBookmark")
+        BookmarkStore.remove()
         UserDefaults.standard.removeObject(forKey: "pinnedFiles")
         refreshTask?.cancel()
         refreshTask = nil
@@ -415,7 +445,7 @@ final class FileTreeViewModel {
     // MARK: - Bookmark persistence
 
     private func restoredBookmark() -> URL? {
-        guard let data = UserDefaults.standard.data(forKey: "rootFolderBookmark") else { return nil }
+        guard let data = BookmarkStore.load() else { return nil }
         var stale = false
         #if os(macOS)
         guard let url = try? URL(
@@ -451,6 +481,6 @@ final class FileTreeViewModel {
             relativeTo: nil
         ) else { return }
         #endif
-        UserDefaults.standard.set(data, forKey: "rootFolderBookmark")
+        BookmarkStore.save(data)
     }
 }

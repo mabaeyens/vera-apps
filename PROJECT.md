@@ -70,4 +70,4 @@ No server, no networking (beyond iCloud sync). 100% local + iCloud.
 
 ## Privacy
 
-`PrivacyInfo.xcprivacy` exists at `Vera/Vera/PrivacyInfo.xcprivacy` and declares `NSPrivacyAccessedAPICategoryUserDefaults` (reason `CA92.1`). It has not yet been added to the Xcode target — required before the next App Store submission.
+`PrivacyInfo.xcprivacy` exists at `Vera/Vera/PrivacyInfo.xcprivacy` and declares `NSPrivacyAccessedAPICategoryUserDefaults` (reason `CA92.1`). The Vera target uses a `PBXFileSystemSynchronizedRootGroup`, so the file is bundled automatically — verified present at `Vera.app/Contents/Resources/PrivacyInfo.xcprivacy` in built products. No manual Xcode target step is needed.

@@ -104,7 +104,7 @@ struct MacRootView: View {
                 .environment(vm)
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {
-            if UserDefaults.standard.data(forKey: "rootFolderBookmark") == nil {
+            if BookmarkStore.load() == nil {
                 openPicker()
             }
         }) {
