@@ -105,6 +105,9 @@ struct AboutView: View {
                 .foregroundStyle(.tertiary)
                 .padding(.top, 4)
 
+            credits
+                .padding(.top, 20)
+
             Spacer()
         }
         .padding(.horizontal, 40)
@@ -122,6 +125,29 @@ struct AboutView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This will clear your folder selection. Your files are not deleted.")
+        }
+    }
+
+    private var credits: some View {
+        VStack(spacing: 6) {
+            Text("Built with")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+            VStack(spacing: 3) {
+                creditLink("Highlightr", "https://github.com/raspu/Highlightr")
+                creditLink("swift-markdown-ui", "https://github.com/gonzalezreal/swift-markdown-ui")
+                creditLink("Markdown mark icon — dcurtis", "https://github.com/dcurtis/markdown-mark")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func creditLink(_ title: String, _ urlString: String) -> some View {
+        if let url = URL(string: urlString) {
+            Link(title, destination: url)
+                .font(.caption2)
+        } else {
+            Text(title).font(.caption2).foregroundStyle(.tertiary)
         }
     }
 
