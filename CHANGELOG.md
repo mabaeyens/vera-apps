@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.1.0
+
+- **New brand identity** — a refined teal accent throughout, a consistent design system (spacing, radii, typography), and a refreshed onboarding flow.
+- **Cleaner, less-cramped UI** — primary actions (New File, Open) are now visible buttons instead of hidden behind a `···` menu; the macOS document toolbar is grouped; folders carry a tinted icon so they read distinctly from files.
+- **Focus Mode** — a one-tap distraction-free writing surface that hides the formatting bar and linter.
+- **Flatter formatting bar** — bold, italic, strikethrough, code, heading, list, quote and snippets are all one tap away (no nested menu); every button has an accessibility label.
+- **Friendlier empty state** — a clear "No Folder Open" screen with a direct Open Folder action.
+- **Reliability & privacy** — fixes a false "Couldn't Load Files" error on launch and moves the folder bookmark into the Keychain.
+
 ## v1.0.36
 
 - Security hardening (path traversal fixes, bookmark validation) and HIG accessibility improvements (labels, touch targets, dark mode). VSCode-style sidebar now stays persistent — only the toolbar button toggles it.
