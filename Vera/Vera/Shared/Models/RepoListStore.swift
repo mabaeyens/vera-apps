@@ -17,9 +17,11 @@ enum RepoListStore {
     private static let key = "github.savedRepos"
     private static var store: NSUbiquitousKeyValueStore { .default }
 
-    /// Notification posted by iCloud when another device changes the list. Views can
-    /// observe this to refresh.
+    /// Posted by iCloud when another device changes the list.
     static let didChangeExternally = NSUbiquitousKeyValueStore.didChangeExternallyNotification
+    /// Posted on this device after a local add/remove (the iCloud notification only
+    /// fires for *external* changes). Views observe both to stay current.
+    static let didChange = Notification.Name("com.mab.vera.reposChanged")
 
     static func all() -> [SavedRepo] {
         guard let data = store.data(forKey: key),
@@ -48,5 +50,6 @@ enum RepoListStore {
         guard let data = try? JSONEncoder().encode(repos) else { return }
         store.set(data, forKey: key)
         store.synchronize()
+        NotificationCenter.default.post(name: didChange, object: nil)
     }
 }

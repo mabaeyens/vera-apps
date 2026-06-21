@@ -103,6 +103,13 @@ struct GitHubBrowserView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = GitHubBrowserModel()
 
+    /// When opened from a saved repo in the sidebar, pre-fill and auto-connect.
+    private let initialRepo: SavedRepo?
+
+    init(initialRepo: SavedRepo? = nil) {
+        self.initialRepo = initialRepo
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -119,6 +126,16 @@ struct GitHubBrowserView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
+                }
+            }
+            .task {
+                guard let initialRepo, !model.isConnected else { return }
+                model.owner = initialRepo.owner
+                model.repo = initialRepo.repo
+                // Connect straight away if we already have a token on this device;
+                // otherwise the form shows pre-filled so the user just adds the token.
+                if !model.token.isEmpty {
+                    await model.connect()
                 }
             }
         }

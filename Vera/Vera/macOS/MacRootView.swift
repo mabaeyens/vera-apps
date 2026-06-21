@@ -9,6 +9,7 @@ struct MacRootView: View {
     @State private var showAbout = false
     @State private var showNewFile = false
     @State private var showGitHub = false
+    @State private var gitHubInitialRepo: SavedRepo?
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
@@ -34,9 +35,12 @@ struct MacRootView: View {
         }
         .onChange(of: vm.needsFolderPicker) { _, val in if val { openPicker() } }
         .onReceive(NotificationCenter.default.publisher(for: .veraOpenPicker)) { _ in openPicker() }
-        .onReceive(NotificationCenter.default.publisher(for: .veraOpenGitHub)) { _ in showGitHub = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraOpenGitHub)) { note in
+            gitHubInitialRepo = note.object as? SavedRepo
+            showGitHub = true
+        }
         .sheet(isPresented: $showGitHub) {
-            GitHubBrowserView()
+            GitHubBrowserView(initialRepo: gitHubInitialRepo)
                 .frame(width: 520, height: 600)
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
@@ -78,7 +82,7 @@ struct MacRootView: View {
                 .keyboardShortcut("o", modifiers: .command)
             }
             ToolbarItem(placement: .automatic) {
-                Button { showGitHub = true } label: {
+                Button { gitHubInitialRepo = nil; showGitHub = true } label: {
                     Image(systemName: "chevron.left.forwardslash.chevron.right")
                 }
                 .help("Open from GitHub…")

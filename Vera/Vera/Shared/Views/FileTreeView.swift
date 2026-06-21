@@ -16,16 +16,22 @@ struct FileTreeView: View {
     @State private var expandedFolders: Set<UUID> = []
     @State private var loadedFolderIDs: Set<UUID> = []
     @AppStorage("openFilesExpanded") private var openFilesExpanded: Bool = true
+    @State private var savedRepos: [SavedRepo] = RepoListStore.all()
     #if os(macOS)
     @State private var hoveredTabID: UUID?
     #endif
 
+    /// No iCloud folder, standalone files, or open tabs.
+    private var iCloudEmpty: Bool {
+        vm.roots.isEmpty && vm.standaloneFiles.isEmpty && vm.tabs.isEmpty
+    }
+
     var body: some View {
         Group {
-            if vm.isLoading && vm.roots.isEmpty && vm.standaloneFiles.isEmpty && vm.tabs.isEmpty {
+            if vm.isLoading && iCloudEmpty && savedRepos.isEmpty {
                 ProgressView("Loading files…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.roots.isEmpty && vm.standaloneFiles.isEmpty && vm.tabs.isEmpty {
+            } else if iCloudEmpty && savedRepos.isEmpty {
                 if vm.loadFailed {
                     ContentUnavailableView {
                         Label("Couldn't Load Files", systemImage: "exclamationmark.triangle")
@@ -55,23 +61,8 @@ struct FileTreeView: View {
                 }
             } else {
                 List(selection: $selectedID) {
-                    if !vm.tabs.isEmpty {
-                        Section(isExpanded: $openFilesExpanded) {
-                            ForEach(vm.tabs) { tab in
-                                openFileRow(tab: tab)
-                            }
-                        } header: {
-                            Text("Open Files")
-                        }
-                    }
-                    if !vm.roots.isEmpty {
-                        Section(vm.rootURL?.lastPathComponent ?? "") {
-                            ForEach(flattenedRows()) { row in
-                                rowView(for: row.node)
-                                    .padding(.leading, CGFloat(row.depth) * 20)
-                            }
-                        }
-                    }
+                    if !savedRepos.isEmpty { gitHubSection }
+                    iCloudSections
                 }
                 .listStyle(.sidebar)
             }
@@ -94,7 +85,17 @@ struct FileTreeView: View {
         .safeAreaInset(edge: .bottom) {
             if !connectivity.isOnline { offlineBanner }
         }
-        .task { await vm.load() }
+        .task {
+            RepoListStore.startSyncing()
+            savedRepos = RepoListStore.all()
+            await vm.load()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChange)) { _ in
+            savedRepos = RepoListStore.all()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChangeExternally)) { _ in
+            savedRepos = RepoListStore.all()
+        }
         // UUID selection → URL (user taps a file)
         .onChange(of: selectedID) { _, id in
             guard let id else { selectedURL = nil; return }
@@ -129,6 +130,74 @@ struct FileTreeView: View {
     /// sidebar and the editor stay visually connected.
     private var activeFileURL: URL? {
         vm.tabs.first { $0.id == vm.activeTabID }?.url
+    }
+
+    /// Synced GitHub repos — visually distinct from the iCloud folder tree. Tapping a
+    /// repo opens the browser pre-filled (Spec C); rows can be removed.
+    @ViewBuilder private var gitHubSection: some View {
+        Section("GitHub") {
+            ForEach(savedRepos) { repo in
+                Button {
+                    NotificationCenter.default.post(name: .veraOpenGitHub, object: repo)
+                } label: {
+                    Label {
+                        Text(repo.displayName).lineLimit(1).truncationMode(.middle)
+                    } icon: {
+                        Image(systemName: "chevron.left.forwardslash.chevron.right")
+                            .foregroundStyle(Theme.accent)
+                    }
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing) {
+                    Button(role: .destructive) { RepoListStore.remove(repo) } label: {
+                        Label("Remove", systemImage: "trash")
+                    }
+                }
+                .contextMenu {
+                    Button(role: .destructive) { RepoListStore.remove(repo) } label: {
+                        Label("Remove Repository", systemImage: "trash")
+                    }
+                }
+            }
+            Button {
+                NotificationCenter.default.post(name: .veraOpenGitHub, object: nil)
+            } label: {
+                Label("Add Repository…", systemImage: "plus")
+                    .foregroundStyle(Theme.accent)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// The iCloud side: open tabs + the folder tree, or an inline "open a folder" prompt
+    /// when no folder is open but the list is showing because of GitHub repos.
+    @ViewBuilder private var iCloudSections: some View {
+        if !vm.tabs.isEmpty {
+            Section(isExpanded: $openFilesExpanded) {
+                ForEach(vm.tabs) { tab in
+                    openFileRow(tab: tab)
+                }
+            } header: {
+                Text("Open Files")
+            }
+        }
+        if !vm.roots.isEmpty {
+            Section(vm.rootURL?.lastPathComponent ?? "") {
+                ForEach(flattenedRows()) { row in
+                    rowView(for: row.node)
+                        .padding(.leading, CGFloat(row.depth) * 20)
+                }
+            }
+        } else if vm.rootURL == nil {
+            Section("iCloud") {
+                Button {
+                    NotificationCenter.default.post(name: .veraOpenPicker, object: nil)
+                } label: {
+                    Label("Open Folder…", systemImage: "folder.badge.plus")
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     private func flattenedRows() -> [FlatRow] {
