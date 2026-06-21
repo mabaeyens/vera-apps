@@ -87,6 +87,24 @@ struct AboutView: View {
                 }
             }
 
+            Spacer().frame(height: 20)
+
+            HStack(spacing: 16) {
+                if let privacyURL = URL(string: "https://github.com/mabaeyens/vera-apps/blob/main/PRIVACY.md") {
+                    Link("Privacy", destination: privacyURL)
+                }
+                Text("·").foregroundStyle(.tertiary)
+                if let repoURL = URL(string: "https://github.com/mabaeyens/vera-apps") {
+                    Link("Source", destination: repoURL)
+                }
+            }
+            .font(.footnote)
+
+            Text("No account · no servers · nothing sent anywhere")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .padding(.top, 4)
+
             Spacer()
         }
         .padding(.horizontal, 40)
