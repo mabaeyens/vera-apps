@@ -4,6 +4,42 @@ Manual release checklist. Each release section lists the specific features intro
 
 ---
 
+## Release 1.1.0 (build 1) — 2026-06-21
+
+### GitHub (browse, edit, commit)
+- [ ] Add Repository… → enter owner/repo + a fine-grained token (Contents: Read/Write) → repo appears under the "GitHub" sidebar section
+- [ ] Expand a repo → its Markdown tree loads (folders + .md files); drilling into subfolders works
+- [ ] Tap a repo file → opens in a **tab** alongside local files, with the full editor (highlighting, formatting bar, snippets, Focus)
+- [ ] Edit a GitHub file → **Commit** (direct) succeeds; file refreshes in place
+- [ ] Edit a GitHub file → **open Pull Request** succeeds; the GitHub link works
+- [ ] When a repo file moved on since last opened → **What Changed** shows a native diff
+- [ ] Token is device-local (Keychain): a second device on the same iCloud sees the repo in the list but must add its own token (expanding without a token opens the connect sheet)
+- [ ] Repo list syncs across devices via iCloud (add on one device → appears on another)
+
+### Sidebar
+- [ ] Local folder collapses/expands via a **leading-chevron** disclosure row (matches GitHub repos); state persists across launches
+- [ ] iPad: expanding a nested subfolder shows its files (deep nesting works)
+- [ ] `.md` rows show the **Markdown mark** icon; the active file is accent-tinted
+- [ ] macOS: hovering a file row shows **no** trash; right-click → Delete works and confirms
+
+### Focus Mode
+- [ ] macOS: toggle Focus → tab bar + lint panel hidden, sidebar collapses; toggle off restores all three
+- [ ] iPhone: Focus hides the keyboard formatting bar
+
+### Icon Guide
+- [ ] Opens from the ••• overflow menu on iPhone, iPad and Mac
+- [ ] Listed icons match the platform (Refresh / Copy All Text appear on Mac only)
+
+### About
+- [ ] Credits list Highlightr, swift-markdown-ui and the Markdown mark (dcurtis)
+
+### Regression
+- [ ] iCloud: open/edit/**autosave**/tabs/pinning unchanged (primary regression check)
+- [ ] Open folder, open files, switch/close tabs, create new file — all still work
+- [ ] VoiceOver reads accessibility labels on toolbar/sidebar icon buttons
+
+---
+
 ## Release 1.0.37 (build 37) — 2026-06-21
 
 ### Launch: no false "Couldn't Load Files"

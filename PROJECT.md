@@ -19,10 +19,14 @@
 Vera/
 ├── Shared/
 │   ├── Models/      # FileNode, CloudScanner, DocumentStore, ConnectivityMonitor,
-│   │                #   String+Markdown, DownloadState
+│   │                #   String+Markdown, DownloadState, BookmarkStore, DocumentSource,
+│   │                #   GitHubClient, CredentialStore, RepoListStore, RepoTree (+RepoBrowser),
+│   │                #   RepoSeenStore
 │   ├── ViewModels/  # FileTreeViewModel, EditorViewModel
-│   └── Views/       # FileTreeView, DocumentView, AtlasDrawer,
-│                    #   HighlightingTextView, NewFileSheet, OnboardingView, AboutView
+│   └── Views/       # FileTreeView, DocumentView, EditingModeView, HighlightingTextView,
+│                    #   HighlightrFont, MarkdownFileIcon, AtlasView, CheatSheetView,
+│                    #   IconHelpView, NewFileSheet, OnboardingView, AboutView,
+│                    #   GitHubBrowserView, GitHubCommitSheet, GitHubDiffView
 ├── iOS/             # iOSRootView (NavigationStack)
 ├── macOS/           # MacRootView (NavigationSplitView)
 └── Assets.xcassets/
@@ -43,8 +47,13 @@ No server, no networking (beyond iCloud sync). 100% local + iCloud.
 
 ## Key technical decisions
 
-- **File access -- macOS:** No App Sandbox (intentional — causes pre-main crash on macOS 26 beta; see M1 in SECURITY_AUDIT.md). Folder picker (`.fileImporter`) on first launch; URL persisted as security-scoped bookmark (`withSecurityScope`) in `UserDefaults` key `rootFolderBookmark`. Pending: move bookmark to Keychain (M2 in SECURITY_AUDIT.md).
+- **File access -- macOS:** **App Sandbox enabled** (re-enabled 2026-06-21 on GA macOS 26.5.1; the old pre-main crash was a macOS 26 *beta* bug, now resolved — M1 in SECURITY_AUDIT.md). Entitlements (`Vera/Vera/Vera.entitlements`): app-sandbox, user-selected.read-write, files.bookmarks.app-scope, network.client (GitHub), ubiquity-kvstore (repo-list sync). Folder picker (`.fileImporter`) on first launch; URL persisted as a security-scoped bookmark (`withSecurityScope`) in the **Keychain** via `BookmarkStore` (migrated off `UserDefaults` — M2 fixed).
 - **File access -- iOS:** Same `.fileImporter` + security-scoped bookmark flow; bookmark options `[]` (no `withSecurityScope`).
+- **GitHub (git-native, opt-in):** source-agnostic document model. `DocumentSource` (`.file(URL)` | `.gitHub(GitHubFileRef)`) drives `EditorViewModel`/`DocumentView`/tabs/selection, so repo files behave like local ones. `GitHubClient` (REST: defaultBranch, markdownFiles, fileVersion, commitFile, createBranch, openPullRequest, commits/diff). `CredentialStore` keeps the fine-grained PAT in the **Keychain** (device-local, never synced). `RepoListStore` keeps the saved-repo list in `NSUbiquitousKeyValueStore` (iCloud KVS, syncs across devices; token never stored here). `RepoTree`/`RepoBrowser` build + lazily cache each repo's Markdown tree for inline sidebar browsing. `RepoSeenStore` tracks last-seen SHA per file for the "What Changed" diff. Direct commit refreshes the blob SHA in place; PR path creates a branch, commits, opens the PR.
+- **Tabs/selection:** `FileTreeViewModel.selectedSource: DocumentSource?` + `TabEntry.source`; `openInActiveTab`/`openInNewTab` take a `DocumentSource` (`.file` wrappers keep drag-drop / picker call sites unchanged). iCloud-only logic (pin/download) is guarded to the `.file` case; GitHub tabs are session-only.
+- **Sidebar:** the local folder and each GitHub repo render as **leading-chevron `DisclosureGroup` rows** (recursive `nodeRow`/`repoNodeRow` return `AnyView` since a recursive `some View` can't self-infer). `.md` leaves use the `MarkdownMark` asset via `MarkdownFileIcon`. Deletion is right-click (macOS) / swipe (iOS) only — no hover trash.
+- **Focus Mode:** `@AppStorage("focusMode")` hides the linter + formatting bar everywhere; on macOS `MacRootView` also drops the tab bar and sets `columnVisibility = .detailOnly` while focused.
+- **Code font:** `applyMonoFont` (`HighlightrFont.swift`) sets real monospaced regular/bold/italic at every Highlightr `setCodeFont` site — Highlightr's own bold/italic derivation fell back to proportional SF for the system mono family.
 - **CloudScanner:** `FileManager()` created in `scan()` (on caller's `@MainActor`), passed into `Task.detached` to avoid implicit `@MainActor` on iOS 26 SDK.
 - **Markdown rendering (preview):** Custom `MarkdownAttributedString` builder producing `NSAttributedString`; displayed in non-editable `PreviewTextView`. Code blocks use Highlightr (atom-one-light/dark theme). Tables rendered with `│`-separated columns, bolded header row. MarkdownUI is still a package dependency but no longer used for rendering.
 - **Syntax highlighting (editor):** Highlightr (SPM) -- `HighlightingTextView` (`UIViewRepresentable`/`NSViewRepresentable`) wraps `UITextView`/`NSTextView` with `CodeAttributedString`. Warmed via `HighlightrWarmup.prime()` in `VeraApp.init()` to prevent cold-launch nil crash.

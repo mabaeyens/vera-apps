@@ -36,9 +36,11 @@ Vera makes no network calls of its own, with two honest exceptions:
    (`![](https://…)`), Vera fetches that image to display it — exactly like a web browser.
    This goes directly to the image's host, not to us. If you never open such files, this
    never happens.
-2. **GitHub (coming soon, opt-in).** When you connect a repository, Vera talks directly to
-   GitHub's API using a fine-grained access token **you** create and that is stored only in
-   your device Keychain. Nothing is routed through any server of ours.
+2. **GitHub (opt-in).** When you connect a repository, Vera talks directly to GitHub's API
+   using a fine-grained access token **you** create, stored only in your device Keychain —
+   it never syncs anywhere, not even via iCloud. The *list* of repositories you've added
+   syncs across your own devices through iCloud's key-value store, under your Apple ID —
+   never to us. Nothing is routed through any server of ours.
 
 ## Children's privacy
 

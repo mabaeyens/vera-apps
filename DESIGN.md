@@ -57,12 +57,19 @@ is the monospace, not a custom display face. Tokens/notes live in `Theme.Typogra
 ## Components
 
 - **Toolbars** — grouped into ≤3 clusters; icon-only buttons carry `.help` (macOS) and
-  `.accessibilityLabel`. Overflow `···` holds only secondary actions.
+  `.accessibilityLabel`. Overflow `···` holds only secondary actions, and is the **same
+  on every platform** — Icon Guide, About and the tab-bar toggle live there on iOS and
+  macOS alike.
+- **Focus Mode** — strips chrome for distraction-free writing: hides the formatting bar
+  and linter everywhere, and on macOS also hides the tab bar and collapses the sidebar.
 - **Sidebar rows** — clear file vs folder via icon hierarchy: folders carry the
-  accent-tinted `folder.fill`, files a muted `doc.text`. The file open in the active
-  tab is highlighted in the tree (accent icon + medium weight) so the sidebar and the
-  editor stay connected; the Open Files section uses an accent dot for the active tab.
-  No hover-only affordances on iOS (actions via swipe / context menu, discoverable).
+  accent-tinted `folder.fill`, Markdown files the **Markdown mark** (dcurtis, template-
+  tinted), GitHub repos the accent `</>`. The local folder and each GitHub repo collapse
+  via the **same leading-chevron `DisclosureGroup` row** (not a trailing section header),
+  so the two trees read identically. The file open in the active tab is highlighted
+  (accent icon + medium weight) so the sidebar and the editor stay connected; the Open
+  Files section uses an accent dot for the active tab. **No hover-only affordances on any
+  platform** — deletion is via swipe (iOS) or right-click (macOS), never a hover trash.
 - **Empty states** — `ContentUnavailableView` with an icon, one line, and at most one
   prominent action (e.g. "Open Folder…").
 
