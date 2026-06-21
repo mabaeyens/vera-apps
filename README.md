@@ -39,4 +39,3 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 | Minimum macOS | 15.0 |
 
 For architecture, source layout, and technical decisions see [PROJECT.md](PROJECT.md).
---
