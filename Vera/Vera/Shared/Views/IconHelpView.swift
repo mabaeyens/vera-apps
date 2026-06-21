@@ -16,17 +16,22 @@ struct IconHelpView: View {
                 Section("Toolbar") {
                     HelpRow(symbol: "square.and.pencil", label: "New File",  detail: "Create a new Markdown file in the current folder")
                     HelpRow(symbol: "folder",            label: "Open",      detail: "Open a folder or file to browse and edit")
+                    HelpRow(symbol: "chevron.left.forwardslash.chevron.right", label: "Open from GitHub", detail: "Connect a repository to browse and edit its Markdown")
+                    #if os(macOS)
                     HelpRow(symbol: "arrow.clockwise",   label: "Refresh",   detail: "Rescan the open folder for changes")
+                    #endif
                     HelpRow(symbol: "questionmark.circle", label: "Icon Guide", detail: "This guide")
                     HelpRow(symbol: "info.circle",       label: "About",     detail: "App version, credits, and reset option")
                 }
                 Section("Editor") {
-                    HelpRow(symbol: "pencil",          label: "Edit / Done",  detail: "Switch between reading and editing mode")
                     HelpRow(symbol: "circle.dashed",   label: "Focus Mode",   detail: "Hide the surrounding panels for distraction-free writing")
                     HelpRow(symbol: "wand.and.sparkles", label: "Auto-fix",   detail: "Repair heading spacing, blank lines, trailing whitespace and smart quotes")
                     HelpRow(symbol: "paintbrush",      label: "Format & Snippets", detail: "Apply bold, italic, code, links and structural snippets; or remove all formatting")
                     HelpRow(symbol: "book.closed",     label: "Markdown Reference", detail: "Open the Markdown syntax cheat sheet")
                     HelpRow(symbol: "textformat.size", label: "Text Size",    detail: "Increase or decrease the editor font size")
+                    #if os(macOS)
+                    HelpRow(symbol: "doc.on.doc",      label: "Copy All Text", detail: "Copy the whole document to the clipboard")
+                    #endif
                 }
                 Section("GitHub editing") {
                     HelpRow(symbol: "arrow.up.circle",          label: "Commit",       detail: "Commit your changes to the branch or open a pull request")

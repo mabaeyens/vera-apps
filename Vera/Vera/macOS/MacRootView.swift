@@ -102,28 +102,29 @@ struct MacRootView: View {
                 .help("Refresh")
                 .accessibilityLabel("Refresh")
             }
+            // Secondary items live in a single overflow menu, matching iOS.
             ToolbarItem(placement: .automatic) {
-                Button { showIconHelp = true } label: {
-                    Image(systemName: "questionmark.circle")
-                }
-                .help("Icon Guide")
-                .accessibilityLabel("Icon Guide")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button { showAbout = true } label: {
-                    Image(systemName: "info.circle")
-                }
-                .help("About Vera")
-                .accessibilityLabel("About Vera")
-            }
-            ToolbarItem(placement: .automatic) {
-                if !tabBarVisible && vm.tabs.count >= 1 {
-                    Button { tabBarVisible = true } label: {
-                        Image(systemName: "chevron.compact.down")
+                Menu {
+                    if vm.tabs.count >= 1 {
+                        Button { tabBarVisible.toggle() } label: {
+                            Label(
+                                tabBarVisible ? "Hide Tab Bar" : "Show Tab Bar",
+                                systemImage: tabBarVisible ? "chevron.compact.up" : "chevron.compact.down"
+                            )
+                        }
+                        Divider()
                     }
-                    .help("Show tab bar")
-                    .accessibilityLabel("Show tab bar")
+                    Button { showIconHelp = true } label: {
+                        Label("Icon Guide", systemImage: "questionmark.circle")
+                    }
+                    Button { showAbout = true } label: {
+                        Label("About Vera", systemImage: "info.circle")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
+                .help("More options")
+                .accessibilityLabel("More options")
             }
         }
         .sheet(isPresented: $showAbout) {
