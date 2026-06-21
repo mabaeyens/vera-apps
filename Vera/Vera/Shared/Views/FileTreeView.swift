@@ -1,11 +1,5 @@
 import SwiftUI
 
-private struct FlatRow: Identifiable {
-    let id: UUID
-    let node: FileNode
-    let depth: Int
-}
-
 struct FileTreeView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(ConnectivityMonitor.self) private var connectivity
@@ -183,9 +177,8 @@ struct FileTreeView: View {
         }
         if !vm.roots.isEmpty {
             Section(vm.rootURL?.lastPathComponent ?? "") {
-                ForEach(flattenedRows()) { row in
-                    rowView(for: row.node)
-                        .padding(.leading, CGFloat(row.depth) * 20)
+                ForEach(vm.roots) { node in
+                    nodeRow(node)
                 }
             }
         } else if vm.rootURL == nil {
@@ -200,19 +193,48 @@ struct FileTreeView: View {
         }
     }
 
-    private func flattenedRows() -> [FlatRow] {
-        var result: [FlatRow] = []
-        func visit(_ nodes: [FileNode], depth: Int) {
-            for node in nodes {
-                result.append(FlatRow(id: node.id, node: node, depth: depth))
-                if case .folder(let id, _, _, let children) = node,
-                   expandedFolders.contains(id) {
-                    visit(children, depth: depth + 1)
+    /// Recursive sidebar row — folders are native `DisclosureGroup`s (so expansion
+    /// renders correctly in both the iPhone NavigationStack and the iPad
+    /// NavigationSplitView sidebar); children load lazily on first expand.
+    /// Returns `AnyView` because a recursive `some View` function can't infer its
+    /// own opaque type.
+    private func nodeRow(_ node: FileNode) -> AnyView {
+        switch node {
+        case .folder(let id, let name, let folderURL, _):
+            return AnyView(
+                DisclosureGroup(isExpanded: folderBinding(id: id, url: folderURL)) {
+                    ForEach(node.children ?? []) { child in
+                        nodeRow(child)
+                    }
+                } label: {
+                    HStack(spacing: Theme.Space.s) {
+                        Image(systemName: "folder.fill")
+                            .foregroundStyle(Theme.accent)
+                        Text(name)
+                    }
+                }
+            )
+        case .file:
+            return AnyView(fileRow(node))
+        }
+    }
+
+    /// Controlled expansion: toggling triggers the existing lazy child load.
+    private func folderBinding(id: UUID, url: URL) -> Binding<Bool> {
+        Binding(
+            get: { expandedFolders.contains(id) },
+            set: { isOpen in
+                if isOpen {
+                    expandedFolders.insert(id)
+                    if !loadedFolderIDs.contains(id) {
+                        loadedFolderIDs.insert(id)
+                        Task { await vm.loadFolderChildren(id: id, url: url) }
+                    }
+                } else {
+                    expandedFolders.remove(id)
                 }
             }
-        }
-        visit(vm.roots, depth: 0)
-        return result
+        )
     }
 
     @ViewBuilder
@@ -264,35 +286,8 @@ struct FileTreeView: View {
     }
 
     @ViewBuilder
-    private func rowView(for node: FileNode) -> some View {
-        switch node {
-        case .folder(let id, let name, let folderURL, _):
-            Button {
-                if expandedFolders.contains(id) {
-                    expandedFolders.remove(id)
-                } else {
-                    expandedFolders.insert(id)
-                    if !loadedFolderIDs.contains(id) {
-                        loadedFolderIDs.insert(id)
-                        Task { await vm.loadFolderChildren(id: id, url: folderURL) }
-                    }
-                }
-            } label: {
-                HStack(spacing: Theme.Space.s) {
-                    Image(systemName: expandedFolders.contains(id) ? "chevron.down" : "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(width: 14)
-                    Image(systemName: "folder.fill")
-                        .foregroundStyle(Theme.accent)
-                    Text(name)
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-        case .file(let id, let name, let url, let state):
+    private func fileRow(_ node: FileNode) -> some View {
+        if case .file(let id, let name, let url, let state) = node {
             let isActive = url == activeFileURL
             #if os(macOS)
             MacFileRow(
