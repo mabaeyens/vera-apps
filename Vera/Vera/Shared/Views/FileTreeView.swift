@@ -329,7 +329,7 @@ struct FileTreeView: View {
                     Label {
                         Text(name).fontWeight(isActive ? .medium : .regular)
                     } icon: {
-                        Image(systemName: "doc.text")
+                        MarkdownFileIcon()
                             .foregroundStyle(isActive ? Theme.accent : .secondary)
                     }
                     Spacer()
@@ -420,7 +420,7 @@ private struct MacFileRow: View {
             Label {
                 Text(name).fontWeight(isActive ? .medium : .regular)
             } icon: {
-                Image(systemName: "doc.text")
+                MarkdownFileIcon()
                     .foregroundStyle(isActive ? Theme.accent : .secondary)
             }
             Spacer()
