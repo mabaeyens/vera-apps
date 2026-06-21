@@ -150,16 +150,27 @@ struct HighlightingTextView: UIViewRepresentable {
         coordinator.moreButton = moreBtn
         coordinator.refreshMoreMenu()
 
-        func iconButton(_ sfName: String, action: Selector) -> UIButton {
+        moreBtn.accessibilityLabel = "More"
+
+        func iconButton(_ sfName: String, _ label: String, action: Selector) -> UIButton {
             let b = UIButton(type: .system)
             b.setImage(UIImage(systemName: sfName), for: .normal)
             b.tintColor = .label
+            b.accessibilityLabel = label
             b.addTarget(coordinator, action: action, for: .primaryActionTriggered)
             return b
         }
 
+        // All common formatting surfaced directly — no nested menu for the basics.
         let stack = UIStackView(arrangedSubviews: [
-            iconButton("paintbrush", action: #selector(Coordinator.triggerAtlas)),
+            iconButton("bold", "Bold", action: #selector(Coordinator.applyBold)),
+            iconButton("italic", "Italic", action: #selector(Coordinator.applyItalic)),
+            iconButton("strikethrough", "Strikethrough", action: #selector(Coordinator.applyStrike)),
+            iconButton("chevron.left.forwardslash.chevron.right", "Code", action: #selector(Coordinator.applyCode)),
+            iconButton("number", "Heading", action: #selector(Coordinator.applyHeading)),
+            iconButton("list.bullet", "List", action: #selector(Coordinator.applyList)),
+            iconButton("text.quote", "Quote", action: #selector(Coordinator.applyQuote)),
+            iconButton("paintbrush", "Format & Snippets", action: #selector(Coordinator.triggerAtlas)),
             moreBtn
         ])
         stack.axis = .horizontal
@@ -253,12 +264,8 @@ struct HighlightingTextView: UIViewRepresentable {
                 UIAction(title: "Undo", image: UIImage(systemName: "arrow.uturn.backward")) { [weak self] _ in self?.performUndo() },
                 UIAction(title: "Redo", image: UIImage(systemName: "arrow.uturn.forward")) { [weak self] _ in self?.performRedo() }
             ])
-            let formatGroup = UIMenu(options: .displayInline, children: [
-                UIAction(title: "Strikethrough", image: UIImage(systemName: "strikethrough")) { [weak self] _ in self?.applyStrike() },
-                UIAction(title: "Code", image: UIImage(systemName: "chevron.left.forwardslash.chevron.right")) { [weak self] _ in self?.applyCode() },
-                UIAction(title: "List", image: UIImage(systemName: "list.bullet")) { [weak self] _ in self?.applyList() },
-                UIAction(title: "Quote", image: UIImage(systemName: "text.quote")) { [weak self] _ in self?.applyQuote() }
-            ])
+            // Formatting (strikethrough/code/list/quote) now lives directly on the
+            // bar, so the overflow keeps only history + settings/help.
             let settingsGroup = UIMenu(options: .displayInline, children: [
                 UIAction(title: "Larger Text", image: UIImage(systemName: "textformat.size.larger")) { _ in
                     let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
@@ -271,7 +278,7 @@ struct HighlightingTextView: UIViewRepresentable {
                 UIAction(title: "Markdown Reference", image: UIImage(systemName: "book.closed")) { _ in cheatSheet() },
                 UIAction(title: "Icon Help", image: UIImage(systemName: "questionmark.circle")) { _ in iconHelp() }
             ])
-            moreButton?.menu = UIMenu(children: [historyGroup, formatGroup, settingsGroup])
+            moreButton?.menu = UIMenu(children: [historyGroup, settingsGroup])
         }
 
         // MARK: Mutations
