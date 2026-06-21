@@ -37,10 +37,14 @@ final class GitHubBrowserModel {
             let defaultBranch = try await c.defaultBranch()
             branch = defaultBranch
             items = try await c.markdownFiles(branch: defaultBranch)
-            // Persist the token (Keychain) and last repo only after a successful call.
+            // Persist the token (Keychain, device-local) and the repo. The repo list
+            // syncs across devices via iCloud; the token never does.
+            let cleanOwner = owner.trimmingCharacters(in: .whitespaces)
+            let cleanRepo = repo.trimmingCharacters(in: .whitespaces)
             CredentialStore.save(token.trimmingCharacters(in: .whitespaces))
-            UserDefaults.standard.set(owner.trimmingCharacters(in: .whitespaces), forKey: "github.lastOwner")
-            UserDefaults.standard.set(repo.trimmingCharacters(in: .whitespaces), forKey: "github.lastRepo")
+            RepoListStore.add(SavedRepo(owner: cleanOwner, repo: cleanRepo))
+            UserDefaults.standard.set(cleanOwner, forKey: "github.lastOwner")
+            UserDefaults.standard.set(cleanRepo, forKey: "github.lastRepo")
             isConnected = true
         } catch {
             errorText = error.localizedDescription
