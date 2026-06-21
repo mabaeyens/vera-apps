@@ -12,6 +12,7 @@
 - **Friendlier empty state** — a clear "No Folder Open" screen with a direct Open Folder action.
 - **Reliability & privacy** — fixes a false "Couldn't Load Files" error on launch and moves the folder bookmark into the Keychain.
 - **macOS App Sandbox** — the Mac app now runs sandboxed for stronger isolation, with access limited to the folders you pick and outbound network only to GitHub.
+- **Consistent code typography** — code now uses SF Mono everywhere, so a snippet looks identical whether you're editing or reading it (the preview previously used a different face).
 
 ## v1.0.36
 

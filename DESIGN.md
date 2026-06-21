@@ -39,9 +39,19 @@ Default row insets and stack spacing use these — no ad-hoc numbers.
 
 ## Typography
 
-- **UI** — system font, semantic ramp (`.largeTitle`/`.title2`/`.headline`/
-  `.subheadline`/`.footnote`). Weight carries hierarchy, not size jumps.
-- **Editor** — monospaced system font (developer Markdown), size 12–32, user-adjustable.
+Vera ships **no bundled faces** — it leans entirely on the system fonts so the
+whole app inherits one accessible, Dynamic-Type-aware ramp for free. The signature
+is the monospace, not a custom display face. Tokens/notes live in `Theme.Typography`.
+
+- **UI** — system font, semantic ramp (`.largeTitle`/`.title`/`.title2`/`.headline`/
+  `.body`/`.subheadline`/`.footnote`/`.caption`). Weight carries hierarchy, not
+  arbitrary size jumps.
+- **Monospace = SF Mono** — the signature face, used **identically** in the editor and
+  the preview/code blocks so a snippet reads the same whether you're writing or
+  reading it. Always via `Font.system(_:design: .monospaced)` (SwiftUI) or
+  `(NS|UI)Font.monospacedSystemFont(ofSize:weight:)` (TextKit/Highlightr) — never a
+  hardcoded face name like "Menlo". Default size 15; the editor size control spans
+  12–32 and the inline-code `.em(0.875)` scales with body text.
 - **Reading view** — system text with comfortable line spacing for prose.
 
 ## Components

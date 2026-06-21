@@ -111,7 +111,7 @@ extension MarkdownUI.Theme {
                 ForegroundColor(.accentColor)
             }
             .code {
-                FontFamily(.custom("Menlo"))
+                FontFamilyVariant(.monospaced)
                 FontSize(.em(0.875))
                 BackgroundColor(Color.primary.opacity(0.07))
                 ForegroundColor(.primary)
@@ -225,12 +225,12 @@ struct HighlightedCodeView: View {
         guard let lang = language.flatMap({ Self.languageMap[$0.lowercased()] }) else { return nil }
         guard let h = Highlightr() else { return nil }
         h.setTheme(to: colorScheme == .dark ? "atom-one-dark" : "atom-one-light")
+        // SF Mono — the same signature monospace the editor uses (see DESIGN.md),
+        // so a code block reads identically whether you're editing or previewing.
         #if os(macOS)
-        h.theme.setCodeFont(NSFont(name: "Menlo", size: 15)
-            ?? NSFont.monospacedSystemFont(ofSize: 15, weight: .regular))
+        h.theme.setCodeFont(NSFont.monospacedSystemFont(ofSize: 15, weight: .regular))
         #else
-        h.theme.setCodeFont(UIFont(name: "Menlo", size: 15)
-            ?? UIFont.monospacedSystemFont(ofSize: 15, weight: .regular))
+        h.theme.setCodeFont(UIFont.monospacedSystemFont(ofSize: 15, weight: .regular))
         #endif
         guard let ns = h.highlight(code, as: lang) else { return nil }
         let mutable = NSMutableAttributedString(attributedString: ns)

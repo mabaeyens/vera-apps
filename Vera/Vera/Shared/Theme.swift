@@ -24,4 +24,24 @@ enum Theme {
     /// tints); `brand` is the saturated fill used for hero marks (onboarding icon).
     static let accent = Color.accentColor
     static let brand = Color("BrandTeal")
+
+    /// Typography. Vera leans on the system text styles (Dynamic Type, no bundled
+    /// faces) for one consistent, accessible ramp; the signature is the monospace.
+    ///
+    /// **UI type ramp** (semantic, scales with Dynamic Type):
+    /// - `.largeTitle`/`.title` — screen & sheet titles
+    /// - `.title2`/`.headline` — section headers, prominent labels
+    /// - `.body` — primary reading/UI text
+    /// - `.subheadline` — secondary labels
+    /// - `.footnote`/`.caption` — metadata, captions, status
+    ///
+    /// **Signature monospace = SF Mono**, used identically in the editor *and* the
+    /// preview so code reads the same either way. Reach for it via
+    /// `Font.system(_:design: .monospaced)` in SwiftUI, or
+    /// `(NS|UI)Font.monospacedSystemFont(ofSize:weight:)` in TextKit/Highlightr —
+    /// never a hardcoded face name. See DESIGN.md.
+    enum Typography {
+        /// Default editor/code point size (the size control adjusts around this).
+        static let codeSize: CGFloat = 15
+    }
 }
