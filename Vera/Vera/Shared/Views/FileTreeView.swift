@@ -32,11 +32,22 @@ struct FileTreeView: View {
                     } actions: {
                         Button("Try Again") { Task { await vm.load() } }
                     }
+                } else if vm.rootURL == nil {
+                    ContentUnavailableView {
+                        Label("No Folder Open", systemImage: "folder")
+                    } description: {
+                        Text("Open a folder to browse and edit its Markdown files.")
+                    } actions: {
+                        Button("Open Folder…") {
+                            NotificationCenter.default.post(name: .veraOpenPicker, object: nil)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 } else {
                     ContentUnavailableView(
                         "No Markdown Files",
                         systemImage: "doc.text",
-                        description: Text("No .md files found in the selected folder.")
+                        description: Text("No .md files found in this folder.")
                     )
                 }
             } else {

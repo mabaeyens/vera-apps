@@ -6,6 +6,11 @@ A reading-first Markdown viewer and editor for iOS and macOS. Part of the Mira e
 
 See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
+## Download
+
+- **macOS** — grab the latest notarized `.dmg` from the [Releases page](https://github.com/mabaeyens/vera-apps/releases/latest). It's Developer ID-signed and notarized, so it opens without Gatekeeper warnings — no App Store needed.
+- **iOS / iPadOS** — via TestFlight (public link coming once the build clears App Review).
+
 ## Features
 
 - **Browse** — recursive file tree of every `.md` file in your chosen folder (iCloud or local); lazy per-folder expansion; folder name shown in title bar

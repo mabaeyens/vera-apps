@@ -132,15 +132,23 @@ struct iOSRootView: View {
 
     @ToolbarContentBuilder
     private var sharedToolbar: some ToolbarContent {
+        // Primary actions are visible, not buried in the menu.
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showFolderPicker = true } label: {
+                Image(systemName: "folder")
+            }
+            .accessibilityLabel("Open folder or file")
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showNewFile = true } label: {
+                Image(systemName: "square.and.pencil")
+            }
+            .accessibilityLabel("New file")
+            .disabled(vm.rootURL == nil && vm.standaloneFiles.isEmpty)
+        }
+        // Only genuinely-secondary items stay in the overflow menu.
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                Button { showFolderPicker = true } label: {
-                    Label("Open…", systemImage: "folder")
-                }
-                Button { showNewFile = true } label: {
-                    Label("New File", systemImage: "square.and.pencil")
-                }
-                .disabled(vm.rootURL == nil && vm.standaloneFiles.isEmpty)
                 if vm.tabs.count >= 1 {
                     Button { tabBarVisible.toggle() } label: {
                         Label(
@@ -148,8 +156,8 @@ struct iOSRootView: View {
                             systemImage: tabBarVisible ? "chevron.compact.up" : "chevron.compact.down"
                         )
                     }
+                    Divider()
                 }
-                Divider()
                 Button { showIconHelp = true } label: {
                     Label("Icon Guide", systemImage: "questionmark.circle")
                 }

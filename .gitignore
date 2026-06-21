@@ -14,3 +14,16 @@ SECURITY_AUDIT.md
 validate-summary.md
 *.af
 IMG_*.JPG
+
+# Credentials & signing secrets — NEVER commit, even if they land locally
+*.p8
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+*.certSigningRequest
+AuthKey_*
+*credentials*
+*.env
+.env
+*.secret

@@ -139,18 +139,18 @@ struct DocumentView: View {
             .accessibilityLabel("Markdown reference")
         }
         ToolbarItem(placement: .automatic) {
-            Button { fontSize = max(12, fontSize - 1) } label: {
-                Image(systemName: "textformat.size.smaller")
+            Menu {
+                Button { fontSize = min(32, fontSize + 1) } label: {
+                    Label("Larger Text", systemImage: "textformat.size.larger")
+                }
+                Button { fontSize = max(12, fontSize - 1) } label: {
+                    Label("Smaller Text", systemImage: "textformat.size.smaller")
+                }
+            } label: {
+                Image(systemName: "textformat.size")
             }
-            .help("Smaller Text")
-            .accessibilityLabel("Smaller text")
-        }
-        ToolbarItem(placement: .automatic) {
-            Button { fontSize = min(32, fontSize + 1) } label: {
-                Image(systemName: "textformat.size.larger")
-            }
-            .help("Larger Text")
-            .accessibilityLabel("Larger text")
+            .help("Text Size")
+            .accessibilityLabel("Text size")
         }
         #endif
         ToolbarItem(placement: .status) {
