@@ -226,12 +226,9 @@ struct HighlightedCodeView: View {
         guard let h = Highlightr() else { return nil }
         h.setTheme(to: colorScheme == .dark ? "atom-one-dark" : "atom-one-light")
         // SF Mono — the same signature monospace the editor uses (see DESIGN.md),
-        // so a code block reads identically whether you're editing or previewing.
-        #if os(macOS)
-        h.theme.setCodeFont(NSFont.monospacedSystemFont(ofSize: 15, weight: .regular))
-        #else
-        h.theme.setCodeFont(UIFont.monospacedSystemFont(ofSize: 15, weight: .regular))
-        #endif
+        // including correct bold/italic variants (see applyMonoFont), so a code block
+        // reads identically whether you're editing or previewing.
+        applyMonoFont(to: h, size: 15)
         guard let ns = h.highlight(code, as: lang) else { return nil }
         let mutable = NSMutableAttributedString(attributedString: ns)
         mutable.removeAttribute(.backgroundColor,

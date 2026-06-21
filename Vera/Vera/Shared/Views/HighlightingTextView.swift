@@ -31,7 +31,7 @@ struct HighlightingTextView: UIViewRepresentable {
             let codeStorage = CodeAttributedString()
             codeStorage.language = "markdown"
             codeStorage.highlightr.setTheme(to: "atom-one-light")
-            codeStorage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+            applyMonoFont(to: codeStorage.highlightr, size: fontSize)
             textStorage = codeStorage
         } else {
             textStorage = NSTextStorage()
@@ -114,7 +114,7 @@ struct HighlightingTextView: UIViewRepresentable {
         if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
             if let storage = uiView.textStorage as? CodeAttributedString {
                 storage.highlightr.setTheme(to: newTheme)
-                storage.highlightr.theme?.setCodeFont(UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+                applyMonoFont(to: storage.highlightr, size: fontSize)
                 if storage.length > 0 {
                     let fullRange = NSRange(location: 0, length: storage.length)
                     storage.beginEditing()
@@ -386,7 +386,7 @@ struct HighlightingTextView: NSViewRepresentable {
             let codeStorage = CodeAttributedString()
             codeStorage.language = "markdown"
             codeStorage.highlightr.setTheme(to: "atom-one-light")
-            codeStorage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+            applyMonoFont(to: codeStorage.highlightr, size: fontSize)
             textStorage = codeStorage
         } else {
             textStorage = NSTextStorage()
@@ -470,7 +470,7 @@ struct HighlightingTextView: NSViewRepresentable {
         if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
             if let storage = textView.textStorage as? CodeAttributedString {
                 storage.highlightr.setTheme(to: newTheme)
-                storage.highlightr.theme?.setCodeFont(NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular))
+                applyMonoFont(to: storage.highlightr, size: fontSize)
                 if storage.length > 0 {
                     let fullRange = NSRange(location: 0, length: storage.length)
                     storage.beginEditing()
