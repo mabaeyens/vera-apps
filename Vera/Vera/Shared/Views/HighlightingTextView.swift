@@ -551,7 +551,6 @@ struct HighlightingTextView: NSViewRepresentable {
             formatMenu.addItem(item("Table",         sel: #selector(applyTable)))
             formatMenu.addItem(.separator())
             formatMenu.addItem(item("Markdown Reference…", sel: #selector(openCheatSheet)))
-            formatMenu.addItem(item("Icon Help…",          sel: #selector(openIconHelp)))
 
             let formatItem = NSMenuItem(title: "Format", action: nil, keyEquivalent: "")
             formatItem.image = NSImage(systemSymbolName: "paintbrush", accessibilityDescription: nil)
@@ -584,7 +583,6 @@ struct HighlightingTextView: NSViewRepresentable {
         @objc private func applyCodeBlock() { insert("```\n\n```") }
         @objc private func applyTable()     { insert("| Column 1 | Column 2 |\n|---|---|\n| Cell | Cell |") }
         @objc private func openCheatSheet() { parent.onCheatSheetRequested() }
-        @objc private func openIconHelp()   { parent.onIconHelpRequested() }
 
         // MARK: Mutations
 

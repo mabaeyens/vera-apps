@@ -7,12 +7,14 @@ struct MacRootView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(\.scenePhase) private var scenePhase
     @State private var showAbout = false
+    @State private var showIconHelp = false
     @State private var showNewFile = false
     @State private var showGitHub = false
     @State private var gitHubInitialRepo: SavedRepo?
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
+    @AppStorage("focusMode") private var focusMode: Bool = false
 
     var body: some View {
         @Bindable var vm = vm
@@ -22,7 +24,7 @@ struct MacRootView: View {
                 .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
         } detail: {
             VStack(spacing: 0) {
-                if vm.tabs.count >= 1 && tabBarVisible {
+                if vm.tabs.count >= 1 && tabBarVisible && !focusMode {
                     TabBarView()
                 }
                 if let source = vm.selectedSource {
@@ -31,6 +33,11 @@ struct MacRootView: View {
                 } else {
                     ContentUnavailableView("Select a file", systemImage: "doc.text")
                 }
+            }
+        }
+        .onChange(of: focusMode) { _, isFocused in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                columnVisibility = isFocused ? .detailOnly : .all
             }
         }
         .onChange(of: vm.needsFolderPicker) { _, val in if val { openPicker() } }
@@ -96,6 +103,13 @@ struct MacRootView: View {
                 .accessibilityLabel("Refresh")
             }
             ToolbarItem(placement: .automatic) {
+                Button { showIconHelp = true } label: {
+                    Image(systemName: "questionmark.circle")
+                }
+                .help("Icon Guide")
+                .accessibilityLabel("Icon Guide")
+            }
+            ToolbarItem(placement: .automatic) {
                 Button { showAbout = true } label: {
                     Image(systemName: "info.circle")
                 }
@@ -114,6 +128,10 @@ struct MacRootView: View {
         }
         .sheet(isPresented: $showAbout) {
             AboutView(onReset: { vm.resetState() })
+                .frame(width: 480, height: 560)
+        }
+        .sheet(isPresented: $showIconHelp) {
+            IconHelpView()
                 .frame(width: 480, height: 560)
         }
         .sheet(isPresented: $showNewFile) {

@@ -15,7 +15,9 @@
 - **Reliability & privacy** — fixes a false "Couldn't Load Files" error on launch and moves the folder bookmark into the Keychain.
 - **macOS App Sandbox** — the Mac app now runs sandboxed for stronger isolation, with access limited to the folders you pick and outbound network only to GitHub.
 - **Consistent code typography** — code uses SF Mono everywhere, and headings/bold in the editor now stay monospaced too (they previously slipped into a different typeface).
-- **Clearer sidebar** — the file you're editing is now highlighted in the tree, and files vs folders read at a glance (muted file icons, accent-tinted folders).
+- **Clearer sidebar** — the file you're editing is now highlighted in the tree, and files vs folders read at a glance (muted file icons, accent-tinted folders). The local folder section now collapses, and deletion on Mac is right-click only (no more accidental hover trash).
+- **Real Focus Mode on Mac** — Focus now hides the tab bar, lint panel and sidebar for a clean, distraction-free editor (previously it only hid the linter).
+- **Refreshed Icon Guide** — the icon reference is up to date (GitHub, Markdown files, Focus, commit/diff) and now opens from a dedicated toolbar button next to About on Mac.
 
 ## v1.0.36
 
