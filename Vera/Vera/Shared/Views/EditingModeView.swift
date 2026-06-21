@@ -10,6 +10,7 @@ struct EditingModeView: View {
     @AppStorage("editorFontSize") private var fontSize: Double = 17
     #endif
     @AppStorage("linterEnabled") private var linterEnabled = true
+    @AppStorage("focusMode") private var focusMode = false
     var onAtlasRequested: () -> Void = {}
     var onCheatSheetRequested: () -> Void = {}
     var onIconHelpRequested: () -> Void = {}
@@ -44,7 +45,8 @@ struct EditingModeView: View {
                     #endif
                 }
             )
-            if linterEnabled && !viewModel.lintResults.isEmpty {
+            // Focus mode hides the linter so writing stays distraction-free.
+            if linterEnabled && !focusMode && !viewModel.lintResults.isEmpty {
                 LintPanelView(warnings: viewModel.lintResults, onFix: { viewModel.applyAutoFix() })
             }
         }
@@ -53,7 +55,7 @@ struct EditingModeView: View {
         // keyboard width and overlaps the sidebar. Use a SwiftUI bar instead,
         // which is naturally constrained to the detail column.
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if sizeClass == .regular && isEditing {
+            if sizeClass == .regular && isEditing && !focusMode {
                 iPadFormattingBar
             }
         }
@@ -63,32 +65,24 @@ struct EditingModeView: View {
     #if os(iOS)
     private var iPadFormattingBar: some View {
         HStack(spacing: 0) {
-            formatButton("bold")         { viewModel.wrapSelection?("**", "**") }
-            formatButton("italic")       { viewModel.wrapSelection?("_", "_") }
-            formatButton("number")       { viewModel.insertAtCursor?("## ") }
-            formatButton("paintbrush") { onAtlasRequested() }
+            // Inline formatting — all surfaced, no nested menu.
+            formatButton("bold", "Bold")                 { viewModel.wrapSelection?("**", "**") }
+            formatButton("italic", "Italic")             { viewModel.wrapSelection?("_", "_") }
+            formatButton("strikethrough", "Strikethrough") { viewModel.wrapSelection?("~~", "~~") }
+            formatButton("chevron.left.forwardslash.chevron.right", "Code") { viewModel.wrapSelection?("`", "`") }
+            barDivider
+            // Block formatting.
+            formatButton("number", "Heading")            { viewModel.insertAtCursor?("## ") }
+            formatButton("list.bullet", "List")          { viewModel.insertAtCursor?("- ") }
+            formatButton("text.quote", "Quote")          { viewModel.insertAtCursor?("> ") }
+            barDivider
+            formatButton("paintbrush", "Format & Snippets") { onAtlasRequested() }
+            // Only genuinely-secondary, non-formatting items remain in overflow.
             Menu {
-                Button { viewModel.wrapSelection?("~~", "~~") } label: {
-                    Label("Strikethrough", systemImage: "strikethrough")
-                }
-                Button { viewModel.wrapSelection?("`", "`") } label: {
-                    Label("Code", systemImage: "chevron.left.forwardslash.chevron.right")
-                }
-                Button { viewModel.insertAtCursor?("- ") } label: {
-                    Label("List", systemImage: "list.bullet")
-                }
-                Button { viewModel.insertAtCursor?("> ") } label: {
-                    Label("Quote", systemImage: "text.quote")
-                }
-                Divider()
-                Button {
-                    fontSize = min(32, fontSize + 1)
-                } label: {
+                Button { fontSize = min(32, fontSize + 1) } label: {
                     Label("Larger Text", systemImage: "textformat.size.larger")
                 }
-                Button {
-                    fontSize = max(12, fontSize - 1)
-                } label: {
+                Button { fontSize = max(12, fontSize - 1) } label: {
                     Label("Smaller Text", systemImage: "textformat.size.smaller")
                 }
                 Divider()
@@ -103,6 +97,7 @@ struct EditingModeView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
             }
+            .accessibilityLabel("More")
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
@@ -110,12 +105,17 @@ struct EditingModeView: View {
         .overlay(alignment: .top) { Divider() }
     }
 
-    private func formatButton(_ sfName: String, action: @escaping () -> Void) -> some View {
+    private var barDivider: some View {
+        Divider().frame(height: 24).padding(.horizontal, Theme.Space.xs)
+    }
+
+    private func formatButton(_ sfName: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: sfName)
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
         }
+        .accessibilityLabel(label)
     }
     #endif
 }

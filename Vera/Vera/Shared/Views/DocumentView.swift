@@ -7,6 +7,7 @@ struct DocumentView: View {
     @State private var showCheatSheet = false
     @State private var showIconHelp = false
     @AppStorage("editorFontSize") private var fontSize: Double = 20
+    @AppStorage("focusMode") private var focusMode = false
 
     init(url: URL) {
         self.url = url
@@ -84,6 +85,15 @@ struct DocumentView: View {
             }
         }
         if viewModel.mode == .editing {
+            ToolbarItem(placement: .automatic) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { focusMode.toggle() }
+                } label: {
+                    Image(systemName: focusMode ? "circle.dashed.inset.filled" : "circle.dashed")
+                }
+                .help(focusMode ? "Exit Focus Mode" : "Focus Mode")
+                .accessibilityLabel("Focus mode")
+            }
             ToolbarItem(placement: .automatic) {
                 Button {
                     viewModel.applyAutoFix()
