@@ -200,12 +200,14 @@ struct FileTreeView: View {
                     }
                 }
             } label: {
-                HStack {
+                HStack(spacing: Theme.Space.s) {
                     Image(systemName: expandedFolders.contains(id) ? "chevron.down" : "chevron.right")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .frame(width: 14)
-                    Label(name, systemImage: "folder")
+                    Image(systemName: "folder.fill")
+                        .foregroundStyle(Theme.accent)
+                    Text(name)
                     Spacer()
                 }
                 .contentShape(Rectangle())
