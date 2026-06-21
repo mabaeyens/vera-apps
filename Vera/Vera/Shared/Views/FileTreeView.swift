@@ -276,12 +276,22 @@ struct FileTreeView: View {
             }
         }
         if !vm.roots.isEmpty {
-            Section(isExpanded: $iCloudFolderExpanded) {
-                ForEach(vm.roots) { node in
-                    nodeRow(node)
+            // A DisclosureGroup row (leading chevron) so the local folder collapses
+            // exactly like a GitHub repo node, not a trailing-chevron section header.
+            Section {
+                DisclosureGroup(isExpanded: $iCloudFolderExpanded) {
+                    ForEach(vm.roots) { node in
+                        nodeRow(node)
+                    }
+                } label: {
+                    Label {
+                        Text(vm.rootURL?.lastPathComponent ?? "")
+                            .lineLimit(1).truncationMode(.middle)
+                    } icon: {
+                        Image(systemName: "folder.fill")
+                            .foregroundStyle(Theme.accent)
+                    }
                 }
-            } header: {
-                Text(vm.rootURL?.lastPathComponent ?? "")
             }
         } else if vm.rootURL == nil {
             Section("iCloud") {
