@@ -125,6 +125,12 @@ struct FileTreeView: View {
         }
     }
 
+    /// The file currently shown in the active tab — highlighted in the tree so the
+    /// sidebar and the editor stay visually connected.
+    private var activeFileURL: URL? {
+        vm.tabs.first { $0.id == vm.activeTabID }?.url
+    }
+
     private func flattenedRows() -> [FlatRow] {
         var result: [FlatRow] = []
         func visit(_ nodes: [FileNode], depth: Int) {
@@ -218,11 +224,13 @@ struct FileTreeView: View {
             .buttonStyle(.plain)
 
         case .file(let id, let name, let url, let state):
+            let isActive = url == activeFileURL
             #if os(macOS)
             MacFileRow(
                 name: name,
                 url: url,
                 downloadState: state,
+                isActive: isActive,
                 isDownloading: vm.downloadingURLs.contains(url),
                 isOnline: connectivity.isOnline,
                 onDelete: { fileToDelete = (url, name) },
@@ -249,7 +257,12 @@ struct FileTreeView: View {
                 vm.openFileInNewTab(url)
             } label: {
                 HStack {
-                    Label(name, systemImage: "doc.text")
+                    Label {
+                        Text(name).fontWeight(isActive ? .medium : .regular)
+                    } icon: {
+                        Image(systemName: "doc.text")
+                            .foregroundStyle(isActive ? Theme.accent : .secondary)
+                    }
                     Spacer()
                     if vm.downloadingURLs.contains(url) {
                         ProgressView().controlSize(.small)
@@ -325,6 +338,7 @@ private struct MacFileRow: View {
     let name: String
     let url: URL
     let downloadState: DownloadState
+    let isActive: Bool
     let isDownloading: Bool
     let isOnline: Bool
     let onDelete: () -> Void
@@ -334,7 +348,12 @@ private struct MacFileRow: View {
 
     var body: some View {
         HStack {
-            Label(name, systemImage: "doc.text")
+            Label {
+                Text(name).fontWeight(isActive ? .medium : .regular)
+            } icon: {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(isActive ? Theme.accent : .secondary)
+            }
             Spacer()
             if isDownloading {
                 ProgressView().controlSize(.small)

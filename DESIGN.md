@@ -58,8 +58,11 @@ is the monospace, not a custom display face. Tokens/notes live in `Theme.Typogra
 
 - **Toolbars** — grouped into ≤3 clusters; icon-only buttons carry `.help` (macOS) and
   `.accessibilityLabel`. Overflow `···` holds only secondary actions.
-- **Sidebar rows** — clear file vs folder, accent dot for the active open file, no
-  hover-only affordances on iOS (actions via swipe / context menu, discoverable).
+- **Sidebar rows** — clear file vs folder via icon hierarchy: folders carry the
+  accent-tinted `folder.fill`, files a muted `doc.text`. The file open in the active
+  tab is highlighted in the tree (accent icon + medium weight) so the sidebar and the
+  editor stay connected; the Open Files section uses an accent dot for the active tab.
+  No hover-only affordances on iOS (actions via swipe / context menu, discoverable).
 - **Empty states** — `ContentUnavailableView` with an icon, one line, and at most one
   prominent action (e.g. "Open Folder…").
 
