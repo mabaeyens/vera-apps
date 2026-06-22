@@ -219,7 +219,7 @@ final class FileTreeViewModel {
     private var pendingExternalURL: URL?
 
     init() {
-        let hasSeen = UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
+        let hasSeen = UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
         needsFolderPicker = hasSeen && BookmarkStore.load() == nil
     }
 
@@ -304,7 +304,7 @@ final class FileTreeViewModel {
 
     func resetState() {
         BookmarkStore.remove()
-        UserDefaults.standard.removeObject(forKey: "pinnedFiles")
+        UserDefaults.standard.removeObject(forKey: Defaults.Key.pinnedFiles)
         releaseAllAccess()
         refreshTask?.cancel()
         refreshTask = nil
@@ -476,11 +476,11 @@ final class FileTreeViewModel {
 
     private var pinnedPaths: Set<String> {
         get {
-            let arr = UserDefaults.standard.stringArray(forKey: "pinnedFiles") ?? []
+            let arr = UserDefaults.standard.stringArray(forKey: Defaults.Key.pinnedFiles) ?? []
             return Set(arr)
         }
         set {
-            UserDefaults.standard.set(Array(newValue), forKey: "pinnedFiles")
+            UserDefaults.standard.set(Array(newValue), forKey: Defaults.Key.pinnedFiles)
         }
     }
 

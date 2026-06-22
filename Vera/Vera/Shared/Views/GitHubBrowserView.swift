@@ -4,8 +4,8 @@ import SwiftUI
 @Observable
 final class GitHubBrowserModel {
     var token: String = CredentialStore.load() ?? ""
-    var owner: String = UserDefaults.standard.string(forKey: "github.lastOwner") ?? ""
-    var repo: String = UserDefaults.standard.string(forKey: "github.lastRepo") ?? ""
+    var owner: String = UserDefaults.standard.string(forKey: Defaults.Key.githubLastOwner) ?? ""
+    var repo: String = UserDefaults.standard.string(forKey: Defaults.Key.githubLastRepo) ?? ""
 
     var items: [GitHubItem] = []
     var branch: String = ""
@@ -42,8 +42,8 @@ final class GitHubBrowserModel {
             let cleanRepo = repo.trimmingCharacters(in: .whitespaces)
             CredentialStore.save(token.trimmingCharacters(in: .whitespaces))
             RepoListStore.add(SavedRepo(owner: cleanOwner, repo: cleanRepo))
-            UserDefaults.standard.set(cleanOwner, forKey: "github.lastOwner")
-            UserDefaults.standard.set(cleanRepo, forKey: "github.lastRepo")
+            UserDefaults.standard.set(cleanOwner, forKey: Defaults.Key.githubLastOwner)
+            UserDefaults.standard.set(cleanRepo, forKey: Defaults.Key.githubLastRepo)
             isConnected = true
         } catch {
             errorText = error.localizedDescription

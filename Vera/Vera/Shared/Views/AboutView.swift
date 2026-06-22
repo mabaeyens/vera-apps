@@ -4,7 +4,7 @@ struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
     var onReset: (() -> Void)? = nil
 
-    @AppStorage("linterEnabled") private var linterEnabled = true
+    @AppStorage(Defaults.Key.linterEnabled) private var linterEnabled = true
     @State private var showResetConfirmation = false
 
     private var version: String {

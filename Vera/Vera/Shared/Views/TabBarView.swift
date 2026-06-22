@@ -3,7 +3,7 @@ import SwiftUI
 struct TabBarView: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
+    @AppStorage(Defaults.Key.tabBarVisible) private var tabBarVisible: Bool = true
     @State private var hasTrailingOverflow = false
 
     private var tabHeight: CGFloat {

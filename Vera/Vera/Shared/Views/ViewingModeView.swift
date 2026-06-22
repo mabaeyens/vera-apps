@@ -2,11 +2,7 @@ import SwiftUI
 
 struct ViewingModeView: View {
     @Bindable var viewModel: EditorViewModel
-    #if os(iOS)
-    @AppStorage("editorFontSize") private var fontSize: Double = 20
-    #else
-    @AppStorage("editorFontSize") private var fontSize: Double = 17
-    #endif
+    @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
 
     var body: some View {
         MarkdownDocumentView(

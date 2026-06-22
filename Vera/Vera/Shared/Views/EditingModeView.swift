@@ -2,16 +2,14 @@ import SwiftUI
 
 struct EditingModeView: View {
     @Bindable var viewModel: EditorViewModel
+    @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
     #if os(iOS)
-    @AppStorage("editorFontSize") private var fontSize: Double = 20
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isEditing = false
-    #else
-    @AppStorage("editorFontSize") private var fontSize: Double = 17
     #endif
-    @AppStorage("linterEnabled") private var linterEnabled = true
-    @AppStorage("focusMode") private var focusMode = false
+    @AppStorage(Defaults.Key.linterEnabled) private var linterEnabled = true
+    @AppStorage(Defaults.Key.focusMode) private var focusMode = false
     var onAtlasRequested: () -> Void = {}
     var onCheatSheetRequested: () -> Void = {}
     var onIconHelpRequested: () -> Void = {}
@@ -93,10 +91,10 @@ struct EditingModeView: View {
             formatButton("paintbrush", "Format & Snippets") { onAtlasRequested() }
             // Only genuinely-secondary, non-formatting items remain in overflow.
             Menu {
-                Button { fontSize = min(32, fontSize + 1) } label: {
+                Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
                     Label("Larger Text", systemImage: "textformat.size.larger")
                 }
-                Button { fontSize = max(12, fontSize - 1) } label: {
+                Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
                     Label("Smaller Text", systemImage: "textformat.size.smaller")
                 }
                 Divider()

@@ -9,8 +9,8 @@ struct FileTreeView: View {
     @State private var fileToDelete: (url: URL, name: String)?
     @State private var expandedFolders: Set<UUID> = []
     @State private var loadedFolderIDs: Set<UUID> = []
-    @AppStorage("openFilesExpanded") private var openFilesExpanded: Bool = true
-    @AppStorage("iCloudFolderExpanded") private var iCloudFolderExpanded: Bool = true
+    @AppStorage(Defaults.Key.openFilesExpanded) private var openFilesExpanded: Bool = true
+    @AppStorage(Defaults.Key.iCloudFolderExpanded) private var iCloudFolderExpanded: Bool = true
     @State private var savedRepos: [SavedRepo] = RepoListStore.all()
     @State private var repoBrowser = RepoBrowser()
     @State private var expandedRepos: Set<String> = []        // SavedRepo.id

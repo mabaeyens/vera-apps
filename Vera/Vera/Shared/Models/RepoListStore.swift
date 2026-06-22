@@ -14,7 +14,7 @@ struct SavedRepo: Codable, Identifiable, Hashable {
 /// the user's devices. On a new device the repos appear, but the token must be entered
 /// once there (it is device-local by design — see `CredentialStore`).
 enum RepoListStore {
-    private static let key = "github.savedRepos"
+    private static let key = Defaults.Key.githubSavedRepos
     private static var store: NSUbiquitousKeyValueStore { .default }
 
     /// Posted by iCloud when another device changes the list.

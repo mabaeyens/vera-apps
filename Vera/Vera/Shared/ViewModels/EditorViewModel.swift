@@ -204,8 +204,8 @@ final class EditorViewModel {
     }
 
     private func scheduleLint() {
-        let enabled = UserDefaults.standard.object(forKey: "linterEnabled") == nil
-            ? true : UserDefaults.standard.bool(forKey: "linterEnabled")
+        let enabled = UserDefaults.standard.object(forKey: Defaults.Key.linterEnabled) == nil
+            ? true : UserDefaults.standard.bool(forKey: Defaults.Key.linterEnabled)
         guard enabled else {
             lintResults = []
             return

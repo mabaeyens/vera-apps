@@ -286,12 +286,14 @@ struct HighlightingTextView: UIViewRepresentable {
             // bar, so the overflow keeps only history + settings/help.
             let settingsGroup = UIMenu(options: .displayInline, children: [
                 UIAction(title: "Larger Text", image: UIImage(systemName: "textformat.size.larger")) { _ in
-                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
-                    UserDefaults.standard.set(min(32.0, v + 1), forKey: "editorFontSize")
+                    let stored = UserDefaults.standard.double(forKey: Defaults.Key.editorFontSize)
+                    let current = stored == 0 ? Defaults.FontSize.default : stored
+                    UserDefaults.standard.set(Defaults.FontSize.increased(from: current), forKey: Defaults.Key.editorFontSize)
                 },
                 UIAction(title: "Smaller Text", image: UIImage(systemName: "textformat.size.smaller")) { _ in
-                    let v = UserDefaults.standard.double(forKey: "editorFontSize").nonZero(default: 20)
-                    UserDefaults.standard.set(max(12.0, v - 1), forKey: "editorFontSize")
+                    let stored = UserDefaults.standard.double(forKey: Defaults.Key.editorFontSize)
+                    let current = stored == 0 ? Defaults.FontSize.default : stored
+                    UserDefaults.standard.set(Defaults.FontSize.decreased(from: current), forKey: Defaults.Key.editorFontSize)
                 },
                 UIAction(title: "Markdown Reference", image: UIImage(systemName: "book.closed")) { _ in cheatSheet() },
                 UIAction(title: "Icon Help", image: UIImage(systemName: "questionmark.circle")) { _ in iconHelp() }
@@ -351,10 +353,6 @@ struct HighlightingTextView: UIViewRepresentable {
             parent.onTextChange()
         }
     }
-}
-
-private extension Double {
-    func nonZero(default fallback: Double) -> Double { self == 0 ? fallback : self }
 }
 
 // MARK: - macOS

@@ -11,10 +11,10 @@ struct MacRootView: View {
     @State private var showNewFile = false
     @State private var showGitHub = false
     @State private var gitHubInitialRepo: SavedRepo?
-    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
-    @AppStorage("focusMode") private var focusMode: Bool = false
+    @AppStorage(Defaults.Key.tabBarVisible) private var tabBarVisible: Bool = true
+    @AppStorage(Defaults.Key.focusMode) private var focusMode: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {

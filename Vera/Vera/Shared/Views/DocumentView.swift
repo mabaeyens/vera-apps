@@ -11,8 +11,8 @@ struct DocumentView: View {
     @State private var showDiff = false
     @State private var latest: GitHubCommit?
     @State private var lastSeen: String?
-    @AppStorage("editorFontSize") private var fontSize: Double = 20
-    @AppStorage("focusMode") private var focusMode = false
+    @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
+    @AppStorage(Defaults.Key.focusMode) private var focusMode = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(source: DocumentSource) {
@@ -193,10 +193,10 @@ struct DocumentView: View {
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button { fontSize = min(32, fontSize + 1) } label: {
+                    Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
                         Label("Larger Text", systemImage: "textformat.size.larger")
                     }
-                    Button { fontSize = max(12, fontSize - 1) } label: {
+                    Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
                         Label("Smaller Text", systemImage: "textformat.size.smaller")
                     }
                 } label: {
@@ -235,10 +235,10 @@ struct DocumentView: View {
         }
         ToolbarItem(placement: .automatic) {
             Menu {
-                Button { fontSize = min(32, fontSize + 1) } label: {
+                Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
                     Label("Larger Text", systemImage: "textformat.size.larger")
                 }
-                Button { fontSize = max(12, fontSize - 1) } label: {
+                Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
                     Label("Smaller Text", systemImage: "textformat.size.smaller")
                 }
             } label: {

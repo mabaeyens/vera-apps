@@ -12,7 +12,7 @@ final class ConnectivityMonitor {
     init() {
         monitor.pathUpdateHandler = { [weak self] path in
             let online = path.status == .satisfied
-            DispatchQueue.main.async { self?.isOnline = online }
+            Task { @MainActor in self?.isOnline = online }
         }
         monitor.start(queue: queue)
     }

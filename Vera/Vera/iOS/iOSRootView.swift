@@ -9,7 +9,7 @@ struct iOSRootView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showAbout = false
     @State private var showNewFile = false
-    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasSeenOnboarding")
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
     @State private var showIconHelp = false
     // Local @State mirrors of vm picker flags.
     // @Observable property reads via @Bindable are lazy closures — they don't register
@@ -18,7 +18,7 @@ struct iOSRootView: View {
     @State private var showFolderPicker = false
     @State private var showGitHub = false
     @State private var gitHubInitialRepo: SavedRepo?
-    @AppStorage("tabBarVisible") private var tabBarVisible: Bool = true
+    @AppStorage(Defaults.Key.tabBarVisible) private var tabBarVisible: Bool = true
 
     var body: some View {
         @Bindable var vm = vm
@@ -130,8 +130,8 @@ struct iOSRootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                if UserDefaults.standard.bool(forKey: "pendingReset") {
-                    UserDefaults.standard.set(false, forKey: "pendingReset")
+                if UserDefaults.standard.bool(forKey: Defaults.Key.pendingReset) {
+                    UserDefaults.standard.set(false, forKey: Defaults.Key.pendingReset)
                     vm.resetState()
                 }
                 Task { await vm.load() }

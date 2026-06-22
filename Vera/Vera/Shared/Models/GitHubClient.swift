@@ -46,12 +46,19 @@ struct GitHubClient {
 
     private static let apiBase = "https://api.github.com"
 
-    private func get(_ path: String) async throws -> Data {
+    /// Build a request to `path` with the standard GitHub auth + version headers.
+    private func request(_ path: String, method: String = "GET") throws -> URLRequest {
         guard let url = URL(string: Self.apiBase + path) else { throw GitHubError.badResponse(0) }
         var req = URLRequest(url: url)
+        req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        return req
+    }
+
+    private func get(_ path: String) async throws -> Data {
+        let req = try request(path)
         let (data, response) = try await URLSession.shared.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard code == 200 else { throw GitHubError.badResponse(code) }
@@ -60,12 +67,7 @@ struct GitHubClient {
 
     /// Send a JSON body (PUT/POST). Used by the write path (Spec C3).
     private func send(_ method: String, _ path: String, body: [String: Any]) async throws -> Data {
-        guard let url = URL(string: Self.apiBase + path) else { throw GitHubError.badResponse(0) }
-        var req = URLRequest(url: url)
-        req.httpMethod = method
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
+        var req = try request(path, method: method)
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0

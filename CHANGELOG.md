@@ -19,6 +19,7 @@
 - **Real Focus Mode on Mac** — Focus now hides the tab bar, lint panel and sidebar for a clean, distraction-free editor (previously it only hid the linter).
 - **Refreshed Icon Guide** — the icon reference is up to date (GitHub, Markdown files, Focus, commit/diff) and consistent across iPhone, iPad and Mac: it opens from the same overflow (•••) menu everywhere and lists only the icons that actually appear on your platform.
 - **Security review** — code and security review with leak, crash and robustness hardening.
+- **Code quality** — centralized preference keys and editor font-size config (fixes a macOS font-size default mismatch), dead-code removal and small Swift modernizations.
 
 ## v1.0.36
 

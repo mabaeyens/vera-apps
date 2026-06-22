@@ -58,7 +58,7 @@ struct OnboardingView: View {
                 .padding(.bottom, Theme.Space.xl)
 
             Button {
-                UserDefaults.standard.set(true, forKey: "hasSeenOnboarding")
+                UserDefaults.standard.set(true, forKey: Defaults.Key.hasSeenOnboarding)
                 dismiss()
             } label: {
                 Text("Choose a Folder")
