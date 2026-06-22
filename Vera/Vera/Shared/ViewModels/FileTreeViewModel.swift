@@ -40,6 +40,40 @@ final class FileTreeViewModel {
     // so we can release them when their tab is closed.
     private var accessedURLs: Set<URL> = []
 
+    // The root folder URL we currently hold a security-scoped access grant for.
+    // We start the root scope exactly once and always balance it (on root change,
+    // reset, or deinit) — re-starting on every load() leaked the grant for the
+    // whole session.
+    private var rootAccessURL: URL?
+
+    // No deinit: this VM is a single app-lifetime @State, so it is only released
+    // at process exit (which frees all scope grants anyway). Swift 6 also forbids
+    // a nonisolated deinit from touching @MainActor state. Explicit teardown lives
+    // in resetState() via releaseAllAccess().
+
+    /// Idempotently take a security-scoped grant on `url` as the root folder,
+    /// releasing any previously held root first. No-op if already held.
+    private func startRootAccess(_ url: URL) {
+        guard rootAccessURL != url else { return }
+        stopRootAccess()
+        if url.startAccessingSecurityScopedResource() {
+            rootAccessURL = url
+        }
+    }
+
+    /// Release the currently held root grant, if any.
+    private func stopRootAccess() {
+        rootAccessURL?.stopAccessingSecurityScopedResource()
+        rootAccessURL = nil
+    }
+
+    /// Release every per-file grant and the root grant. Used on reset.
+    private func releaseAllAccess() {
+        for url in accessedURLs { url.stopAccessingSecurityScopedResource() }
+        accessedURLs.removeAll()
+        stopRootAccess()
+    }
+
     // MARK: - Tab management
 
     struct TabEntry: Identifiable {
@@ -209,8 +243,10 @@ final class FileTreeViewModel {
 
         if rootURL == nil {
             rootURL = restoredBookmark()
-        } else {
-            _ = rootURL?.startAccessingSecurityScopedResource()
+        } else if let root = rootURL {
+            // Idempotent — keeps the single grant alive without re-acquiring it
+            // on every load (scenePhase changes, refresh timer, manual refresh).
+            startRootAccess(root)
         }
         needsFolderPicker = rootURL == nil
         guard let root = rootURL else { return }
@@ -227,7 +263,8 @@ final class FileTreeViewModel {
                         throw URLError(.timedOut)
                     }
                     defer { group.cancelAll() }
-                    return try await group.next()!
+                    guard let first = try await group.next() else { throw URLError(.cancelled) }
+                    return first
                 }
                 loadFailed = false
                 repinDownloads()
@@ -268,6 +305,7 @@ final class FileTreeViewModel {
     func resetState() {
         BookmarkStore.remove()
         UserDefaults.standard.removeObject(forKey: "pinnedFiles")
+        releaseAllAccess()
         refreshTask?.cancel()
         refreshTask = nil
         roots = []
@@ -356,7 +394,7 @@ final class FileTreeViewModel {
     }
 
     func setRoot(_ url: URL) {
-        _ = url.startAccessingSecurityScopedResource()
+        startRootAccess(url)   // releases the previous root's grant first
         saveBookmark(url)
         needsFolderPicker = false
         rootURL = url
@@ -409,7 +447,7 @@ final class FileTreeViewModel {
         guard !FileManager.default.fileExists(atPath: fileURL.path) else {
             throw CocoaError(.fileWriteFileExists)
         }
-        try "".write(to: fileURL, atomically: true, encoding: .utf8)
+        try await DocumentStore.write(fileURL, content: "")
         let newNode = FileNode.file(id: UUID(), name: filename.replacingOccurrences(of: ".md", with: ""), url: fileURL, downloadState: .local)
         if folder == rootURL {
             // Insert at root level
@@ -467,7 +505,7 @@ final class FileTreeViewModel {
         if stale { saveBookmark(url) }
         var isDir: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue else { return nil }
-        _ = url.startAccessingSecurityScopedResource()
+        startRootAccess(url)
         return url
     }
 

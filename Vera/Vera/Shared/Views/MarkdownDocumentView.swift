@@ -129,7 +129,10 @@ struct MarkdownDocumentView: View {
     let fontSize: CGFloat
     @Binding var scrollFraction: CGFloat
 
-    private var segments: [DocSegment] { parseDocSegments(rawText) }
+    // Memoized: the document is parsed only when rawText changes, not on every body
+    // re-evaluation. body re-runs on every scrollFraction update, and re-running the
+    // whole-document regex parse each scroll tick was needless CPU on large files.
+    @State private var segments: [DocSegment] = []
 
     var body: some View {
         ScrollView {
@@ -148,6 +151,7 @@ struct MarkdownDocumentView: View {
         } action: { _, new in
             scrollFraction = Swift.max(0, Swift.min(1, new))
         }
+        .task(id: rawText) { segments = parseDocSegments(rawText) }
     }
 
     @ViewBuilder

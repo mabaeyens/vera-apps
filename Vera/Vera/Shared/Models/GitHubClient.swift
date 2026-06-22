@@ -115,7 +115,7 @@ struct GitHubClient {
 
     /// All Markdown files in the repo (recursive), sorted by path.
     func markdownFiles(branch: String) async throws -> [GitHubItem] {
-        let data = try await get("/repos/\(owner)/\(repo)/git/trees/\(branch)?recursive=1")
+        let data = try await get("/repos/\(owner)/\(repo)/git/trees/\(encode(path: branch))?recursive=1")
         guard let tree = try? JSONDecoder().decode(Tree.self, from: data) else { throw GitHubError.decoding }
         return tree.tree
             .filter { $0.type == "blob" && ($0.path.hasSuffix(".md") || $0.path.hasSuffix(".markdown")) }
@@ -144,6 +144,11 @@ struct GitHubClient {
             .joined(separator: "/")
     }
 
+    /// Percent-encode a value for use in a URL query (slashes are legal in queries).
+    private func encode(query value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+    }
+
     /// Commit history for a single file, newest first. (Spec C2.)
     func commits(path: String, limit: Int = 20) async throws -> [GitHubCommit] {
         let data = try await get("/repos/\(owner)/\(repo)/commits?path=\(encode(path: path))&per_page=\(limit)")
@@ -166,7 +171,7 @@ struct GitHubClient {
     /// The unified-diff patch for `path` between two commits, or nil if GitHub
     /// omitted it (e.g. the file is unchanged or the diff is too large). (Spec C2.)
     func diff(path: String, from base: String, to head: String) async throws -> String? {
-        let data = try await get("/repos/\(owner)/\(repo)/compare/\(base)...\(head)")
+        let data = try await get("/repos/\(owner)/\(repo)/compare/\(encode(path: base))...\(encode(path: head))")
         guard let compare = try? JSONDecoder().decode(CompareDTO.self, from: data) else { throw GitHubError.decoding }
         return compare.files?.first { $0.filename == path }?.patch
     }
@@ -176,7 +181,7 @@ struct GitHubClient {
     /// The current text *and* blob SHA of a file on `branch`. The SHA is required to
     /// commit an update (optimistic concurrency — GitHub rejects a stale SHA).
     func fileVersion(path: String, ref: String) async throws -> (text: String, sha: String) {
-        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encode(path: path))?ref=\(ref)")
+        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encode(path: path))?ref=\(encode(query: ref))")
         guard let c = try? JSONDecoder().decode(Contents.self, from: data),
               c.encoding == "base64" else { throw GitHubError.decoding }
         let cleaned = c.content.replacingOccurrences(of: "\n", with: "")
@@ -200,7 +205,7 @@ struct GitHubClient {
 
     /// The head commit SHA of `branch`.
     func headSHA(branch: String) async throws -> String {
-        let data = try await get("/repos/\(owner)/\(repo)/git/ref/heads/\(branch)")
+        let data = try await get("/repos/\(owner)/\(repo)/git/ref/heads/\(encode(path: branch))")
         guard let ref = try? JSONDecoder().decode(RefDTO.self, from: data) else { throw GitHubError.decoding }
         return ref.object.sha
     }

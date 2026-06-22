@@ -63,6 +63,12 @@ struct DocumentView: View {
                 }
             }
         }
+        .onDisappear {
+            // Flush any edit still inside the autosave debounce so a tab switch /
+            // navigation away never drops the last keystrokes. The Task strongly
+            // captures viewModel so the write completes even as the view tears down.
+            Task { await viewModel.flushPendingSave() }
+        }
         .onChange(of: viewModel.atlasRequested) { _, requested in
             if requested { showAtlas = true; viewModel.atlasRequested = false }
         }

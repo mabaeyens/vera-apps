@@ -23,7 +23,9 @@ enum CloudScanner {
         var files: [Dated] = []
 
         for itemURL in contents {
-            let resources = try itemURL.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey])
+            // Skip an individual unreadable item rather than aborting the whole scan
+            // (which would blank the sidebar over one bad file).
+            guard let resources = try? itemURL.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey]) else { continue }
             let modDate = resources.contentModificationDate ?? .distantPast
             if resources.isDirectory == true {
                 folders.append(Dated(

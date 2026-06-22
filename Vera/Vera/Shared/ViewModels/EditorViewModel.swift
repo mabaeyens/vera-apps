@@ -194,6 +194,15 @@ final class EditorViewModel {
         }
     }
 
+    /// Persist any pending edit immediately, bypassing the debounce. Call this when the
+    /// editor view disappears (tab switch / navigation) so the last keystrokes — still
+    /// inside the 500 ms debounce window — are never silently dropped.
+    func flushPendingSave() async {
+        guard case .file = source, case .saving = saveState else { return }
+        saveTask?.cancel()
+        await flush()
+    }
+
     private func scheduleLint() {
         let enabled = UserDefaults.standard.object(forKey: "linterEnabled") == nil
             ? true : UserDefaults.standard.bool(forKey: "linterEnabled")
@@ -206,7 +215,9 @@ final class EditorViewModel {
         lintTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
-            let results = snapshot.lintMarkdown()
+            // Run the line scan off the main actor — for large files it's heavy
+            // enough to stutter typing if left on the EditorViewModel's @MainActor.
+            let results = await Task.detached { snapshot.lintMarkdown() }.value
             guard !Task.isCancelled else { return }
             self?.lintResults = results
         }

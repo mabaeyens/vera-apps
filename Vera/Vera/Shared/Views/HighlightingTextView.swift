@@ -118,6 +118,7 @@ struct HighlightingTextView: UIViewRepresentable {
             }
             context.coordinator.isApplyingExternalChange = false
             uiView.selectedRange = sel
+            context.coordinator.invalidateCachedRange()
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
         if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
@@ -233,6 +234,13 @@ struct HighlightingTextView: UIViewRepresentable {
 
         func textViewDidChangeSelection(_ textView: UITextView) {
             lastKnownRange = textView.selectedTextRange
+        }
+
+        /// Drop the cached selection after the buffer is replaced externally, for
+        /// symmetry with the macOS coordinator. UIKit invalidates `UITextRange` on
+        /// its own, but clearing avoids reusing a range tied to the old text.
+        func invalidateCachedRange() {
+            lastKnownRange = nil
         }
 
         // MARK: Context menu (iOS 16+)
@@ -475,6 +483,8 @@ struct HighlightingTextView: NSViewRepresentable {
                 storage.endEditing()
             }
             textView.selectedRanges = sel
+            // The whole buffer was swapped — any cached selection range is now stale.
+            context.coordinator.invalidateCachedRange()
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
         if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
@@ -516,6 +526,21 @@ struct HighlightingTextView: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             lastKnownRange = textView?.selectedRange()
+        }
+
+        /// Drop the cached selection after the text storage is replaced externally —
+        /// a stale range can point past the new string and crash `substring(with:)`.
+        func invalidateCachedRange() {
+            lastKnownRange = nil
+        }
+
+        /// Clamp a (possibly stale) range to the text view's current length so
+        /// `substring(with:)` / `insertText(_:replacementRange:)` can never go
+        /// out of bounds.
+        private func validRange(_ range: NSRange, in tv: NSTextView) -> NSRange {
+            let len = (tv.string as NSString).length
+            let loc = min(max(0, range.location), len)
+            return NSRange(location: loc, length: min(range.length, len - loc))
         }
 
         // MARK: Context menu (macOS)
@@ -588,7 +613,7 @@ struct HighlightingTextView: NSViewRepresentable {
 
         func insert(_ snippet: String) {
             guard let tv = textView else { return }
-            let range = lastKnownRange ?? tv.selectedRange()
+            let range = validRange(lastKnownRange ?? tv.selectedRange(), in: tv)
             tv.insertText(snippet, replacementRange: range)
             parent.text = tv.string
             parent.onTextChange()
@@ -596,7 +621,7 @@ struct HighlightingTextView: NSViewRepresentable {
 
         func wrap(prefix: String, suffix: String) {
             guard let tv = textView else { return }
-            let range = lastKnownRange ?? tv.selectedRange()
+            let range = validRange(lastKnownRange ?? tv.selectedRange(), in: tv)
             let selected = (tv.string as NSString).substring(with: range)
             tv.insertText(prefix + selected + suffix, replacementRange: range)
             parent.text = tv.string
@@ -605,7 +630,7 @@ struct HighlightingTextView: NSViewRepresentable {
 
         func strip() {
             guard let tv = textView else { return }
-            let range = lastKnownRange ?? tv.selectedRange()
+            let range = validRange(lastKnownRange ?? tv.selectedRange(), in: tv)
             guard range.length > 0 else { return }
             let selected = (tv.string as NSString).substring(with: range)
             tv.insertText(selected.strippingMarkdown(), replacementRange: range)
