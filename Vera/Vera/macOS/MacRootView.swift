@@ -158,10 +158,7 @@ struct MacRootView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [
-            UTType(filenameExtension: "md")       ?? .plainText,
-            UTType(filenameExtension: "markdown") ?? .plainText,
-        ]
+
         panel.begin { response in
             vm.needsFolderPicker = false
             guard response == .OK, let url = panel.url else { return }
