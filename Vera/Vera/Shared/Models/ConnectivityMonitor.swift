@@ -8,14 +8,23 @@ final class ConnectivityMonitor {
 
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "vera.connectivity")
+    nonisolated private var monitorTask: Task<Void, Never>?
 
     init() {
-        monitor.pathUpdateHandler = { [weak self] path in
-            let online = path.status == .satisfied
-            Task { @MainActor in self?.isOnline = online }
+        let (stream, continuation) = AsyncStream<Bool>.makeStream()
+        monitor.pathUpdateHandler = { path in
+            continuation.yield(path.status == .satisfied)
         }
         monitor.start(queue: queue)
+        monitorTask = Task { @MainActor [weak self] in
+            for await online in stream {
+                self?.isOnline = online
+            }
+        }
     }
 
-    deinit { monitor.cancel() }
+    deinit {
+        monitor.cancel()
+        monitorTask?.cancel()
+    }
 }
