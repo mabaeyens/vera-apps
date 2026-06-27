@@ -129,7 +129,7 @@ extension String {
         return result.joined(separator: "\n")
     }
 
-    func lintMarkdown() -> [LintWarning] {
+    nonisolated func lintMarkdown() -> [LintWarning] {
         var warnings: [LintWarning] = []
         var inFrontMatter = false
         var inCodeFence = false
