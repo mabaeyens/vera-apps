@@ -8,7 +8,7 @@ final class ConnectivityMonitor {
 
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "vera.connectivity")
-    nonisolated private var monitorTask: Task<Void, Never>?
+    nonisolated(unsafe) private var monitorTask: Task<Void, Never>?
 
     init() {
         let (stream, continuation) = AsyncStream<Bool>.makeStream()

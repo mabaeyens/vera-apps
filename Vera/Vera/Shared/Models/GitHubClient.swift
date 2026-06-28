@@ -7,6 +7,13 @@ struct GitHubItem: Identifiable, Hashable {
     var name: String { (path as NSString).lastPathComponent }
 }
 
+/// A file returned by GitHub Code Search, with an optional matched content fragment.
+struct CodeSearchResult: Identifiable {
+    let path: String
+    let fragment: String?
+    var id: String { path }
+}
+
 /// A commit that touched a given file. (Spec C2.)
 struct GitHubCommit: Identifiable, Hashable {
     let sha: String
@@ -94,6 +101,15 @@ struct GitHubClient {
             struct Author: Decodable { let name: String; let date: String }
         }
     }
+    private struct SearchResponse: Decodable {
+        let items: [SearchItem]
+        struct SearchItem: Decodable {
+            let path: String
+            let text_matches: [TextMatch]?
+            struct TextMatch: Decodable { let fragment: String }
+        }
+    }
+
     private struct CompareDTO: Decodable {
         let files: [FileChange]?
         struct FileChange: Decodable {
@@ -223,5 +239,24 @@ struct GitHubClient {
         let data = try await send("POST", "/repos/\(owner)/\(repo)/pulls",
                                   body: ["title": title, "body": body, "head": head, "base": base])
         return (try? JSONDecoder().decode(PullResponse.self, from: data))?.html_url
+    }
+
+    // MARK: - Search (Feature 6)
+
+    /// Search the repo for files whose contents match `query`. Returns up to 30 results
+    /// with a matched content fragment. Uses the text-match Accept header on this request only.
+    func searchCode(query: String) async throws -> [CodeSearchResult] {
+        let q = encode(query: "\(query) repo:\(owner)/\(repo)")
+        var req = try request("/search/code?q=\(q)&per_page=30")
+        req.setValue("application/vnd.github.text-match+json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard code == 200 else { throw GitHubError.badResponse(code) }
+        guard let sr = try? JSONDecoder().decode(SearchResponse.self, from: data) else {
+            throw GitHubError.decoding
+        }
+        return sr.items.map {
+            CodeSearchResult(path: $0.path, fragment: $0.text_matches?.first?.fragment)
+        }
     }
 }

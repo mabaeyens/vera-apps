@@ -13,6 +13,40 @@ final class GitHubBrowserModel {
     var isLoading = false
     var errorText: String?
 
+    var searchQuery: String = ""
+    var searchResults: [CodeSearchResult] = []
+    var isSearching: Bool = false
+    var searchError: String?
+
+    var filteredItems: [GitHubItem] {
+        guard !searchQuery.isEmpty else { return items }
+        return items.filter { $0.path.localizedCaseInsensitiveContains(searchQuery) }
+    }
+
+    var contentOnlyResults: [CodeSearchResult] {
+        let filePaths = Set(filteredItems.map(\.path))
+        return searchResults.filter { !filePaths.contains($0.path) }
+    }
+
+    func searchCode(_ query: String) async {
+        guard !query.isEmpty else {
+            searchResults = []
+            searchError = nil
+            return
+        }
+        isSearching = true
+        searchError = nil
+        do {
+            searchResults = try await client().searchCode(query: query)
+        } catch GitHubError.badResponse(let code) where code == 403 || code == 429 {
+            searchError = "Search rate limit reached — try again in a moment."
+            searchResults = []
+        } catch {
+            searchResults = []
+        }
+        isSearching = false
+    }
+
     var canConnect: Bool {
         !token.trimmingCharacters(in: .whitespaces).isEmpty
             && !owner.trimmingCharacters(in: .whitespaces).isEmpty
@@ -77,6 +111,17 @@ struct GitHubBrowserView: View {
             Group {
                 if model.isConnected {
                     fileList
+                        .searchable(text: $model.searchQuery, prompt: "Filename or content…")
+                        .task(id: model.searchQuery) {
+                            guard !model.searchQuery.isEmpty else {
+                                model.searchResults = []
+                                model.isSearching = false
+                                return
+                            }
+                            try? await Task.sleep(for: .milliseconds(800))
+                            guard !Task.isCancelled else { return }
+                            await model.searchCode(model.searchQuery)
+                        }
                 } else {
                     connectForm
                 }
@@ -167,19 +212,60 @@ struct GitHubBrowserView: View {
 
     private var fileList: some View {
         List {
-            if model.items.isEmpty {
-                ContentUnavailableView("No Markdown Files", systemImage: "doc.text", description: Text("This repository has no .md files."))
+            if model.searchQuery.isEmpty {
+                if model.items.isEmpty {
+                    ContentUnavailableView("No Markdown Files", systemImage: "doc.text", description: Text("This repository has no .md files."))
+                } else {
+                    ForEach(model.items) { item in fileRow(item) }
+                }
             } else {
-                ForEach(model.items) { item in
-                    NavigationLink {
-                        DocumentView(source: .gitHub(model.ref(for: item)))
-                    } label: {
-                        Label(item.path, systemImage: "doc.text")
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                let nameMatches = model.filteredItems
+                if !nameMatches.isEmpty {
+                    Section("Files") {
+                        ForEach(nameMatches) { item in fileRow(item) }
+                    }
+                }
+                Section("Content") {
+                    if model.isSearching {
+                        Label("Searching…", systemImage: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                    } else if let err = model.searchError {
+                        Label(err, systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(.orange)
+                    } else if model.contentOnlyResults.isEmpty {
+                        Text("No content matches")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.contentOnlyResults) { result in
+                            NavigationLink {
+                                DocumentView(source: .gitHub(model.ref(for: GitHubItem(path: result.path))))
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Label(result.path, systemImage: "doc.text")
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                    if let fragment = result.fragment {
+                                        Text(fragment)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(2)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private func fileRow(_ item: GitHubItem) -> some View {
+        NavigationLink {
+            DocumentView(source: .gitHub(model.ref(for: item)))
+        } label: {
+            Label(item.path, systemImage: "doc.text")
+                .lineLimit(1)
+                .truncationMode(.middle)
         }
     }
 }
