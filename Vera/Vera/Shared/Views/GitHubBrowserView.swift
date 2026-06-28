@@ -163,6 +163,8 @@ struct GitHubBrowserView: View {
     @State private var model = GitHubBrowserModel()
     @State private var showBranchPicker = false
     @State private var showMultiCommit = false
+    @State private var showDeviceAuth = false
+    @State private var showTokenFields = false
 
     /// When opened from a saved repo in the sidebar, pre-fill and auto-connect.
     private let initialRepo: SavedRepo?
@@ -298,40 +300,88 @@ struct GitHubBrowserView: View {
 
     private var connectForm: some View {
         Form {
-            Section {
-                if model.token.isEmpty {
-                    SecureField("Fine-grained token (ghp_…)", text: $model.token)
-                        .accessibilityLabel("GitHub fine-grained token")
-                } else {
-                    HStack {
-                        Label("Token saved", systemImage: "key.fill")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("Replace") { model.token = "" }
-                            .font(.footnote)
+            // OAuth sign-in section — shown when the GitHub App client ID is configured.
+            if !GitHubApp.clientID.isEmpty && model.token.isEmpty {
+                Section {
+                    Button {
+                        showDeviceAuth = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Label("Sign in with GitHub", systemImage: "person.badge.key")
+                                .bold()
+                            Spacer()
+                        }
+                    }
+                } footer: {
+                    Text("Opens github.com to authorize Vera. No password stored — token lives in your device Keychain.")
+                }
+
+                Section {
+                    Button(showTokenFields ? "Hide token fields" : "Use a personal access token instead") {
+                        showTokenFields.toggle()
+                    }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            // Token section — always shown if no OAuth client ID; toggled in below it if OAuth is configured.
+            if GitHubApp.clientID.isEmpty || !model.token.isEmpty || showTokenFields {
+                Section {
+                    if model.token.isEmpty {
+                        SecureField("Fine-grained token (ghp_…)", text: $model.token)
+                            .accessibilityLabel("GitHub fine-grained token")
+                    } else {
+                        HStack {
+                            Label("Token saved", systemImage: "key.fill")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Replace") { model.token = "" }
+                                .font(.footnote)
+                        }
+                    }
+                    TextField("Owner (e.g. mabaeyens)", text: $model.owner)
+                        .accessibilityLabel("Repository owner")
+                        .textContentType(.username)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        #endif
+                    TextField("Repository (e.g. vera-apps)", text: $model.repo)
+                        .accessibilityLabel("Repository name")
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        #endif
+                } header: {
+                    Text("Connect a repository")
+                } footer: {
+                    VStack(alignment: .leading, spacing: Theme.Space.s) {
+                        Text("Vera talks directly to GitHub with your token — nothing is sent anywhere else. The token is stored in your device Keychain.")
+                        if let url = URL(string: "https://github.com/settings/personal-access-tokens/new") {
+                            Link("Create a fine-grained token (Contents: Read, or Read and Write to edit)…", destination: url)
+                        }
                     }
                 }
-                TextField("Owner (e.g. mabaeyens)", text: $model.owner)
-                    .accessibilityLabel("Repository owner")
-                    .textContentType(.username)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    #endif
-                TextField("Repository (e.g. vera-apps)", text: $model.repo)
-                    .accessibilityLabel("Repository name")
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    #endif
-            } header: {
-                Text("Connect a repository")
-            } footer: {
-                VStack(alignment: .leading, spacing: Theme.Space.s) {
-                    Text("Vera talks directly to GitHub with your token — nothing is sent anywhere else. The token is stored in your device Keychain.")
-                    if let url = URL(string: "https://github.com/settings/personal-access-tokens/new") {
-                        Link("Create a fine-grained token (Contents: Read, or Read and Write to edit)…", destination: url)
-                    }
+            }
+
+            // Repo fields after OAuth sign-in (token is set but owner/repo may be empty).
+            if !GitHubApp.clientID.isEmpty && !model.token.isEmpty && !showTokenFields {
+                Section("Repository") {
+                    TextField("Owner (e.g. mabaeyens)", text: $model.owner)
+                        .accessibilityLabel("Repository owner")
+                        .textContentType(.username)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        #endif
+                    TextField("Repository (e.g. vera-apps)", text: $model.repo)
+                        .accessibilityLabel("Repository name")
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        #endif
                 }
             }
 
@@ -356,6 +406,16 @@ struct GitHubBrowserView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $showDeviceAuth) {
+            DeviceAuthSheet { token in
+                model.token = token
+                CredentialStore.save(token)
+                showDeviceAuth = false
+            }
+            #if os(macOS)
+            .frame(width: 400, height: 340)
+            #endif
+        }
     }
 
     private var fileList: some View {
