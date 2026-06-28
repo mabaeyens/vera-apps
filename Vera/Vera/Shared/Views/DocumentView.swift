@@ -1,5 +1,11 @@
 import SwiftUI
 
+private struct PendingCommit: Identifiable {
+    let id = UUID()
+    let message: String
+    let openPR: Bool
+}
+
 struct DocumentView: View {
     let source: DocumentSource
     @State private var viewModel: EditorViewModel
@@ -9,6 +15,7 @@ struct DocumentView: View {
     // GitHub source only.
     @State private var showCommit = false
     @State private var showDiff = false
+    @State private var pendingConflict: PendingCommit?
     @State private var latest: GitHubCommit?
     @State private var lastSeen: String?
     @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
@@ -104,11 +111,31 @@ struct DocumentView: View {
         }
         .sheet(isPresented: $showCommit) {
             if case .gitHub(let ref) = source {
-                GitHubCommitSheet(fileName: source.displayName, branch: ref.branch) { message, openPR in
+                GitHubCommitSheet(
+                    fileName: source.displayName,
+                    branch: ref.branch,
+                    onConflict: { msg, openPR in
+                        pendingConflict = PendingCommit(message: msg, openPR: openPR)
+                    }
+                ) { message, openPR in
                     try await viewModel.commit(message: message, openPR: openPR)
                 }
                 #if os(macOS)
                 .frame(width: 460, height: 360)
+                #endif
+            }
+        }
+        .sheet(item: $pendingConflict) { pending in
+            if case .gitHub = source {
+                ConflictSheet(
+                    fileName: source.displayName,
+                    pendingMessage: pending.message,
+                    pendingOpenPR: pending.openPR,
+                    fetchRemoteText: { try await viewModel.fetchRemoteText() },
+                    overwrite: { try await viewModel.overwriteCommit(message: pending.message, openPR: pending.openPR) }
+                )
+                #if os(macOS)
+                .frame(width: 460, height: 420)
                 #endif
             }
         }

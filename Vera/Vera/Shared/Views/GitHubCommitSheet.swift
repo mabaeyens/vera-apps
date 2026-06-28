@@ -9,6 +9,8 @@ struct GitHubCommitSheet: View {
 
     let fileName: String
     let branch: String
+    /// Called when the commit fails with a 409 conflict; the sheet dismisses itself first.
+    let onConflict: ((_ message: String, _ openPR: Bool) -> Void)?
     /// Performs the commit; returns the GitHub URL to show (commit or PR), if any.
     let commit: (_ message: String, _ openPR: Bool) async throws -> URL?
 
@@ -105,12 +107,16 @@ struct GitHubCommitSheet: View {
         isSaving = true
         errorText = nil
         defer { isSaving = false }
+        let trimmed = message.trimmingCharacters(in: .whitespaces)
         do {
-            if let url = try await commit(message.trimmingCharacters(in: .whitespaces), mode == .pullRequest) {
+            if let url = try await commit(trimmed, mode == .pullRequest) {
                 resultURL = url
             } else {
                 dismiss()
             }
+        } catch GitHubError.conflict {
+            onConflict?(trimmed, mode == .pullRequest)
+            dismiss()
         } catch {
             errorText = error.localizedDescription
         }

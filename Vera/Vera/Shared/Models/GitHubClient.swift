@@ -31,6 +31,7 @@ enum GitHubError: LocalizedError {
     case badResponse(Int)
     case notMarkdown
     case decoding
+    case conflict
 
     var errorDescription: String? {
         switch self {
@@ -40,6 +41,7 @@ enum GitHubError: LocalizedError {
             return "GitHub returned an error (\(code))."
         case .notMarkdown: return "That file isn't Markdown."
         case .decoding: return "Couldn't read GitHub's response."
+        case .conflict: return "The file changed on GitHub since you opened it."
         }
     }
 }
@@ -78,6 +80,7 @@ struct GitHubClient {
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, response) = try await URLSession.shared.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if code == 409 { throw GitHubError.conflict }
         guard (200...299).contains(code) else { throw GitHubError.badResponse(code) }
         return data
     }

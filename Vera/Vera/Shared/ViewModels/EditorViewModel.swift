@@ -177,6 +177,25 @@ final class EditorViewModel {
         }
     }
 
+    /// Fetch the current text of this file from GitHub (used to show the remote version
+    /// on a 409 conflict so the user can compare before overwriting).
+    func fetchRemoteText() async throws -> String {
+        guard case .gitHub(let ref) = source, let client = gitHubClient() else {
+            throw GitHubError.decoding
+        }
+        let (text, _) = try await client.fileVersion(path: ref.path, ref: ref.branch)
+        return text
+    }
+
+    /// Re-fetch the current blob SHA then commit the user's text, effectively
+    /// force-overwriting whatever was committed after the user opened the file.
+    func overwriteCommit(message: String, openPR: Bool) async throws -> URL? {
+        guard case .gitHub(let ref) = source, let client = gitHubClient() else { return nil }
+        let (_, freshSHA) = try await client.fileVersion(path: ref.path, ref: ref.branch)
+        blobSHA = freshSHA
+        return try await commit(message: message, openPR: openPR)
+    }
+
     private func slug(_ path: String) -> String {
         let name = (path as NSString).lastPathComponent.lowercased().replacingOccurrences(of: " ", with: "-")
         let allowed = Set("abcdefghijklmnopqrstuvwxyz0123456789-")
