@@ -2,17 +2,17 @@ import SwiftUI
 
 /// Commit the current editor text to GitHub — straight to the branch, or as a new
 /// branch + pull request. Presented from `DocumentView` when editing a GitHub file.
-/// (Spec C3; the editing surface itself is the shared DocumentView, for full parity
-/// with iCloud files.)
 struct GitHubCommitSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let fileName: String
     let branch: String
+    /// Fetches the branch list for the picker; returns empty on failure (picker hidden).
+    let fetchBranches: () async -> [String]
     /// Called when the commit fails with a 409 conflict; the sheet dismisses itself first.
-    let onConflict: ((_ message: String, _ openPR: Bool) -> Void)?
+    let onConflict: ((_ message: String, _ openPR: Bool, _ targetBranch: String) -> Void)?
     /// Performs the commit; returns the GitHub URL to show (commit or PR), if any.
-    let commit: (_ message: String, _ openPR: Bool) async throws -> URL?
+    let commit: (_ message: String, _ openPR: Bool, _ targetBranch: String) async throws -> URL?
 
     enum Mode: String, CaseIterable, Identifiable {
         case commit = "Commit"
@@ -22,12 +22,19 @@ struct GitHubCommitSheet: View {
 
     @State private var message: String = ""
     @State private var mode: Mode = .commit
+    @State private var selectedBranch: String = ""
+    @State private var availableBranches: [String] = []
+    @State private var loadingBranches = false
     @State private var isSaving = false
     @State private var errorText: String?
     @State private var resultURL: URL?
 
     private var canSave: Bool {
         !isSaving && !message.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private var targetBranch: String {
+        selectedBranch.isEmpty ? branch : selectedBranch
     }
 
     var body: some View {
@@ -61,7 +68,10 @@ struct GitHubCommitSheet: View {
                 }
             }
         }
-        .onAppear { if message.isEmpty { message = "Update \(fileName)" } }
+        .onAppear {
+            if message.isEmpty { message = "Update \(fileName)" }
+            if selectedBranch.isEmpty { selectedBranch = branch }
+        }
     }
 
     private var form: some View {
@@ -75,10 +85,24 @@ struct GitHubCommitSheet: View {
                     ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
+
+                if loadingBranches {
+                    HStack {
+                        Text("Branch").foregroundStyle(.secondary)
+                        Spacer()
+                        ProgressView()
+                    }
+                } else if availableBranches.count > 1 {
+                    Picker("Branch", selection: $selectedBranch) {
+                        ForEach(availableBranches, id: \.self) { Text($0).tag($0) }
+                    }
+                }
             } footer: {
-                Text(mode == .commit
-                     ? "Commits directly to “\(branch)”."
-                     : "Creates a branch off “\(branch)” and opens a pull request.")
+                if mode == .commit {
+                    Text("Commits directly to \"\(targetBranch)\".")
+                } else {
+                    Text("Creates a branch off \"\(branch)\" and opens a pull request into \"\(targetBranch)\".")
+                }
             }
             if let errorText {
                 Section {
@@ -88,6 +112,12 @@ struct GitHubCommitSheet: View {
             }
         }
         .formStyle(.grouped)
+        .task {
+            loadingBranches = true
+            let branches = await fetchBranches()
+            availableBranches = branches.isEmpty ? [branch] : branches
+            loadingBranches = false
+        }
     }
 
     private func successView(_ url: URL) -> some View {
@@ -96,7 +126,7 @@ struct GitHubCommitSheet: View {
                   systemImage: "checkmark.circle")
         } description: {
             Text(mode == .commit
-                 ? "Your changes are on “\(branch)”."
+                 ? "Your changes are on \"\(targetBranch)\"."
                  : "Your changes are ready to review.")
         } actions: {
             Link(mode == .commit ? "View Commit on GitHub" : "View Pull Request", destination: url)
@@ -109,13 +139,13 @@ struct GitHubCommitSheet: View {
         defer { isSaving = false }
         let trimmed = message.trimmingCharacters(in: .whitespaces)
         do {
-            if let url = try await commit(trimmed, mode == .pullRequest) {
+            if let url = try await commit(trimmed, mode == .pullRequest, targetBranch) {
                 resultURL = url
             } else {
                 dismiss()
             }
         } catch GitHubError.conflict {
-            onConflict?(trimmed, mode == .pullRequest)
+            onConflict?(trimmed, mode == .pullRequest, targetBranch)
             dismiss()
         } catch {
             errorText = error.localizedDescription

@@ -4,6 +4,7 @@ private struct PendingCommit: Identifiable {
     let id = UUID()
     let message: String
     let openPR: Bool
+    let targetBranch: String
 }
 
 struct DocumentView: View {
@@ -114,14 +115,15 @@ struct DocumentView: View {
                 GitHubCommitSheet(
                     fileName: source.displayName,
                     branch: ref.branch,
-                    onConflict: { msg, openPR in
-                        pendingConflict = PendingCommit(message: msg, openPR: openPR)
+                    fetchBranches: { await viewModel.fetchBranches() },
+                    onConflict: { msg, openPR, targetBranch in
+                        pendingConflict = PendingCommit(message: msg, openPR: openPR, targetBranch: targetBranch)
                     }
-                ) { message, openPR in
-                    try await viewModel.commit(message: message, openPR: openPR)
+                ) { message, openPR, targetBranch in
+                    try await viewModel.commit(message: message, openPR: openPR, targetBranch: targetBranch)
                 }
                 #if os(macOS)
-                .frame(width: 460, height: 360)
+                .frame(width: 460, height: 380)
                 #endif
             }
         }
@@ -132,7 +134,7 @@ struct DocumentView: View {
                     pendingMessage: pending.message,
                     pendingOpenPR: pending.openPR,
                     fetchRemoteText: { try await viewModel.fetchRemoteText() },
-                    overwrite: { try await viewModel.overwriteCommit(message: pending.message, openPR: pending.openPR) }
+                    overwrite: { try await viewModel.overwriteCommit(message: pending.message, openPR: pending.openPR, targetBranch: pending.targetBranch) }
                 )
                 #if os(macOS)
                 .frame(width: 460, height: 420)

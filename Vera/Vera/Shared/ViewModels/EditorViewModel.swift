@@ -147,25 +147,28 @@ final class EditorViewModel {
 
     /// Commit the current text. `openPR` true → create a branch and open a PR; false →
     /// commit straight to the file's branch. Returns the GitHub URL to show, if any.
-    func commit(message: String, openPR: Bool) async throws -> URL? {
+    /// Commit the current text. `openPR` true → create a branch and open a PR into `targetBranch`;
+    /// false → commit straight to `targetBranch`. Returns the GitHub URL to show, if any.
+    func commit(message: String, openPR: Bool, targetBranch: String? = nil) async throws -> URL? {
         guard case .gitHub(let ref) = source, let client = gitHubClient(), let sha = blobSHA else {
             return nil
         }
+        let commitBranch = targetBranch ?? ref.branch
         saveState = .committing
         do {
             let urlString: String?
             if openPR {
-                let base = ref.branch
+                let base = commitBranch
                 let head = "vera/\(slug(ref.path))-\(Int(Date().timeIntervalSince1970))"
-                let baseSHA = try await client.headSHA(branch: base)
+                let baseSHA = try await client.headSHA(branch: ref.branch)
                 try await client.createBranch(name: head, fromSHA: baseSHA)
                 try await client.commitFile(path: ref.path, message: message, text: rawText, sha: sha, branch: head)
                 urlString = try await client.openPullRequest(title: message, body: "Edited in Vera.", head: head, base: base)
                 // The viewed branch is unchanged, so blobSHA stays valid.
             } else {
-                urlString = try await client.commitFile(path: ref.path, message: message, text: rawText, sha: sha, branch: ref.branch)
+                urlString = try await client.commitFile(path: ref.path, message: message, text: rawText, sha: sha, branch: commitBranch)
                 // Refresh the blob SHA so a follow-up commit isn't rejected as stale.
-                if let version = try? await client.fileVersion(path: ref.path, ref: ref.branch) {
+                if let version = try? await client.fileVersion(path: ref.path, ref: commitBranch) {
                     blobSHA = version.sha
                 }
             }
@@ -175,6 +178,12 @@ final class EditorViewModel {
             saveState = .uncommitted
             throw error
         }
+    }
+
+    /// Fetch all branch names for the repo; used to populate the commit sheet's branch picker.
+    func fetchBranches() async -> [String] {
+        guard let client = gitHubClient() else { return [] }
+        return (try? await client.branches()) ?? []
     }
 
     /// Fetch the current text of this file from GitHub (used to show the remote version
@@ -189,11 +198,12 @@ final class EditorViewModel {
 
     /// Re-fetch the current blob SHA then commit the user's text, effectively
     /// force-overwriting whatever was committed after the user opened the file.
-    func overwriteCommit(message: String, openPR: Bool) async throws -> URL? {
+    func overwriteCommit(message: String, openPR: Bool, targetBranch: String? = nil) async throws -> URL? {
         guard case .gitHub(let ref) = source, let client = gitHubClient() else { return nil }
-        let (_, freshSHA) = try await client.fileVersion(path: ref.path, ref: ref.branch)
+        let branch = targetBranch ?? ref.branch
+        let (_, freshSHA) = try await client.fileVersion(path: ref.path, ref: branch)
         blobSHA = freshSHA
-        return try await commit(message: message, openPR: openPR)
+        return try await commit(message: message, openPR: openPR, targetBranch: branch)
     }
 
     private func slug(_ path: String) -> String {
