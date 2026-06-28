@@ -28,6 +28,7 @@ struct VeraApp: App {
 
     @State private var fileTreeVM = FileTreeViewModel()
     @State private var connectivity = ConnectivityMonitor()
+    @State private var draftStore = GitHubDraftStore()
 
     init() {
         // Warm the Highlightr bundle on the main thread before any editor view is
@@ -46,6 +47,7 @@ struct VeraApp: App {
                 MacRootView()
                     .environment(fileTreeVM)
                     .environment(connectivity)
+                    .environment(draftStore)
                     .onReceive(NotificationCenter.default.publisher(for: .veraOpenFile)) { note in
                         if let url = note.object as? URL {
                             fileTreeVM.openExternalURL(url)
@@ -55,6 +57,7 @@ struct VeraApp: App {
                 iOSRootView()
                     .environment(fileTreeVM)
                     .environment(connectivity)
+                    .environment(draftStore)
                 #endif
             }
             .onOpenURL { url in

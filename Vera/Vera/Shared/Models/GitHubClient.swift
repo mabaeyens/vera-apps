@@ -256,6 +256,63 @@ struct GitHubClient {
         return dtos.map(\.name)
     }
 
+    // MARK: - Multi-file commits (Feature 4)
+
+    private struct CommitObject: Decodable {
+        let tree: TreeRef
+        struct TreeRef: Decodable { let sha: String }
+    }
+    private struct TreeResponse: Decodable { let sha: String }
+    private struct CommitResponse: Decodable { let sha: String }
+
+    /// The root tree SHA for a given commit SHA.
+    func treeSHA(commitSHA: String) async throws -> String {
+        let data = try await get("/repos/\(owner)/\(repo)/git/commits/\(commitSHA)")
+        guard let obj = try? JSONDecoder().decode(CommitObject.self, from: data) else {
+            throw GitHubError.decoding
+        }
+        return obj.tree.sha
+    }
+
+    /// Atomically commit multiple files via the Git Data API.
+    /// Returns the new commit's html_url (constructed from the SHA).
+    @discardableResult
+    func commitFiles(
+        _ files: [(path: String, text: String)],
+        message: String,
+        branch: String
+    ) async throws -> String {
+        // 1. HEAD commit SHA for the branch
+        let baseSHA = try await headSHA(branch: branch)
+        // 2. Base tree SHA from the commit
+        let baseTreeSHA = try await treeSHA(commitSHA: baseSHA)
+        // 3. Create new tree
+        let treeNodes: [[String: Any]] = files.map { file in
+            ["path": file.path, "mode": "100644", "type": "blob", "content": file.text]
+        }
+        let treeData = try await send(
+            "POST", "/repos/\(owner)/\(repo)/git/trees",
+            body: ["base_tree": baseTreeSHA, "tree": treeNodes]
+        )
+        guard let treeResp = try? JSONDecoder().decode(TreeResponse.self, from: treeData) else {
+            throw GitHubError.decoding
+        }
+        // 4. Create commit
+        let commitData = try await send(
+            "POST", "/repos/\(owner)/\(repo)/git/commits",
+            body: ["message": message, "tree": treeResp.sha, "parents": [baseSHA]]
+        )
+        guard let commitResp = try? JSONDecoder().decode(CommitResponse.self, from: commitData) else {
+            throw GitHubError.decoding
+        }
+        // 5. Advance the branch ref
+        _ = try await send(
+            "PATCH", "/repos/\(owner)/\(repo)/git/refs/heads/\(encode(path: branch))",
+            body: ["sha": commitResp.sha]
+        )
+        return "https://github.com/\(owner)/\(repo)/commit/\(commitResp.sha)"
+    }
+
     // MARK: - Search (Feature 6)
 
     /// Search the repo for files whose contents match `query`. Returns up to 30 results

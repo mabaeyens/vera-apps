@@ -106,6 +106,46 @@ final class GitHubBrowserModel {
         }
     }
 
+    /// Commit multiple dirty files atomically using the Git Data API.
+    /// Single-file path falls back to the Contents API for fewer API calls.
+    func commitMultiple(
+        files: [(path: String, text: String, blobSHA: String)],
+        message: String,
+        openPR: Bool,
+        targetBranch: String
+    ) async throws -> URL? {
+        let c = client()
+        if files.count == 1, let f = files.first {
+            // Single-file fast path: Contents API (1 call vs 5).
+            let urlStr = try await c.commitFile(
+                path: f.path, message: message, text: f.text, sha: f.blobSHA, branch: targetBranch
+            )
+            return urlStr.flatMap(URL.init(string:))
+        }
+        if openPR {
+            let baseSHA = try await c.headSHA(branch: branch)
+            let prBranch = "vera/multi-\(Int(Date().timeIntervalSince1970))"
+            try await c.createBranch(name: prBranch, fromSHA: baseSHA)
+            let commitURL = try await c.commitFiles(
+                files.map { (path: $0.path, text: $0.text) },
+                message: message,
+                branch: prBranch
+            )
+            let prURL = try await c.openPullRequest(
+                title: message, body: "Edited in Vera.", head: prBranch, base: targetBranch
+            )
+            _ = commitURL
+            return prURL.flatMap(URL.init(string:))
+        } else {
+            let urlStr = try await c.commitFiles(
+                files.map { (path: $0.path, text: $0.text) },
+                message: message,
+                branch: targetBranch
+            )
+            return URL(string: urlStr)
+        }
+    }
+
     /// Build a source ref for opening `item` in the shared DocumentView editor.
     func ref(for item: GitHubItem) -> GitHubFileRef {
         GitHubFileRef(
@@ -119,8 +159,10 @@ final class GitHubBrowserModel {
 
 struct GitHubBrowserView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(GitHubDraftStore.self) private var draftStore
     @State private var model = GitHubBrowserModel()
     @State private var showBranchPicker = false
+    @State private var showMultiCommit = false
 
     /// When opened from a saved repo in the sidebar, pre-fill and auto-connect.
     private let initialRepo: SavedRepo?
@@ -203,10 +245,43 @@ struct GitHubBrowserView: View {
                         }
                     }
                     #endif
+                    // "Commit N files" button — shown when ≥2 dirty files exist for this repo.
+                    let pending = draftStore.repoDrafts(owner: model.owner, repo: model.repo)
+                    if pending.count >= 2 {
+                        ToolbarItem(placement: .automatic) {
+                            Button {
+                                showMultiCommit = true
+                            } label: {
+                                Label("Commit \(pending.count) Files", systemImage: "arrow.up.circle.badge.clock")
+                            }
+                            .help("Commit all changed files")
+                        }
+                    }
                 }
             }
             .sheet(isPresented: $showBranchPicker) {
                 BranchPickerSheet(model: model)
+            }
+            .sheet(isPresented: $showMultiCommit) {
+                let pending = draftStore.repoDrafts(owner: model.owner, repo: model.repo)
+                MultiFileCommitSheet(
+                    owner: model.owner,
+                    repo: model.repo,
+                    branch: model.branch,
+                    drafts: pending,
+                    fetchBranches: { await model.fetchBranches(); return model.availableBranches },
+                    commit: { files, message, openPR, targetBranch in
+                        let url = try await model.commitMultiple(
+                            files: files, message: message, openPR: openPR, targetBranch: targetBranch
+                        )
+                        // Deregister committed files from draft store.
+                        draftStore.deregisterPaths(Set(files.map(\.path)), owner: model.owner, repo: model.repo)
+                        return url
+                    }
+                )
+                #if os(macOS)
+                .frame(width: 500, height: 440)
+                #endif
             }
             .task {
                 guard let initialRepo, !model.isConnected else { return }

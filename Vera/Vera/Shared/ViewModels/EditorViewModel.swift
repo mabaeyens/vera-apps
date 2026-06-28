@@ -22,7 +22,12 @@ final class EditorViewModel {
     enum SaveState { case saved, saving, error(String), uncommitted, committing }
 
     let source: DocumentSource
-    private var blobSHA: String?            // GitHub: current file blob SHA, for commits
+    private(set) var blobSHA: String?       // GitHub: current file blob SHA, for commits
+
+    var isUncommitted: Bool {
+        if case .uncommitted = saveState { return true }
+        return false
+    }
     private var saveTask: Task<Void, Never>?
     private var lintTask: Task<Void, Never>?
 

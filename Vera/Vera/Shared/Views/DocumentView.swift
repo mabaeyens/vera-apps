@@ -22,6 +22,7 @@ struct DocumentView: View {
     @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
     @AppStorage(Defaults.Key.focusMode) private var focusMode = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(GitHubDraftStore.self) private var draftStore
 
     init(source: DocumentSource) {
         self.source = source
@@ -76,6 +77,17 @@ struct DocumentView: View {
             // navigation away never drops the last keystrokes. The Task strongly
             // captures viewModel so the write completes even as the view tears down.
             Task { await viewModel.flushPendingSave() }
+            if case .gitHub(let ref) = source { draftStore.deregister(ref: ref) }
+        }
+        .onChange(of: viewModel.rawText) { _, text in
+            guard case .gitHub(let ref) = source, let sha = viewModel.blobSHA else { return }
+            if viewModel.isUncommitted {
+                draftStore.register(ref: ref, text: text, blobSHA: sha)
+            }
+        }
+        .onChange(of: viewModel.isUncommitted) { _, dirty in
+            guard case .gitHub(let ref) = source else { return }
+            if !dirty { draftStore.deregister(ref: ref) }
         }
         .onChange(of: viewModel.atlasRequested) { _, requested in
             if requested { showAtlas = true; viewModel.atlasRequested = false }
