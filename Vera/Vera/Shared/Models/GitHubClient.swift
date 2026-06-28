@@ -86,6 +86,7 @@ struct GitHubClient {
     }
 
     private struct RepoMeta: Decodable { let default_branch: String }
+    private struct BranchDTO: Decodable { let name: String }
     private struct Tree: Decodable {
         struct Node: Decodable { let path: String; let type: String }
         let tree: [Node]
@@ -242,6 +243,17 @@ struct GitHubClient {
         let data = try await send("POST", "/repos/\(owner)/\(repo)/pulls",
                                   body: ["title": title, "body": body, "head": head, "base": base])
         return (try? JSONDecoder().decode(PullResponse.self, from: data))?.html_url
+    }
+
+    // MARK: - Branches (Feature 5)
+
+    /// All branches in the repo (up to 100), sorted by GitHub's default order.
+    func branches() async throws -> [String] {
+        let data = try await get("/repos/\(owner)/\(repo)/branches?per_page=100")
+        guard let dtos = try? JSONDecoder().decode([BranchDTO].self, from: data) else {
+            throw GitHubError.decoding
+        }
+        return dtos.map(\.name)
     }
 
     // MARK: - Search (Feature 6)

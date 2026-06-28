@@ -84,6 +84,28 @@ final class GitHubBrowserModel {
         }
     }
 
+    var availableBranches: [String] = []
+    var isSwitchingBranch: Bool = false
+
+    func fetchBranches() async {
+        guard availableBranches.isEmpty else { return }
+        availableBranches = (try? await client().branches()) ?? []
+    }
+
+    func switchBranch(_ name: String) async {
+        guard name != branch else { return }
+        isSwitchingBranch = true
+        searchQuery = ""
+        searchResults = []
+        defer { isSwitchingBranch = false }
+        do {
+            items = try await client().markdownFiles(branch: name)
+            branch = name
+        } catch {
+            errorText = error.localizedDescription
+        }
+    }
+
     /// Build a source ref for opening `item` in the shared DocumentView editor.
     func ref(for item: GitHubItem) -> GitHubFileRef {
         GitHubFileRef(
@@ -98,6 +120,7 @@ final class GitHubBrowserModel {
 struct GitHubBrowserView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var model = GitHubBrowserModel()
+    @State private var showBranchPicker = false
 
     /// When opened from a saved repo in the sidebar, pre-fill and auto-connect.
     private let initialRepo: SavedRepo?
@@ -134,6 +157,56 @@ struct GitHubBrowserView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
+                if model.isConnected {
+                    #if os(iOS)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            Task { await model.fetchBranches() }
+                            showBranchPicker = true
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.branch")
+                                Text(model.branch)
+                                    .lineLimit(1)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2)
+                            }
+                            .font(.caption)
+                        }
+                        .disabled(model.isSwitchingBranch)
+                    }
+                    #else
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            if model.availableBranches.isEmpty {
+                                Label("Loading…", systemImage: "ellipsis")
+                            } else {
+                                ForEach(model.availableBranches, id: \.self) { name in
+                                    Button {
+                                        Task { await model.switchBranch(name) }
+                                    } label: {
+                                        if name == model.branch {
+                                            Label(name, systemImage: "checkmark")
+                                        } else {
+                                            Text(name)
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            Label("Branch: \(model.branch)", systemImage: "arrow.branch")
+                        }
+                        .disabled(model.isSwitchingBranch)
+                        .task(id: model.isConnected) {
+                            guard model.isConnected else { return }
+                            await model.fetchBranches()
+                        }
+                    }
+                    #endif
+                }
+            }
+            .sheet(isPresented: $showBranchPicker) {
+                BranchPickerSheet(model: model)
             }
             .task {
                 guard let initialRepo, !model.isConnected else { return }
@@ -257,6 +330,13 @@ struct GitHubBrowserView: View {
                 }
             }
         }
+        .overlay {
+            if model.isSwitchingBranch {
+                ProgressView()
+                    .padding()
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+        }
     }
 
     private func fileRow(_ item: GitHubItem) -> some View {
@@ -267,5 +347,55 @@ struct GitHubBrowserView: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
         }
+    }
+}
+
+private struct BranchPickerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var model: GitHubBrowserModel
+    @State private var searchText = ""
+
+    private var filteredBranches: [String] {
+        guard !searchText.isEmpty else { return model.availableBranches }
+        return model.availableBranches.filter { $0.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(filteredBranches, id: \.self) { name in
+                Button {
+                    Task {
+                        await model.switchBranch(name)
+                        dismiss()
+                    }
+                } label: {
+                    HStack {
+                        Text(name)
+                        Spacer()
+                        if name == model.branch {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.blue)
+                        }
+                    }
+                }
+                .foregroundStyle(.primary)
+            }
+            .searchable(text: $searchText, prompt: "Filter branches")
+            .navigationTitle("Switch Branch")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .overlay {
+                if model.availableBranches.isEmpty {
+                    ProgressView()
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
