@@ -1,6 +1,6 @@
 # Privacy Policy — Vera
 
-_Last updated: 2026-06-21_
+_Last updated: 2026-07-06_
 
 Vera is built privacy-first, and this policy is short because there is very little to say.
 
@@ -37,10 +37,13 @@ Vera makes no network calls of its own, with two honest exceptions:
    This goes directly to the image's host, not to us. If you never open such files, this
    never happens.
 2. **GitHub (opt-in).** When you connect a repository, Vera talks directly to GitHub's API
-   using a fine-grained access token **you** create, stored only in your device Keychain —
-   it never syncs anywhere, not even via iCloud. The *list* of repositories you've added
-   syncs across your own devices through iCloud's key-value store, under your Apple ID —
-   never to us. Nothing is routed through any server of ours.
+   using an access token, obtained either by pasting a fine-grained personal access token
+   **you** create, or by signing in through GitHub's own OAuth Device Flow (you approve a
+   code on github.com and GitHub issues the token directly to the app). Either way, the
+   token is stored only in your device Keychain — it never syncs anywhere, not even via
+   iCloud, and never passes through any server of ours. The *list* of repositories you've
+   added syncs across your own devices through iCloud's key-value store, under your Apple
+   ID — never to us.
 
 ## Children's privacy
 

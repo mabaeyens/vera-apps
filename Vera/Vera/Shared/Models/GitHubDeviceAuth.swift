@@ -7,8 +7,7 @@ import Foundation
 /// and user-token expiration disabled. Paste the client ID below.
 enum GitHubApp {
     /// Public client ID of the Vera GitHub App. Not a secret — safe to ship.
-    /// Fill this in after registering the GitHub App on github.com.
-    static let clientID = ""
+    static let clientID = "Iv23liYBI7xOIKdihhqu"
 }
 
 enum DeviceAuthError: LocalizedError {
