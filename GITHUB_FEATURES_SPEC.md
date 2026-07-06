@@ -8,7 +8,7 @@ Implement one at a time in the order listed; each builds on the previous.
 
 ## Feature 1 — OAuth Device Flow (easier sign-in)
 
-**Status:** Proposed; trigger is TestFlight onboarding drop-off data.  
+**Status:** Shipped (`86abb0a`, client ID wired `408de80`).  
 **Full spec:** See [GITHUB_AUTH_SPEC.md](GITHUB_AUTH_SPEC.md) — design, API calls, blast
 radius, and open questions are fully documented there.
 
@@ -23,7 +23,7 @@ all downstream code is unchanged. The PAT path stays as an "advanced" option.
 
 ## Feature 2 — Branch picker in the commit sheet
 
-**Status:** Proposed.
+**Status:** Shipped (`2ef35d7`).
 
 ### Problem
 
@@ -82,7 +82,7 @@ while loading. If the fetch fails, fall back to the current branch only (no pick
 
 ## Feature 3 — Pull / refresh (detect remote changes)
 
-**Status:** Proposed.
+**Status:** Shipped (`d782b46`).
 
 ### Problem
 
@@ -140,7 +140,7 @@ and text. The `diff(path:from:to:)` method already diffs two SHAs.
 
 ## Feature 4 — Multi-file commits
 
-**Status:** Proposed.
+**Status:** Shipped (`b87be6d`).
 
 ### Problem
 
@@ -212,7 +212,7 @@ the checklist.
 
 ## Feature 5 — Branch switching
 
-**Status:** Proposed.
+**Status:** Shipped (`732f866`).
 
 ### Problem
 
@@ -272,7 +272,7 @@ GET /repos/{owner}/{repo}/branches?per_page=100
 
 ## Feature 6 — Search within a GitHub repo
 
-**Status:** Proposed.
+**Status:** Shipped (`f0b1d30`).
 
 ### Problem
 

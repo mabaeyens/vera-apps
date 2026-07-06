@@ -4,6 +4,46 @@ Manual release checklist. Each release section lists the specific features intro
 
 ---
 
+## Release 1.2.0 (build 1) — 2026-07-06
+
+### GitHub sign-in (Device Flow)
+- [ ] Sidebar → Add Repository… → "Open from GitHub" shows a GitHub OAuth sign-in option alongside the PAT field
+- [ ] Tapping sign-in requests a device code and shows it with the `github.com/login/device` URL
+- [ ] Approving the code on github.com completes sign-in in Vera automatically (no copy/paste back into the app)
+- [ ] First-time sign-in on an account that hasn't installed the Vera GitHub App: connecting a repo surfaces a clear error, and installing the app via `github.com/settings/apps/<slug>/installations` resolves it
+- [ ] The PAT field still works as a fallback path
+
+### Repo search (Feature 6)
+- [ ] Typing in the repo file list search bar filters by filename instantly, no network call
+- [ ] "Search in content" mode returns Code Search API matches with a highlighted fragment
+- [ ] Rapid typing debounces content search (≤1 call per 800ms pause); hitting the rate limit shows a clear message
+
+### Conflict recovery (Feature 3)
+- [ ] Commit a file that changed remotely since it was opened → a "The file changed on GitHub" sheet appears (not a raw error)
+- [ ] "View Diff" shows the remote version vs. local edits
+- [ ] "Overwrite" re-fetches the current SHA and commits successfully
+
+### Branch switching (Feature 5)
+- [ ] Repo file list toolbar shows the current branch; switching branches re-fetches the file tree
+- [ ] Files already open in tabs keep their original branch after switching the browser's branch
+
+### Branch picker in commit sheet (Feature 2)
+- [ ] Commit sheet shows a branch picker defaulting to the file's branch
+- [ ] Selecting a different branch and committing writes to that branch
+- [ ] In Pull Request mode, the picker sets the PR's base branch
+
+### Multi-file commits (Feature 4)
+- [ ] Editing 2+ GitHub files shows a "Commit N files" option in the repo sidebar tab
+- [ ] The multi-file commit sheet lists all dirty files pre-ticked with a single message field
+- [ ] Committing multiple files lands as one atomic commit (Git Data API), visible on GitHub as a single commit touching all files
+- [ ] Multi-file Pull Request path creates one branch with one commit containing all files
+
+### Regression
+- [ ] iCloud: open/edit/autosave/tabs/pinning unchanged
+- [ ] Single-file commit/PR from Release 1.1.0 still works unchanged
+
+---
+
 ## Release 1.1.0 (build 1) — 2026-06-21
 
 ### GitHub (browse, edit, commit)

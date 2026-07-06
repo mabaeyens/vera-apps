@@ -46,3 +46,5 @@ For architecture, source layout, and technical decisions see [PROJECT.md](PROJEC
 ## License
 
 [MIT](LICENSE) © Miguel A. Baeyens. Free forever, no account, nothing sent anywhere.
+
+Built with [Claude Code](https://claude.com/claude-code).
