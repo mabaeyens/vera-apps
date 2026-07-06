@@ -4,6 +4,8 @@ A reading-first Markdown viewer and editor for iOS and macOS. Part of the Mira e
 
 **Zero configuration.** No vaults, no projects. Vera is a transparent window into your iCloud Drive — it shows every `.md` file you already have — and, opt-in, the Markdown in your **GitHub repositories**.
 
+**Open source.** The full source is public on GitHub — see the [repository](https://github.com/mabaeyens/vera-apps) to browse the code or verify the [privacy policy](PRIVACY.md).
+
 See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Download
