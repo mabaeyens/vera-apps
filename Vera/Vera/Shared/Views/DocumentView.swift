@@ -145,7 +145,7 @@ struct DocumentView: View {
                     fileName: source.displayName,
                     pendingMessage: pending.message,
                     pendingOpenPR: pending.openPR,
-                    fetchRemoteText: { try await viewModel.fetchRemoteText() },
+                    fetchRemoteText: { try await viewModel.fetchRemoteText(branch: pending.targetBranch) },
                     overwrite: { try await viewModel.overwriteCommit(message: pending.message, openPR: pending.openPR, targetBranch: pending.targetBranch) }
                 )
                 #if os(macOS)

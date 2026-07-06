@@ -274,11 +274,30 @@ struct GitHubClient {
         return obj.tree.sha
     }
 
+    private struct RecursiveTree: Decodable {
+        struct Node: Decodable { let path: String; let type: String; let sha: String }
+        let tree: [Node]
+    }
+
+    /// Current blob SHA of every file at `treeSHA`, keyed by path. Used to detect a
+    /// concurrent edit before an atomic multi-file commit overwrites it.
+    private func blobSHAs(atTreeSHA treeSHA: String) async throws -> [String: String] {
+        let data = try await get("/repos/\(owner)/\(repo)/git/trees/\(treeSHA)?recursive=1")
+        guard let resp = try? JSONDecoder().decode(RecursiveTree.self, from: data) else {
+            throw GitHubError.decoding
+        }
+        return Dictionary(uniqueKeysWithValues: resp.tree.filter { $0.type == "blob" }.map { ($0.path, $0.sha) })
+    }
+
     /// Atomically commit multiple files via the Git Data API.
     /// Returns the new commit's html_url (constructed from the SHA).
+    ///
+    /// Each file's `blobSHA` is the blob it was last read at; if the file has since
+    /// changed on GitHub (a concurrent edit), this throws `.conflict` before writing
+    /// anything, mirroring the single-file Contents API's optimistic concurrency check.
     @discardableResult
     func commitFiles(
-        _ files: [(path: String, text: String)],
+        _ files: [(path: String, text: String, blobSHA: String)],
         message: String,
         branch: String
     ) async throws -> String {
@@ -286,6 +305,14 @@ struct GitHubClient {
         let baseSHA = try await headSHA(branch: branch)
         // 2. Base tree SHA from the commit
         let baseTreeSHA = try await treeSHA(commitSHA: baseSHA)
+        // 2b. Detect concurrent edits: compare each file's current blob SHA against
+        // the SHA it was read at. A path missing from the current tree is a new file.
+        let currentSHAs = try await blobSHAs(atTreeSHA: baseTreeSHA)
+        for file in files {
+            if let currentSHA = currentSHAs[file.path], currentSHA != file.blobSHA {
+                throw GitHubError.conflict
+            }
+        }
         // 3. Create new tree
         let treeNodes: [[String: Any]] = files.map { file in
             ["path": file.path, "mode": "100644", "type": "blob", "content": file.text]

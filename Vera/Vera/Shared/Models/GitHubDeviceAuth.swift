@@ -37,13 +37,14 @@ struct DeviceCodeResponse {
 /// Performs the two-step GitHub OAuth Device Flow.
 struct GitHubDeviceAuth {
 
-    private static let deviceCodeURL = URL(string: "https://github.com/login/device/code")!
-    private static let accessTokenURL = URL(string: "https://github.com/login/oauth/access_token")!
+    private static let deviceCodeURLString = "https://github.com/login/device/code"
+    private static let accessTokenURLString = "https://github.com/login/oauth/access_token"
 
     /// Step 1: request a device_code / user_code pair.
     func requestDeviceCode() async throws -> DeviceCodeResponse {
         guard !GitHubApp.clientID.isEmpty else { throw DeviceAuthError.noClientID }
-        var req = URLRequest(url: Self.deviceCodeURL)
+        guard let deviceCodeURL = URL(string: Self.deviceCodeURLString) else { throw DeviceAuthError.badResponse }
+        var req = URLRequest(url: deviceCodeURL)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
@@ -71,7 +72,8 @@ struct GitHubDeviceAuth {
             try await Task.sleep(for: .seconds(pollInterval))
             if Task.isCancelled { throw CancellationError() }
 
-            var req = URLRequest(url: Self.accessTokenURL)
+            guard let accessTokenURL = URL(string: Self.accessTokenURLString) else { throw DeviceAuthError.badResponse }
+            var req = URLRequest(url: accessTokenURL)
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Accept")
             req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")

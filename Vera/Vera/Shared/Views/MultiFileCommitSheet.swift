@@ -23,7 +23,7 @@ struct MultiFileCommitSheet: View {
         var id: String { rawValue }
     }
 
-    @State private var selected: Set<String> = []       // paths of checked files
+    @State private var selected: Set<GitHubFileRef> = []  // refs of checked files (unique per branch)
     @State private var message: String = ""
     @State private var mode: Mode = .commit
     @State private var selectedBranch: String = ""
@@ -38,7 +38,7 @@ struct MultiFileCommitSheet: View {
     }
 
     private var checkedDrafts: [GitHubDraftStore.Draft] {
-        drafts.filter { selected.contains($0.ref.path) }
+        drafts.filter { selected.contains($0.ref) }
     }
 
     private var canCommit: Bool {
@@ -77,7 +77,7 @@ struct MultiFileCommitSheet: View {
             }
         }
         .onAppear {
-            selected = Set(drafts.map(\.ref.path))
+            selected = Set(drafts.map(\.ref))
             if message.isEmpty { message = "Update \(owner)/\(repo)" }
             if selectedBranch.isEmpty { selectedBranch = branch }
         }
@@ -88,10 +88,10 @@ struct MultiFileCommitSheet: View {
             Section("Changed Files") {
                 ForEach(drafts) { draft in
                     Toggle(isOn: Binding(
-                        get: { selected.contains(draft.ref.path) },
+                        get: { selected.contains(draft.ref) },
                         set: { on in
-                            if on { selected.insert(draft.ref.path) }
-                            else  { selected.remove(draft.ref.path)  }
+                            if on { selected.insert(draft.ref) }
+                            else  { selected.remove(draft.ref)  }
                         }
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -177,6 +177,8 @@ struct MultiFileCommitSheet: View {
             } else {
                 dismiss()
             }
+        } catch GitHubError.conflict {
+            errorText = "One of these files changed on GitHub since you loaded it. Nothing was committed — reopen the file to see the latest version, then try again."
         } catch {
             errorText = error.localizedDescription
         }

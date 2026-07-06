@@ -33,9 +33,11 @@ final class GitHubDraftStore {
             .sorted { $0.ref.path < $1.ref.path }
     }
 
-    /// Deregister a set of paths for a given owner/repo (after a successful multi-file commit).
-    func deregisterPaths(_ paths: Set<String>, owner: String, repo: String) {
-        for key in drafts.keys where key.owner == owner && key.repo == repo && paths.contains(key.path) {
+    /// Deregister a set of paths on a specific branch (after a successful multi-file commit).
+    /// Branch-scoped so a commit on one branch never drops a draft for the same path on another.
+    func deregisterPaths(_ paths: Set<String>, owner: String, repo: String, branch: String) {
+        for key in drafts.keys
+        where key.owner == owner && key.repo == repo && key.branch == branch && paths.contains(key.path) {
             drafts.removeValue(forKey: key)
         }
     }

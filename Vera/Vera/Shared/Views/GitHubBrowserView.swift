@@ -64,6 +64,7 @@ final class GitHubBrowserModel {
     func connect() async {
         isLoading = true
         errorText = nil
+        availableBranches = []
         defer { isLoading = false }
         do {
             let c = client()
@@ -107,7 +108,7 @@ final class GitHubBrowserModel {
     }
 
     /// Commit multiple dirty files atomically using the Git Data API.
-    /// Single-file path falls back to the Contents API for fewer API calls.
+    /// Single-file, non-PR path falls back to the Contents API for fewer API calls.
     func commitMultiple(
         files: [(path: String, text: String, blobSHA: String)],
         message: String,
@@ -115,33 +116,26 @@ final class GitHubBrowserModel {
         targetBranch: String
     ) async throws -> URL? {
         let c = client()
-        if files.count == 1, let f = files.first {
-            // Single-file fast path: Contents API (1 call vs 5).
+        if files.count == 1, let f = files.first, !openPR {
+            // Single-file, direct-commit fast path: Contents API (1 call vs 5).
             let urlStr = try await c.commitFile(
                 path: f.path, message: message, text: f.text, sha: f.blobSHA, branch: targetBranch
             )
             return urlStr.flatMap(URL.init(string:))
         }
         if openPR {
-            let baseSHA = try await c.headSHA(branch: branch)
+            // Fork the working branch from the PR's base (targetBranch), not the
+            // currently-browsed branch, so the PR diff contains only these files.
+            let baseSHA = try await c.headSHA(branch: targetBranch)
             let prBranch = "vera/multi-\(Int(Date().timeIntervalSince1970))"
             try await c.createBranch(name: prBranch, fromSHA: baseSHA)
-            let commitURL = try await c.commitFiles(
-                files.map { (path: $0.path, text: $0.text) },
-                message: message,
-                branch: prBranch
-            )
+            try await c.commitFiles(files, message: message, branch: prBranch)
             let prURL = try await c.openPullRequest(
                 title: message, body: "Edited in Vera.", head: prBranch, base: targetBranch
             )
-            _ = commitURL
             return prURL.flatMap(URL.init(string:))
         } else {
-            let urlStr = try await c.commitFiles(
-                files.map { (path: $0.path, text: $0.text) },
-                message: message,
-                branch: targetBranch
-            )
+            let urlStr = try await c.commitFiles(files, message: message, branch: targetBranch)
             return URL(string: urlStr)
         }
     }
@@ -247,8 +241,11 @@ struct GitHubBrowserView: View {
                         }
                     }
                     #endif
-                    // "Commit N files" button — shown when ≥2 dirty files exist for this repo.
+                    // "Commit N files" button — shown when ≥2 dirty files exist on this branch.
+                    // Scoped to the browsed branch so same-path drafts on other branches never
+                    // collide into one commit target.
                     let pending = draftStore.repoDrafts(owner: model.owner, repo: model.repo)
+                        .filter { $0.ref.branch == model.branch }
                     if pending.count >= 2 {
                         ToolbarItem(placement: .automatic) {
                             Button {
@@ -266,6 +263,7 @@ struct GitHubBrowserView: View {
             }
             .sheet(isPresented: $showMultiCommit) {
                 let pending = draftStore.repoDrafts(owner: model.owner, repo: model.repo)
+                    .filter { $0.ref.branch == model.branch }
                 MultiFileCommitSheet(
                     owner: model.owner,
                     repo: model.repo,
@@ -276,8 +274,11 @@ struct GitHubBrowserView: View {
                         let url = try await model.commitMultiple(
                             files: files, message: message, openPR: openPR, targetBranch: targetBranch
                         )
-                        // Deregister committed files from draft store.
-                        draftStore.deregisterPaths(Set(files.map(\.path)), owner: model.owner, repo: model.repo)
+                        // Deregister committed files from draft store, scoped to this branch so
+                        // an in-progress draft for the same path on another branch is untouched.
+                        draftStore.deregisterPaths(
+                            Set(files.map(\.path)), owner: model.owner, repo: model.repo, branch: model.branch
+                        )
                         return url
                     }
                 )

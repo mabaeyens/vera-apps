@@ -165,15 +165,28 @@ final class EditorViewModel {
             if openPR {
                 let base = commitBranch
                 let head = "vera/\(slug(ref.path))-\(Int(Date().timeIntervalSince1970))"
-                let baseSHA = try await client.headSHA(branch: ref.branch)
+                // Fork the working branch from the PR's base, not the branch the file
+                // was opened on, so the PR diff contains only this file's edit.
+                let baseSHA = try await client.headSHA(branch: base)
                 try await client.createBranch(name: head, fromSHA: baseSHA)
                 try await client.commitFile(path: ref.path, message: message, text: rawText, sha: sha, branch: head)
                 urlString = try await client.openPullRequest(title: message, body: "Edited in Vera.", head: head, base: base)
                 // The viewed branch is unchanged, so blobSHA stays valid.
             } else {
-                urlString = try await client.commitFile(path: ref.path, message: message, text: rawText, sha: sha, branch: commitBranch)
-                // Refresh the blob SHA so a follow-up commit isn't rejected as stale.
-                if let version = try? await client.fileVersion(path: ref.path, ref: commitBranch) {
+                // blobSHA was read on ref.branch. If committing to a different branch,
+                // it wasn't read there, so fetch that branch's current SHA first —
+                // otherwise the mismatched SHA gets rejected as a false conflict.
+                let commitSHA: String
+                if commitBranch == ref.branch {
+                    commitSHA = sha
+                } else {
+                    commitSHA = try await client.fileVersion(path: ref.path, ref: commitBranch).sha
+                }
+                urlString = try await client.commitFile(path: ref.path, message: message, text: rawText, sha: commitSHA, branch: commitBranch)
+                // Refresh the blob SHA so a follow-up commit isn't rejected as stale —
+                // only when committing to the branch this editor tracks (ref.branch);
+                // otherwise blobSHA would end up describing a different branch entirely.
+                if commitBranch == ref.branch, let version = try? await client.fileVersion(path: ref.path, ref: commitBranch) {
                     blobSHA = version.sha
                 }
             }
@@ -192,12 +205,14 @@ final class EditorViewModel {
     }
 
     /// Fetch the current text of this file from GitHub (used to show the remote version
-    /// on a 409 conflict so the user can compare before overwriting).
-    func fetchRemoteText() async throws -> String {
+    /// on a 409 conflict so the user can compare before overwriting). `branch` should be
+    /// the branch the failed commit actually targeted, which may differ from the branch
+    /// this file was opened on.
+    func fetchRemoteText(branch: String? = nil) async throws -> String {
         guard case .gitHub(let ref) = source, let client = gitHubClient() else {
             throw GitHubError.decoding
         }
-        let (text, _) = try await client.fileVersion(path: ref.path, ref: ref.branch)
+        let (text, _) = try await client.fileVersion(path: ref.path, ref: branch ?? ref.branch)
         return text
     }
 
