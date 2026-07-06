@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.0
+
+GitHub sign-in now works with one-tap OAuth, no more copy-pasting a token. New: switch branches while browsing a repo, pick a target branch when committing, and commit multiple edited files at once in a single atomic commit. Also fixed several conflict-detection and cross-branch commit bugs.
+
 ## v1.1.0
 
 - **GitHub (preview)** — connect a repository with a fine-grained token and browse/read its Markdown directly in Vera. The token talks only to GitHub and lives in your device Keychain.
