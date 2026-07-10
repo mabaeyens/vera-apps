@@ -43,6 +43,25 @@ final class EditorViewModel {
         let minutes = max(1, Int((Double(wordCount) / 200.0).rounded()))
         return "~\(minutes) min read"
     }
+
+    /// Base URL for resolving relative image/link paths in the rendered preview —
+    /// the doc's raw GitHub content directory, or its containing local folder.
+    var previewBaseURL: URL? {
+        switch source {
+        case .file(let url):
+            return url.deletingLastPathComponent()
+        case .gitHub(let ref):
+            let dir = (ref.path as NSString).deletingLastPathComponent
+            var components = URLComponents()
+            components.scheme = "https"
+            components.host = "raw.githubusercontent.com"
+            components.path = dir.isEmpty
+                ? "/\(ref.owner)/\(ref.repo)/\(ref.branch)/"
+                : "/\(ref.owner)/\(ref.repo)/\(ref.branch)/\(dir)/"
+            return components.url
+        }
+    }
+
     private var saveTask: Task<Void, Never>?
     private var lintTask: Task<Void, Never>?
 

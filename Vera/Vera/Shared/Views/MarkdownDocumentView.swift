@@ -128,6 +128,7 @@ struct MarkdownDocumentView: View {
     let rawText: String
     let fontSize: CGFloat
     @Binding var scrollFraction: CGFloat
+    var imageBaseURL: URL? = nil
 
     // Memoized: the document is parsed only when rawText changes, not on every body
     // re-evaluation. body re-runs on every scrollFraction update, and re-running the
@@ -158,7 +159,7 @@ struct MarkdownDocumentView: View {
     private func segmentView(_ seg: DocSegment) -> some View {
         switch seg {
         case .prose(let text):
-            Markdown(text)
+            Markdown(text, imageBaseURL: imageBaseURL)
                 .markdownTheme(.vera(fontSize: fontSize))
                 .textSelection(.enabled)
                 .padding(.vertical, 4)

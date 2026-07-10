@@ -8,7 +8,8 @@ struct ViewingModeView: View {
         MarkdownDocumentView(
             rawText: viewModel.rawText,
             fontSize: CGFloat(fontSize),
-            scrollFraction: $viewModel.readingScrollFraction
+            scrollFraction: $viewModel.readingScrollFraction,
+            imageBaseURL: viewModel.previewBaseURL
         )
     }
 }
