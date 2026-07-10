@@ -1,7 +1,7 @@
 import Foundation
 
 /// A node in a GitHub repo's Markdown tree (folders + .md leaves), built from the flat
-/// recursive path list returned by `GitHubClient.markdownFiles`. Files carry a
+/// recursive path list returned by `GitHubClient.documentFiles`. Files carry a
 /// `GitHubFileRef` so they open in the shared editor.
 struct RepoTreeNode: Identifiable {
     let id: String          // repo-relative path (unique within the repo)
@@ -76,7 +76,7 @@ final class RepoBrowser {
         let client = GitHubClient(owner: repo.owner, repo: repo.repo, token: token)
         do {
             let branch = try await client.defaultBranch()
-            let items = try await client.markdownFiles(branch: branch)
+            let items = try await client.documentFiles(branch: branch)
             states[repo.id] = .loaded(RepoTree.build(from: items, owner: repo.owner, repo: repo.repo, branch: branch))
         } catch {
             states[repo.id] = .failed(error.localizedDescription)

@@ -70,7 +70,7 @@ final class GitHubBrowserModel {
             let c = client()
             let defaultBranch = try await c.defaultBranch()
             branch = defaultBranch
-            items = try await c.markdownFiles(branch: defaultBranch)
+            items = try await c.documentFiles(branch: defaultBranch)
             // Persist the token (Keychain, device-local) and the repo. The repo list
             // syncs across devices via iCloud; the token never does.
             let cleanOwner = owner.trimmingCharacters(in: .whitespaces)
@@ -100,7 +100,7 @@ final class GitHubBrowserModel {
         searchResults = []
         defer { isSwitchingBranch = false }
         do {
-            items = try await client().markdownFiles(branch: name)
+            items = try await client().documentFiles(branch: name)
             branch = name
         } catch {
             errorText = error.localizedDescription

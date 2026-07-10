@@ -13,7 +13,7 @@ enum FileOpenError: LocalizedError, Identifiable {
     var errorDescription: String? {
         switch self {
         case .notMarkdown(let url):
-            return "\"\(url.lastPathComponent)\" is not a Markdown file."
+            return "\"\(url.lastPathComponent)\" is not a supported document type."
         case .fileNotFound(let url):
             return "\"\(url.lastPathComponent)\" could not be found."
         case .accessDenied(let url):
@@ -164,7 +164,7 @@ final class FileTreeViewModel {
             return
         }
 
-        guard ["md", "markdown"].contains(resolved.pathExtension.lowercased()) else {
+        guard DocumentFormat.from(extension: resolved.pathExtension) != nil else {
             if accessStarted { url.stopAccessingSecurityScopedResource() }
             fileOpenError = .notMarkdown(url)
             return

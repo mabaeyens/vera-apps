@@ -135,12 +135,12 @@ struct GitHubClient {
         return meta.default_branch
     }
 
-    /// All Markdown files in the repo (recursive), sorted by path.
-    func markdownFiles(branch: String) async throws -> [GitHubItem] {
+    /// All supported document files in the repo (recursive), sorted by path.
+    func documentFiles(branch: String) async throws -> [GitHubItem] {
         let data = try await get("/repos/\(owner)/\(repo)/git/trees/\(encode(path: branch))?recursive=1")
         guard let tree = try? JSONDecoder().decode(Tree.self, from: data) else { throw GitHubError.decoding }
         return tree.tree
-            .filter { $0.type == "blob" && ($0.path.hasSuffix(".md") || $0.path.hasSuffix(".markdown")) }
+            .filter { $0.type == "blob" && DocumentFormat.from(path: $0.path) != nil }
             .map { GitHubItem(path: $0.path) }
             .sorted { $0.path.localizedCompare($1.path) == .orderedAscending }
     }

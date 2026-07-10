@@ -173,6 +173,43 @@ struct MarkdownDocumentView: View {
     }
 }
 
+// MARK: - Plain-text / code preview (non-Markdown formats)
+
+/// Read-mode preview for `.txt`/`.json`/`.yaml` files: no Markdown parsing, since stray
+/// `#`/`*`/`|` characters in data or notes would otherwise be misread as syntax.
+/// JSON/YAML get monospaced Highlightr syntax highlighting (reusing `HighlightedCodeView`,
+/// the same renderer fenced code blocks use); plain text wraps as regular body text.
+struct PlainDocumentView: View {
+    let rawText: String
+    let fontSize: CGFloat
+    let format: DocumentFormat
+    @Binding var scrollFraction: CGFloat
+
+    var body: some View {
+        ScrollView {
+            Group {
+                if let language = format.highlightLanguage {
+                    HighlightedCodeView(code: rawText, language: language)
+                } else {
+                    Text(rawText)
+                        .font(.system(size: fontSize))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { geo in
+            let maxOffset = geo.contentSize.height - geo.containerSize.height
+            guard maxOffset > 0 else { return 0 }
+            return geo.contentOffset.y / maxOffset
+        } action: { _, new in
+            scrollFraction = Swift.max(0, Swift.min(1, new))
+        }
+    }
+}
+
 // MARK: - Syntax-highlighted code view
 
 struct HighlightedCodeView: View {

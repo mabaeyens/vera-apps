@@ -220,14 +220,16 @@ struct DocumentView: View {
                 .help(focusMode ? "Exit Focus Mode" : "Focus Mode")
                 .accessibilityLabel("Focus mode")
             }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    viewModel.applyAutoFix()
-                } label: {
-                    Image(systemName: "wand.and.sparkles")
+            if viewModel.format == .markdown {
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        viewModel.applyAutoFix()
+                    } label: {
+                        Image(systemName: "wand.and.sparkles")
+                    }
+                    .help("Auto-fix formatting")
+                    .accessibilityLabel("Auto-fix formatting")
                 }
-                .help("Auto-fix formatting")
-                .accessibilityLabel("Auto-fix formatting")
             }
         }
         #if os(iOS)

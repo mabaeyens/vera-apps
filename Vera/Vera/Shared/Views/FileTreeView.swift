@@ -57,9 +57,9 @@ struct FileTreeView: View {
                     }
                 } else {
                     ContentUnavailableView(
-                        "No Markdown Files",
+                        "No Documents",
                         systemImage: "doc.text",
-                        description: Text("No .md files found in this folder.")
+                        description: Text("No Markdown, text, JSON, or YAML files found in this folder.")
                     )
                 }
             } else {
@@ -211,7 +211,7 @@ struct FileTreeView: View {
                 .foregroundStyle(.red)
         case .loaded(let nodes):
             if nodes.isEmpty {
-                Text("No Markdown files").font(.caption).foregroundStyle(.secondary)
+                Text("No documents").font(.caption).foregroundStyle(.secondary)
             } else {
                 ForEach(nodes) { node in
                     repoNodeRow(node, repoID: repo.id)
@@ -253,7 +253,7 @@ struct FileTreeView: View {
                         Text(node.name).fontWeight(isActive ? .medium : .regular)
                             .lineLimit(1).truncationMode(.middle)
                     } icon: {
-                        MarkdownFileIcon()
+                        DocumentFileIcon(name: node.name)
                             .foregroundStyle(isActive ? Theme.accent : .secondary)
                     }
                 }
@@ -441,7 +441,7 @@ struct FileTreeView: View {
                     Label {
                         Text(name).fontWeight(isActive ? .medium : .regular)
                     } icon: {
-                        MarkdownFileIcon()
+                        DocumentFileIcon(name: name)
                             .foregroundStyle(isActive ? Theme.accent : .secondary)
                     }
                     Spacer()
@@ -531,7 +531,7 @@ private struct MacFileRow: View {
             Label {
                 Text(name).fontWeight(isActive ? .medium : .regular)
             } icon: {
-                MarkdownFileIcon()
+                DocumentFileIcon(name: name)
                     .foregroundStyle(isActive ? Theme.accent : .secondary)
             }
             Spacer()

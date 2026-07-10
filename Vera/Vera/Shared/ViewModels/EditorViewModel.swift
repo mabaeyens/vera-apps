@@ -24,6 +24,16 @@ final class EditorViewModel {
     let source: DocumentSource
     private(set) var blobSHA: String?       // GitHub: current file blob SHA, for commits
 
+    /// The document's format, derived from its path extension. nil for an unrecognized
+    /// extension (shouldn't normally happen — the file tree only ever opens supported
+    /// formats — but callers should fall back to plain-text handling, not crash).
+    var format: DocumentFormat? {
+        switch source {
+        case .file(let url): return DocumentFormat.from(extension: url.pathExtension)
+        case .gitHub(let ref): return DocumentFormat.from(path: ref.path)
+        }
+    }
+
     var isUncommitted: Bool {
         if case .uncommitted = saveState { return true }
         return false
@@ -287,6 +297,10 @@ final class EditorViewModel {
     }
 
     private func scheduleLint() {
+        guard format == .markdown else {
+            lintResults = []
+            return
+        }
         let enabled = UserDefaults.standard.object(forKey: Defaults.Key.linterEnabled) == nil
             ? true : UserDefaults.standard.bool(forKey: Defaults.Key.linterEnabled)
         guard enabled else {

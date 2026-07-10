@@ -11,3 +11,20 @@ struct MarkdownFileIcon: View {
             .frame(width: 18, height: 14)
     }
 }
+
+/// File-row icon that picks the right glyph for the document's format — the Markdown
+/// mark for `.md`, an SF Symbol for the other supported text formats.
+struct DocumentFileIcon: View {
+    let name: String
+
+    var body: some View {
+        let format = DocumentFormat.from(path: name)
+        switch format {
+        case nil, .markdown:
+            MarkdownFileIcon()
+        case .text, .json, .yaml:
+            Image(systemName: format?.systemImage ?? "doc.plaintext")
+                .frame(width: 18, height: 14)
+        }
+    }
+}
