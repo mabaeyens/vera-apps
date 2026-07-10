@@ -169,12 +169,15 @@ struct FileTreeView: View {
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
                 RepoListStore.remove(repo); repoBrowser.forget(repo)
-            } label: { Label("Remove", systemImage: "trash") }
+            } label: { Label("Disconnect", systemImage: "xmark.circle") }
         }
         .contextMenu {
             Button(role: .destructive) {
                 RepoListStore.remove(repo); repoBrowser.forget(repo)
-            } label: { Label("Remove Repository", systemImage: "trash") }
+            } label: {
+                // Local-only: this forgets the connection in Vera, nothing changes on GitHub.
+                Label("Disconnect Repository", systemImage: "xmark.circle")
+            }
         }
     }
 
