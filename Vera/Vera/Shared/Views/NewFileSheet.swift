@@ -1,19 +1,25 @@
 import SwiftUI
 
+/// Where a new file gets created — a local/iCloud folder, or the root of a connected
+/// GitHub repo (committed directly, no subfolder picker — matches the local picker's
+/// top-level-only scope).
+private enum NewFileLocation: Hashable {
+    case root
+    case folder(URL)
+    case gitHub(SavedRepo)
+}
+
 struct NewFileSheet: View {
     @Environment(FileTreeViewModel.self) private var vm
     @Environment(\.dismiss) private var dismiss
-    let onCreated: (URL) -> Void
+    let onCreated: (DocumentSource) -> Void
 
     @State private var filename = ""
-    @State private var selectedFolderURL: URL? = nil
+    @State private var format: DocumentFormat = .markdown
+    @State private var location: NewFileLocation = .root
     @State private var isCreating = false
     @State private var errorMessage: String?
     @FocusState private var fieldFocused: Bool
-
-    private var targetFolder: URL? {
-        selectedFolderURL ?? vm.rootURL
-    }
 
     private var topLevelFolders: [(name: String, url: URL)] {
         vm.roots.compactMap {
@@ -23,6 +29,8 @@ struct NewFileSheet: View {
             return nil
         }
     }
+
+    private var savedRepos: [SavedRepo] { RepoListStore.all() }
 
     var body: some View {
         #if os(iOS)
@@ -44,17 +52,33 @@ struct NewFileSheet: View {
                         .autocorrectionDisabled()
                         .autocapitalization(.none)
                         #endif
-                    Text(".md").foregroundStyle(.secondary)
+                    Text(".\(format.defaultExtension)").foregroundStyle(.secondary)
                 }
             }
 
-            if !topLevelFolders.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Format").font(.subheadline).foregroundStyle(.secondary)
+                Picker("Format", selection: $format) {
+                    ForEach(DocumentFormat.allCases, id: \.self) { format in
+                        Text(format.label).tag(format)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            if !topLevelFolders.isEmpty || !savedRepos.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Location").font(.subheadline).foregroundStyle(.secondary)
-                    Picker("Location", selection: $selectedFolderURL) {
-                        Text("Root folder").tag(Optional<URL>.none)
+                    Picker("Location", selection: $location) {
+                        Text("Root folder").tag(NewFileLocation.root)
                         ForEach(topLevelFolders, id: \.url) { folder in
-                            Text(folder.name).tag(Optional(folder.url))
+                            Text(folder.name).tag(NewFileLocation.folder(folder.url))
+                        }
+                        if !savedRepos.isEmpty {
+                            Divider()
+                            ForEach(savedRepos) { repo in
+                                Text(repo.displayName).tag(NewFileLocation.gitHub(repo))
+                            }
                         }
                     }
                     .pickerStyle(.menu)
@@ -97,14 +121,27 @@ struct NewFileSheet: View {
 
     private func create() {
         let trimmed = filename.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, let folder = targetFolder else { return }
+        guard !trimmed.isEmpty else { return }
         isCreating = true
         errorMessage = nil
         Task {
             do {
-                let url = try await vm.createFile(named: trimmed, in: folder)
+                let source: DocumentSource
+                switch location {
+                case .root:
+                    guard let folder = vm.rootURL else {
+                        errorMessage = "No local folder is open. Pick a GitHub repo as the location instead."
+                        isCreating = false
+                        return
+                    }
+                    source = .file(try await vm.createFile(named: trimmed, in: folder, format: format))
+                case .folder(let folder):
+                    source = .file(try await vm.createFile(named: trimmed, in: folder, format: format))
+                case .gitHub(let repo):
+                    source = try await createInGitHub(repo, name: trimmed)
+                }
                 dismiss()
-                onCreated(url)
+                onCreated(source)
             } catch CocoaError.fileWriteFileExists {
                 errorMessage = "A file with that name already exists."
                 isCreating = false
@@ -113,5 +150,16 @@ struct NewFileSheet: View {
                 isCreating = false
             }
         }
+    }
+
+    /// Commits an empty new file to the repo's default branch. `sha: nil` tells
+    /// GitHub's Contents API to create rather than update.
+    private func createInGitHub(_ repo: SavedRepo, name: String) async throws -> DocumentSource {
+        guard let token = CredentialStore.load() else { throw GitHubError.noToken }
+        let client = GitHubClient(owner: repo.owner, repo: repo.repo, token: token)
+        let branch = try await client.defaultBranch()
+        let path = name.hasSuffix(".\(format.defaultExtension)") ? name : "\(name).\(format.defaultExtension)"
+        try await client.commitFile(path: path, message: "Create \(path)", text: "", sha: nil, branch: branch)
+        return .gitHub(GitHubFileRef(owner: repo.owner, repo: repo.repo, path: path, branch: branch))
     }
 }

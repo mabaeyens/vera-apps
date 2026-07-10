@@ -115,8 +115,8 @@ struct iOSRootView: View {
             IconHelpView()
         }
         .sheet(isPresented: $showNewFile) {
-            NewFileSheet { url in
-                vm.openFileInNewTab(url)
+            NewFileSheet { source in
+                vm.openInNewTab(source)
             }
             .environment(vm)
             .presentationDetents([.medium])

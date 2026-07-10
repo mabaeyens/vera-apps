@@ -437,18 +437,21 @@ final class FileTreeViewModel {
     }
 
     @discardableResult
-    func createFile(named name: String, in folder: URL) async throws -> URL {
+    func createFile(named name: String, in folder: URL, format: DocumentFormat = .markdown) async throws -> URL {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !trimmed.contains("/"), !trimmed.contains("..") else {
             throw CocoaError(.fileWriteInvalidFileName)
         }
-        let filename = trimmed.hasSuffix(".md") ? trimmed : trimmed + ".md"
+        let ext = ".\(format.defaultExtension)"
+        let filename = trimmed.hasSuffix(ext) ? trimmed : trimmed + ext
         let fileURL = folder.appendingPathComponent(filename)
         guard !FileManager.default.fileExists(atPath: fileURL.path) else {
             throw CocoaError(.fileWriteFileExists)
         }
         try await DocumentStore.write(fileURL, content: "")
-        let newNode = FileNode.file(id: UUID(), name: filename.replacingOccurrences(of: ".md", with: ""), url: fileURL, downloadState: .local)
+        // `name` keeps the extension, matching CloudScanner's convention (lastPathComponent) —
+        // needed for DocumentFileIcon to pick the right glyph for non-markdown formats.
+        let newNode = FileNode.file(id: UUID(), name: filename, url: fileURL, downloadState: .local)
         if folder == rootURL {
             // Insert at root level
             var updated = roots

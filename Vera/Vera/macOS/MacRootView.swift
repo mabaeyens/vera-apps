@@ -137,7 +137,7 @@ struct MacRootView: View {
                 .frame(width: 480, height: 560)
         }
         .sheet(isPresented: $showNewFile) {
-            NewFileSheet { url in vm.openFileInNewTab(url) }
+            NewFileSheet { source in vm.openInNewTab(source) }
                 .environment(vm)
         }
         .sheet(isPresented: $showOnboarding, onDismiss: {

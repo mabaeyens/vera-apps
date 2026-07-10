@@ -32,6 +32,7 @@ enum GitHubError: LocalizedError {
     case notMarkdown
     case decoding
     case conflict
+    case noToken
 
     var errorDescription: String? {
         switch self {
@@ -42,6 +43,7 @@ enum GitHubError: LocalizedError {
         case .notMarkdown: return "That file isn't Markdown."
         case .decoding: return "Couldn't read GitHub's response."
         case .conflict: return "The file changed on GitHub since you opened it."
+        case .noToken: return "Sign in to GitHub before creating a file here."
         }
     }
 }
@@ -212,15 +214,17 @@ struct GitHubClient {
         return (text, c.sha)
     }
 
-    /// Commit new contents for a file on `branch`. Returns the commit's html_url.
+    /// Commit new contents for a file on `branch`. `sha` is the existing file's blob SHA
+    /// for an update, or `nil` to create a new file (GitHub creates rather than updates
+    /// when `sha` is omitted from the request). Returns the commit's html_url.
     @discardableResult
-    func commitFile(path: String, message: String, text: String, sha: String, branch: String) async throws -> String? {
-        let body: [String: Any] = [
+    func commitFile(path: String, message: String, text: String, sha: String?, branch: String) async throws -> String? {
+        var body: [String: Any] = [
             "message": message,
             "content": Data(text.utf8).base64EncodedString(),
-            "sha": sha,
             "branch": branch,
         ]
+        if let sha { body["sha"] = sha }
         let data = try await send("PUT", "/repos/\(owner)/\(repo)/contents/\(encode(path: path))", body: body)
         return (try? JSONDecoder().decode(WriteResponse.self, from: data))?.commit.html_url
     }
