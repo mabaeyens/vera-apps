@@ -53,6 +53,13 @@ final class GitHubBrowserModel {
             && !repo.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// True when the field holds a different token than what's already saved — connecting
+    /// would silently replace it (e.g. switching between a personal and an org account).
+    var hasConflictingToken: Bool {
+        guard let existing = CredentialStore.load() else { return false }
+        return existing != token.trimmingCharacters(in: .whitespaces)
+    }
+
     private func client() -> GitHubClient {
         GitHubClient(
             owner: owner.trimmingCharacters(in: .whitespaces),
@@ -159,6 +166,9 @@ struct GitHubBrowserView: View {
     @State private var showMultiCommit = false
     @State private var showDeviceAuth = false
     @State private var showTokenFields = false
+    @State private var pendingTokenAction: PendingTokenAction?
+
+    private enum PendingTokenAction { case deviceSignIn(String), connect }
 
     /// When opened from a saved repo in the sidebar, pre-fill and auto-connect.
     private let initialRepo: SavedRepo?
@@ -395,7 +405,11 @@ struct GitHubBrowserView: View {
 
             Section {
                 Button {
-                    Task { await model.connect() }
+                    if model.hasConflictingToken {
+                        pendingTokenAction = .connect
+                    } else {
+                        Task { await model.connect() }
+                    }
                 } label: {
                     HStack {
                         Spacer()
@@ -410,12 +424,43 @@ struct GitHubBrowserView: View {
         .sheet(isPresented: $showDeviceAuth) {
             DeviceAuthSheet { token in
                 model.token = token
-                CredentialStore.save(token)
                 showDeviceAuth = false
+                if let existing = CredentialStore.load(), existing != token {
+                    pendingTokenAction = .deviceSignIn(token)
+                } else {
+                    CredentialStore.save(token)
+                }
             }
             #if os(macOS)
             .frame(width: 400, height: 340)
             #endif
+        }
+        .alert(
+            "Replace Saved GitHub Token?",
+            isPresented: Binding(
+                get: { pendingTokenAction != nil },
+                set: { if !$0 { pendingTokenAction = nil } }
+            )
+        ) {
+            Button("Cancel", role: .cancel) {
+                if case .deviceSignIn = pendingTokenAction {
+                    model.token = CredentialStore.load() ?? ""
+                }
+                pendingTokenAction = nil
+            }
+            Button("Replace") {
+                switch pendingTokenAction {
+                case .deviceSignIn(let token):
+                    CredentialStore.save(token)
+                case .connect:
+                    Task { await model.connect() }
+                case nil:
+                    break
+                }
+                pendingTokenAction = nil
+            }
+        } message: {
+            Text("This replaces your saved GitHub token. Repos connected with the old token will stop working until you sign in with it again.")
         }
     }
 
