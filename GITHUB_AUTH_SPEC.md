@@ -129,6 +129,39 @@ new surface is a `GitHubDeviceAuth` helper (the two HTTP calls + polling) and a
 - Replacing or removing the PAT path (it stays as the advanced option).
 - Enterprise Server auth.
 
+## Addendum — post-approval installation step (2026-07-10)
+
+**Status:** open. Confirmed live during manual testing 2026-07-06: Device Flow sign-in
+succeeds (`DeviceAuthSheet` reaches `.done`) but the GitHub App isn't installed on any
+repo yet, so the first API call 404s. "Installation friction" above was a predicted
+risk; this is the fix now that it's confirmed.
+
+### Design
+Extend `DeviceAuthSheet`'s `.done` phase (`DeviceAuthSheet.swift:27-32`, currently just
+"You're connected. Tap Done to continue.") to explain the second step and offer a direct
+link, e.g.:
+
+> One more step: choose which repos Vera can access.
+> [Open GitHub to select repos →]
+
+The button deep-links to `https://github.com/settings/apps/<slug>/installations`.
+Verify at implementation time whether GitHub's device-flow authorization redirect
+already routes some account types through installation automatically — if so, this
+addendum may only need clearer copy rather than a new deep link. Check against a fresh
+GitHub account before building the link.
+
+### Fallback detection
+A user can also install the App *after* dismissing this sheet, or on a different repo
+later. When any GitHub API call 404s/403s specifically because of a missing
+installation (not a real permissions error), surface the same "install the app" prompt
+from the call site (likely `GitHubClient` error handling / `GitHubBrowserView`), not
+just at first sign-in.
+
+### Changes
+- **`DeviceAuthSheet.swift`**: update `.done` phase copy + add the deep-link button.
+- **`GitHubClient`** / **`GitHubBrowserView`**: detect the no-installation 404/403 case
+  and surface the same prompt inline, wherever that's currently just a generic error.
+
 ## Decision trigger
 Build this **only** when TestFlight/beta feedback shows the PAT step is a real drop-off.
 Until then, the PAT flow (Option A) stands and this spec waits.

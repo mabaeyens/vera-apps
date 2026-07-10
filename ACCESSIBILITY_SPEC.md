@@ -106,3 +106,48 @@ Differentiate Without Color, Sufficient Contrast, Dark Interface).
 - Running VoiceOver/Voice Control on device (requires hardware; this audit is static).
 - Full table-grid VoiceOver semantics in the preview (tracked as F7, low priority).
 - Localization of accessibility strings.
+
+## Device pass & Nutrition Label procedure
+
+**Status:** open (2026-07-10). F1–F6 and F8 are code-remediated (table above); this
+section defines the on-device verification pass still needed before claiming VoiceOver
+or Larger Text on the Nutrition Label, and how to fill the label once it passes.
+
+### VoiceOver pass checklist
+Walk these core flows with VoiceOver on, on a real iOS device **and** a Mac:
+- File tree navigation (open folder → browse → select a file).
+- Open → edit → save a document.
+- GitHub sign-in → browse a repo → commit / open a PR.
+- Toggle focus mode; expand/collapse the lint panel.
+
+Confirm while walking:
+- **F1** — iCloud status icons are announced ("In iCloud, not downloaded" / "In iCloud,
+  offline"), not silent or "image".
+- **F3** — decorative leading icons (Markdown mark, folder icon, repo `</>`) are silent;
+  only the filename/label is read.
+- **F4** — selection state is announced on the tab bar, the active Open-Files row, and
+  the active file in the tree (not just implied by colour/weight).
+- **F6** — focus-mode collapse and lint-panel expand don't animate when Reduce Motion is
+  on (device setting, not just the in-app check).
+
+### Dynamic Type pass checklist
+Cycle through accessibility text sizes — iOS: Settings → Accessibility → Display & Text
+Size; macOS: System Settings → Accessibility → Display — and confirm:
+- Editor font (mono text, `DynamicTypeSize.monoScale`) scales without clipping.
+- Preview inline code and tables scale and stay legible at the largest sizes.
+- Tab bar labels scale without truncating or breaking layout.
+
+### Nutrition Label mapping
+Use the "What's claimable on the Nutrition Label" table above as the source of truth.
+This checklist is what flips each ⚠️/❌ row to ✅:
+- **VoiceOver** → ✅ once the VoiceOver pass checklist above is clean on both platforms.
+- **Larger Text** → ✅ once the Dynamic Type pass checklist above is clean on both
+  platforms.
+- **Voice Control**, **Reduced Motion**, **Differentiate Without Color Alone**,
+  **Sufficient Contrast** → already conditionally claimable per the table; re-confirm
+  during the same device pass since it's low extra cost.
+
+### Output
+Record a pass/fail note per checklist item, dated, in this file (or a linked note) —
+so a future session can tell what's actually been verified on-device versus what's only
+been code-audited. Don't fill the Nutrition Label from the static audit alone.
