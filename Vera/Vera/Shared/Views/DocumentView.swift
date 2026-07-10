@@ -289,9 +289,28 @@ struct DocumentView: View {
             .accessibilityLabel("Text size")
         }
         #endif
+        if viewModel.mode == .editing && !focusMode {
+            ToolbarItem(placement: .status) {
+                wordCountIndicator
+            }
+        }
         ToolbarItem(placement: .status) {
             saveIndicator
         }
+    }
+
+    @ViewBuilder
+    private var wordCountIndicator: some View {
+        HStack(spacing: 4) {
+            Text("\(viewModel.wordCount) words · \(viewModel.characterCount) characters")
+            if let readingTime = viewModel.estimatedReadingTime {
+                Text("· \(readingTime)")
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .fixedSize()
+        .padding(.horizontal, 10)
     }
 
     @ViewBuilder
@@ -304,6 +323,8 @@ struct DocumentView: View {
                 ProgressView().controlSize(.small)
                 Text("Saving…").font(.caption).foregroundStyle(.secondary)
             }
+            .fixedSize()
+            .padding(.horizontal, 4)
         case .error(let msg):
             Text(msg).font(.caption).foregroundStyle(.red)
         case .uncommitted:
@@ -313,6 +334,8 @@ struct DocumentView: View {
                 ProgressView().controlSize(.small)
                 Text("Committing…").font(.caption).foregroundStyle(.secondary)
             }
+            .fixedSize()
+            .padding(.horizontal, 4)
         }
     }
 }

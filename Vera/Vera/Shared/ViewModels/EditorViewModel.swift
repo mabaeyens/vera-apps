@@ -28,6 +28,21 @@ final class EditorViewModel {
         if case .uncommitted = saveState { return true }
         return false
     }
+
+    var wordCount: Int {
+        rawText.split { $0.isWhitespace || $0.isNewline }.count
+    }
+
+    var characterCount: Int {
+        rawText.count
+    }
+
+    /// nil when there's no text, so the UI can omit reading time for empty docs.
+    var estimatedReadingTime: String? {
+        guard wordCount > 0 else { return nil }
+        let minutes = max(1, Int((Double(wordCount) / 200.0).rounded()))
+        return "~\(minutes) min read"
+    }
     private var saveTask: Task<Void, Never>?
     private var lintTask: Task<Void, Never>?
 
