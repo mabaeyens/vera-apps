@@ -236,17 +236,18 @@ struct DocumentView: View {
         #if os(iOS)
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
-                        Label("Larger Text", systemImage: "textformat.size.larger")
-                    }
-                    Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
-                        Label("Smaller Text", systemImage: "textformat.size.smaller")
-                    }
-                } label: {
-                    Image(systemName: "textformat.size")
+                Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
+                    Image(systemName: "textformat.size.smaller")
                 }
-                .accessibilityLabel("Text size")
+                .help("Smaller Text")
+                .accessibilityLabel("Smaller text")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
+                    Image(systemName: "textformat.size.larger")
+                }
+                .help("Larger Text")
+                .accessibilityLabel("Larger text")
             }
         }
         #endif
@@ -278,18 +279,18 @@ struct DocumentView: View {
             .accessibilityLabel("Markdown reference")
         }
         ToolbarItem(placement: .automatic) {
-            Menu {
-                Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
-                    Label("Larger Text", systemImage: "textformat.size.larger")
-                }
-                Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
-                    Label("Smaller Text", systemImage: "textformat.size.smaller")
-                }
-            } label: {
-                Image(systemName: "textformat.size")
+            Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
+                Image(systemName: "textformat.size.smaller")
             }
-            .help("Text Size")
-            .accessibilityLabel("Text size")
+            .help("Smaller Text")
+            .accessibilityLabel("Smaller text")
+        }
+        ToolbarItem(placement: .automatic) {
+            Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
+                Image(systemName: "textformat.size.larger")
+            }
+            .help("Larger Text")
+            .accessibilityLabel("Larger text")
         }
         #endif
         if viewModel.mode == .editing && !focusMode {

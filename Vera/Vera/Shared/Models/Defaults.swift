@@ -28,11 +28,9 @@ enum Defaults {
         static let min: Double = 12
         static let max: Double = 32
         static let step: Double = 1
-        #if os(iOS)
-        static let `default`: Double = 20
-        #else
-        static let `default`: Double = 17
-        #endif
+        /// One standard default across iOS and macOS — previously 20/17 respectively;
+        /// unified per product decision so a fresh install looks the same on both.
+        static let `default`: Double = 18
 
         static func increased(from value: Double) -> Double { Swift.min(max, value + step) }
         static func decreased(from value: Double) -> Double { Swift.max(min, value - step) }

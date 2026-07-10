@@ -89,15 +89,11 @@ struct EditingModeView: View {
             formatButton("text.quote", "Quote")          { viewModel.insertAtCursor?("> ") }
             barDivider
             formatButton("paintbrush", "Format & Snippets") { onAtlasRequested() }
+            barDivider
+            formatButton("textformat.size.smaller", "Smaller Text") { fontSize = Defaults.FontSize.decreased(from: fontSize) }
+            formatButton("textformat.size.larger", "Larger Text") { fontSize = Defaults.FontSize.increased(from: fontSize) }
             // Only genuinely-secondary, non-formatting items remain in overflow.
             Menu {
-                Button { fontSize = Defaults.FontSize.increased(from: fontSize) } label: {
-                    Label("Larger Text", systemImage: "textformat.size.larger")
-                }
-                Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
-                    Label("Smaller Text", systemImage: "textformat.size.smaller")
-                }
-                Divider()
                 Button { onCheatSheetRequested() } label: {
                     Label("Markdown Reference", systemImage: "book.closed")
                 }
