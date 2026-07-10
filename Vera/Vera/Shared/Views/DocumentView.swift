@@ -161,7 +161,8 @@ struct DocumentView: View {
                     loadDiff: { try await viewModel.diff(from: lastSeen, to: latest.sha) },
                     onDone: {
                         RepoSeenStore.markSeen(owner: ref.owner, repo: ref.repo, path: ref.path, sha: latest.sha)
-                    }
+                    },
+                    loadHistory: { try await viewModel.commitHistory() }
                 )
                 #if os(macOS)
                 .frame(width: 560, height: 600)

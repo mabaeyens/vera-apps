@@ -55,9 +55,12 @@ struct GitHubDiffView: View {
     let head: GitHubCommit                       // latest commit
     let loadDiff: () async throws -> String?     // unified-diff patch for the file
     let onDone: () -> Void                        // mark the latest commit as seen
+    var loadHistory: (() async throws -> [GitHubCommit])? = nil  // recent commits, optional
 
     @State private var lines: [DiffLine]?
     @State private var errorText: String?
+    @State private var history: [GitHubCommit] = []
+    @State private var showHistory = false
 
     var body: some View {
         NavigationStack {
@@ -87,12 +90,29 @@ struct GitHubDiffView: View {
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
+                if loadHistory != nil {
+                    ToolbarItem(placement: .automatic) {
+                        Button {
+                            showHistory = true
+                        } label: {
+                            Image(systemName: "clock.arrow.circlepath")
+                        }
+                        .help("Recent Commits")
+                        .accessibilityLabel("Recent commits")
+                    }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
                         onDone()
                         dismiss()
                     }
                 }
+            }
+            .sheet(isPresented: $showHistory) {
+                historySheet
+                    #if os(macOS)
+                    .frame(width: 420, height: 480)
+                    #endif
             }
         }
         .task {
@@ -105,6 +125,37 @@ struct GitHubDiffView: View {
             } catch {
                 errorText = error.localizedDescription
             }
+        }
+    }
+
+    private var historySheet: some View {
+        NavigationStack {
+            Group {
+                if history.isEmpty {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(history) { commit in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(commit.summary).font(.subheadline.weight(.medium))
+                            Text("\(commit.authorName) · \(commit.shortSHA)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Recent Commits")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { showHistory = false }
+                }
+            }
+        }
+        .task {
+            history = (try? await loadHistory?()) ?? []
         }
     }
 

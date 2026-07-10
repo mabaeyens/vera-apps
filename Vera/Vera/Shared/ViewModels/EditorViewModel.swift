@@ -189,6 +189,12 @@ final class EditorViewModel {
         return try? await client.latestCommit(path: ref.path)
     }
 
+    /// Recent commit history for this file, for the "What Changed" sheet's history list.
+    func commitHistory(limit: Int = 20) async throws -> [GitHubCommit] {
+        guard case .gitHub(let ref) = source, let client = gitHubClient() else { return [] }
+        return try await client.commits(path: ref.path, limit: limit)
+    }
+
     func diff(from base: String, to head: String) async throws -> String? {
         guard case .gitHub(let ref) = source, let client = gitHubClient() else { return nil }
         return try await client.diff(path: ref.path, from: base, to: head)
