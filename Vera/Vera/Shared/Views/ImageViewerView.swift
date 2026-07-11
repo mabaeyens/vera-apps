@@ -12,6 +12,7 @@ struct ImageViewerView: View {
 
     @State private var imageData: Data?
     @State private var loadFailed = false
+    @State private var tooLarge = false
 
     var body: some View {
         Group {
@@ -22,6 +23,12 @@ struct ImageViewerView: View {
                         .aspectRatio(contentMode: .fit)
                         .frame(maxWidth: .infinity)
                 }
+            } else if tooLarge {
+                ContentUnavailableView(
+                    "Image Too Large",
+                    systemImage: "photo.badge.exclamationmark",
+                    description: Text("\"\(source.displayName)\" is over GitHub's 1 MB preview limit.")
+                )
             } else if loadFailed {
                 ContentUnavailableView(
                     "Can't Load Image",
@@ -62,7 +69,14 @@ struct ImageViewerView: View {
         case .gitHub(let ref):
             guard let token = CredentialStore.load() else { loadFailed = true; return }
             let client = GitHubClient(owner: ref.owner, repo: ref.repo, token: token)
-            imageData = try? await client.fileData(path: ref.path, ref: ref.branch)
+            do {
+                imageData = try await client.fileData(path: ref.path, ref: ref.branch)
+            } catch GitHubError.contentTooLarge {
+                tooLarge = true
+                return
+            } catch {
+                imageData = nil
+            }
         }
         loadFailed = imageData == nil
     }

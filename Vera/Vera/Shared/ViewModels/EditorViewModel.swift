@@ -42,10 +42,15 @@ final class EditorViewModel {
     // MARK: - Focus Mode highlighting
 
     /// Files the user has opted out of live syntax highlighting while in Focus Mode.
-    /// Keyed by `DocumentSource.id` so the choice survives relaunches per file.
-    private var focusModePlainTextFiles: Set<String> {
-        get { Set(UserDefaults.standard.stringArray(forKey: Defaults.Key.focusModePlainTextFiles) ?? []) }
-        set { UserDefaults.standard.set(Array(newValue), forKey: Defaults.Key.focusModePlainTextFiles) }
+    /// Keyed by `DocumentSource.id` so the choice survives relaunches per file. Stored as
+    /// an array, most-recently-set first, and capped so this can't grow unboundedly as
+    /// files are opted in/out over the app's lifetime — the oldest entry is dropped once
+    /// the cap is exceeded rather than tracking every delete/rename/disconnect elsewhere.
+    private static let focusModePlainTextFilesLimit = 500
+
+    private var focusModePlainTextFiles: [String] {
+        get { UserDefaults.standard.stringArray(forKey: Defaults.Key.focusModePlainTextFiles) ?? [] }
+        set { UserDefaults.standard.set(newValue, forKey: Defaults.Key.focusModePlainTextFiles) }
     }
 
     /// Whether this file is currently opted out of highlighting while Focus Mode is on.
@@ -55,7 +60,13 @@ final class EditorViewModel {
 
     func setPlainTextInFocusMode(_ plain: Bool) {
         var files = focusModePlainTextFiles
-        if plain { files.insert(source.id) } else { files.remove(source.id) }
+        files.removeAll { $0 == source.id }
+        if plain {
+            files.insert(source.id, at: 0)
+            if files.count > Self.focusModePlainTextFilesLimit {
+                files.removeLast(files.count - Self.focusModePlainTextFilesLimit)
+            }
+        }
         focusModePlainTextFiles = files
     }
 

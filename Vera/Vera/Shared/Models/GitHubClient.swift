@@ -33,6 +33,7 @@ enum GitHubError: LocalizedError {
     case decoding
     case conflict
     case noToken
+    case contentTooLarge
 
     var errorDescription: String? {
         switch self {
@@ -44,6 +45,7 @@ enum GitHubError: LocalizedError {
         case .decoding: return "Couldn't read GitHub's response."
         case .conflict: return "The file changed on GitHub since you opened it."
         case .noToken: return "Sign in to GitHub before creating a file here."
+        case .contentTooLarge: return "This file is too large to preview (over 1 MB)."
         }
     }
 }
@@ -93,7 +95,7 @@ struct GitHubClient {
         struct Node: Decodable { let path: String; let type: String }
         let tree: [Node]
     }
-    private struct Contents: Decodable { let content: String; let encoding: String; let sha: String }
+    private struct Contents: Decodable { let content: String; let encoding: String; let sha: String; let size: Int }
     private struct RefDTO: Decodable { let object: Object; struct Object: Decodable { let sha: String } }
     private struct WriteResponse: Decodable { let commit: Commit; struct Commit: Decodable { let html_url: String? } }
     private struct PullResponse: Decodable { let html_url: String? }
@@ -149,21 +151,6 @@ struct GitHubClient {
             .sorted { $0.path.localizedCompare($1.path) == .orderedAscending }
     }
 
-    /// Raw Markdown text of a file at `path`.
-    func fileContents(path: String) async throws -> String {
-        let encodedPath = path
-            .split(separator: "/")
-            .map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
-            .joined(separator: "/")
-        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encodedPath)")
-        guard let contents = try? JSONDecoder().decode(Contents.self, from: data),
-              contents.encoding == "base64" else { throw GitHubError.decoding }
-        let cleaned = contents.content.replacingOccurrences(of: "\n", with: "")
-        guard let decoded = Data(base64Encoded: cleaned),
-              let text = String(data: decoded, encoding: .utf8) else { throw GitHubError.decoding }
-        return text
-    }
-
     private func encode(path: String) -> String {
         path.split(separator: "/")
             .map { $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
@@ -204,28 +191,39 @@ struct GitHubClient {
 
     // MARK: - Write path (Spec C3)
 
+    /// Shared primitive behind `fileVersion`/`fileData`: fetch a file's Contents API entry
+    /// and base64-decode its body. `contentLength` is the API's declared byte size — GitHub
+    /// omits `content` above ~1MB, so callers can tell "too large" apart from other failures.
+    private func fileBlob(path: String, ref: String) async throws -> (data: Data, sha: String, contentLength: Int?) {
+        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encode(path: path))?ref=\(encode(query: ref))")
+        guard let c = try? JSONDecoder().decode(Contents.self, from: data) else { throw GitHubError.decoding }
+        // Above the Contents API's inline-content limit, GitHub still returns 200 with
+        // `size` set but `content` empty — check size explicitly rather than relying on
+        // `encoding`, which stays "base64" either way.
+        guard c.size <= Self.contentsAPIInlineLimit else { throw GitHubError.contentTooLarge }
+        guard c.encoding == "base64" else { throw GitHubError.decoding }
+        let cleaned = c.content.replacingOccurrences(of: "\n", with: "")
+        guard let decoded = Data(base64Encoded: cleaned) else { throw GitHubError.decoding }
+        return (decoded, c.sha, c.size)
+    }
+
+    /// GitHub's Contents API omits inline `content` for files roughly above this size.
+    private static let contentsAPIInlineLimit = 1_000_000
+
     /// The current text *and* blob SHA of a file on `branch`. The SHA is required to
     /// commit an update (optimistic concurrency — GitHub rejects a stale SHA).
     func fileVersion(path: String, ref: String) async throws -> (text: String, sha: String) {
-        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encode(path: path))?ref=\(encode(query: ref))")
-        guard let c = try? JSONDecoder().decode(Contents.self, from: data),
-              c.encoding == "base64" else { throw GitHubError.decoding }
-        let cleaned = c.content.replacingOccurrences(of: "\n", with: "")
-        guard let decoded = Data(base64Encoded: cleaned),
-              let text = String(data: decoded, encoding: .utf8) else { throw GitHubError.decoding }
-        return (text, c.sha)
+        let blob = try await fileBlob(path: path, ref: ref)
+        guard let text = String(data: blob.data, encoding: .utf8) else { throw GitHubError.decoding }
+        return (text, blob.sha)
     }
 
-    /// Raw bytes of a file at `path`, for non-text content (e.g. images). Mirrors
-    /// `fileVersion(path:ref:)` — same authenticated Contents API + base64 decode — but
-    /// stops short of the UTF-8 string decode so binary content doesn't throw.
+    /// Raw bytes of a file at `path`, for non-text content (e.g. images). Throws
+    /// `.contentTooLarge` when the file exceeds the Contents API's inline-content limit,
+    /// so callers (e.g. `ImageViewerView`) can show a specific message instead of a
+    /// generic load failure.
     func fileData(path: String, ref: String) async throws -> Data {
-        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encode(path: path))?ref=\(encode(query: ref))")
-        guard let c = try? JSONDecoder().decode(Contents.self, from: data),
-              c.encoding == "base64" else { throw GitHubError.decoding }
-        let cleaned = c.content.replacingOccurrences(of: "\n", with: "")
-        guard let decoded = Data(base64Encoded: cleaned) else { throw GitHubError.decoding }
-        return decoded
+        try await fileBlob(path: path, ref: ref).data
     }
 
     /// Commit new contents for a file on `branch`. `sha` is the existing file's blob SHA
