@@ -63,8 +63,8 @@ enum FileKind: Equatable {
     static let languageMap: [String: String] = [
         "py": "python", "python": "python",
         "rb": "ruby", "ruby": "ruby",
-        "js": "javascript", "javascript": "javascript",
-        "ts": "typescript", "typescript": "typescript",
+        "js": "javascript", "javascript": "javascript", "cjs": "javascript",
+        "ts": "typescript", "typescript": "typescript", "tsx": "typescript",
         "swift": "swift",
         "kotlin": "kotlin", "kt": "kotlin",
         "java": "java",
