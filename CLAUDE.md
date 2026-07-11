@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**Vera** — iOS/macOS markdown editor. Swift 6, SwiftUI. No vault — filesystem is the data model.
+**Vera** — iOS/macOS native git-aware file editor (Markdown, code, JSON/YAML, text — any file it can open is editable, not just Markdown). Swift 6, SwiftUI. No vault — filesystem is the data model.
 
 ## Constraints
 

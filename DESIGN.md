@@ -2,7 +2,8 @@
 
 Vera's look is **restraint-first and native**: clean, generously spaced, one accent,
 no orphan buttons, nothing hidden more than a tap deep. The file tree (your repo /
-folder) is the hero; chrome stays quiet so the Markdown reads.
+folder) is the hero; chrome stays quiet so the content reads — Markdown prose, a
+table, or a screen of syntax-highlighted code.
 
 This is the living reference for the visual identity introduced in the 1.1 redesign.
 Tokens live in `Vera/Vera/Shared/Theme.swift`.

@@ -58,9 +58,10 @@ struct AboutView: View {
             Spacer().frame(height: 28)
 
             Text(
-                "Vera browses and edits any Markdown file anywhere in your iCloud Drive " +
-                "or local storage — no dedicated folder, no vault, no configuration. " +
-                "Your file system is the source of truth; Vera is just a window into it.\n\n" +
+                "Vera browses and edits any file anywhere in your iCloud Drive, local " +
+                "storage, or connected GitHub repos — no dedicated folder, no vault, no " +
+                "configuration. Your file system is the source of truth; Vera is just a " +
+                "window into it.\n\n" +
                 "The name Vera carries two meanings: the Latin vera, meaning truth — " +
                 "and the Spanish vera, meaning side or shore, as in \"ven a mi vera\" " +
                 "(come to my side). A truthful companion that stays close to your files.\n\n" +
