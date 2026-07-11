@@ -10,6 +10,7 @@ struct EditingModeView: View {
     #endif
     @AppStorage(Defaults.Key.linterEnabled) private var linterEnabled = true
     @AppStorage(Defaults.Key.focusMode) private var focusMode = false
+    @AppStorage(Defaults.Key.lineNumbersEnabled) private var lineNumbersEnabled = true
     var onAtlasRequested: () -> Void = {}
     var onCheatSheetRequested: () -> Void = {}
     var onIconHelpRequested: () -> Void = {}
@@ -56,7 +57,8 @@ struct EditingModeView: View {
                     isEditing = editing
                     #endif
                 },
-                language: viewModel.highlightLanguage(focusMode: focusMode)
+                language: viewModel.highlightLanguage(focusMode: focusMode),
+                showLineNumbers: lineNumbersEnabled
             )
             // Focus mode hides the linter so writing stays distraction-free.
             if linterEnabled && !focusMode && !viewModel.lintResults.isEmpty {

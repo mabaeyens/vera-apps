@@ -15,6 +15,7 @@ enum Defaults {
         static let pinnedFiles          = "pinnedFiles"
         static let focusModePlainTextFiles = "focusModePlainTextFiles"
         static let codeWrapEnabled      = "codeWrapEnabled"
+        static let lineNumbersEnabled   = "lineNumbersEnabled"
         static let pendingReset         = "pendingReset"
         static let openFilesExpanded    = "openFilesExpanded"
         static let iCloudFolderExpanded = "iCloudFolderExpanded"

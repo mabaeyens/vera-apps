@@ -22,6 +22,7 @@ struct DocumentView: View {
     @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
     @AppStorage(Defaults.Key.focusMode) private var focusMode = false
     @AppStorage(Defaults.Key.codeWrapEnabled) private var wrapCode = false
+    @AppStorage(Defaults.Key.lineNumbersEnabled) private var lineNumbersEnabled = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(GitHubDraftStore.self) private var draftStore
 
@@ -250,6 +251,14 @@ struct DocumentView: View {
                     .help("Auto-fix formatting")
                     .accessibilityLabel("Auto-fix formatting")
                 }
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { lineNumbersEnabled.toggle() } label: {
+                    Image(systemName: "list.number")
+                        .symbolVariant(lineNumbersEnabled ? .none : .slash)
+                }
+                .help(lineNumbersEnabled ? "Hide Line Numbers" : "Show Line Numbers")
+                .accessibilityLabel(lineNumbersEnabled ? "Hide line numbers" : "Show line numbers")
             }
         }
         #if os(iOS)

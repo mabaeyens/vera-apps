@@ -22,6 +22,7 @@ struct HighlightingTextView: UIViewRepresentable {
     var onEditingChanged: (Bool) -> Void = { _ in }
     /// Highlightr language key, or nil for plain unhighlighted text.
     var language: String? = "markdown"
+    var showLineNumbers: Bool = true
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -56,8 +57,18 @@ struct HighlightingTextView: UIViewRepresentable {
         textView.smartQuotesType = .no
         textView.smartDashesType = .no
         textView.text = text
-        textView.textContainerInset = UIEdgeInsets(top: 12, left: 16, bottom: 12, right: 16)
+        let leftInset: CGFloat = 16 + (showLineNumbers ? LineNumberGutterView.width : 0)
+        textView.textContainerInset = UIEdgeInsets(top: 12, left: leftInset, bottom: 12, right: 16)
         context.coordinator.textView = textView
+
+        if showLineNumbers {
+            let gutter = LineNumberGutterView(frame: CGRect(x: 0, y: 0, width: LineNumberGutterView.width, height: 0))
+            gutter.textView = textView
+            gutter.fontSize = fontSize
+            textView.addSubview(gutter)
+            context.coordinator.lineNumberGutterView = gutter
+        }
+        context.coordinator.lastShowLineNumbers = showLineNumbers
 
         // Store callbacks before building the bar so the more menu closure captures them
         context.coordinator.onAtlasRequested = onAtlasRequested
@@ -121,6 +132,7 @@ struct HighlightingTextView: UIViewRepresentable {
             context.coordinator.isApplyingExternalChange = false
             uiView.selectedRange = sel
             context.coordinator.invalidateCachedRange()
+            context.coordinator.lineNumberGutterView?.setNeedsDisplay()
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
         let languageChanged = context.coordinator.lastLanguage != Optional(language)
@@ -143,6 +155,24 @@ struct HighlightingTextView: UIViewRepresentable {
             context.coordinator.lastFontSize = fontSize
             context.coordinator.lastTheme = newTheme
             context.coordinator.lastLanguage = language
+            context.coordinator.lineNumberGutterView?.fontSize = fontSize
+        }
+
+        if showLineNumbers != context.coordinator.lastShowLineNumbers {
+            context.coordinator.lineNumberGutterView?.removeFromSuperview()
+            context.coordinator.lineNumberGutterView = nil
+            let leftInset: CGFloat = 16 + (showLineNumbers ? LineNumberGutterView.width : 0)
+            uiView.textContainerInset = UIEdgeInsets(top: 12, left: leftInset, bottom: 12, right: 16)
+            if showLineNumbers {
+                let gutter = LineNumberGutterView(
+                    frame: CGRect(x: uiView.contentOffset.x, y: uiView.contentOffset.y, width: LineNumberGutterView.width, height: uiView.bounds.height)
+                )
+                gutter.textView = uiView
+                gutter.fontSize = fontSize
+                uiView.addSubview(gutter)
+                context.coordinator.lineNumberGutterView = gutter
+            }
+            context.coordinator.lastShowLineNumbers = showLineNumbers
         }
     }
 
@@ -215,6 +245,8 @@ struct HighlightingTextView: UIViewRepresentable {
         var lastLanguage: String??
         var lastUseInputAccessory: Bool?
         var isApplyingExternalChange = false
+        var lineNumberGutterView: LineNumberGutterView?
+        var lastShowLineNumbers: Bool?
 
         var onAtlasRequested: () -> Void = {}
         var onCheatSheetRequested: () -> Void = {}
@@ -231,10 +263,23 @@ struct HighlightingTextView: UIViewRepresentable {
             parent.onEditingChanged(false)
         }
 
+        // UITextViewDelegate inherits UIScrollViewDelegate — UITextView is its own scroll
+        // view, so this fires as the user scrolls. Keeps the gutter pinned to the visible
+        // top-left corner and its numbers in sync, since it has no native ruler support.
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            guard let gutter = lineNumberGutterView else { return }
+            gutter.frame = CGRect(
+                x: scrollView.contentOffset.x, y: scrollView.contentOffset.y,
+                width: LineNumberGutterView.width, height: scrollView.bounds.height
+            )
+            gutter.setNeedsDisplay()
+        }
+
         func textViewDidChange(_ textView: UITextView) {
             guard !isApplyingExternalChange else { return }
             parent.text = textView.text
             parent.onTextChange()
+            lineNumberGutterView?.setNeedsDisplay()
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
@@ -398,6 +443,7 @@ struct HighlightingTextView: NSViewRepresentable {
     var onEditingChanged: (Bool) -> Void = { _ in }  // unused on macOS
     /// Highlightr language key, or nil for plain unhighlighted text.
     var language: String? = "markdown"
+    var showLineNumbers: Bool = true
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -447,6 +493,16 @@ struct HighlightingTextView: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.autohidesScrollers = true
         scrollView.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 44, right: 0)
+
+        if showLineNumbers {
+            let ruler = LineNumberRulerView(textView: textView)
+            scrollView.verticalRulerView = ruler
+            scrollView.hasVerticalRuler = true
+            scrollView.rulersVisible = true
+            context.coordinator.rulerView = ruler
+        }
+        context.coordinator.attachRulerRedraw(to: scrollView)
+        context.coordinator.lastShowLineNumbers = showLineNumbers
 
         registerInsert { [weak coordinator = context.coordinator] snippet in
             coordinator?.insert(snippet)
@@ -513,6 +569,22 @@ struct HighlightingTextView: NSViewRepresentable {
             context.coordinator.lastTheme = newTheme
             context.coordinator.lastLanguage = language
         }
+
+        if showLineNumbers != context.coordinator.lastShowLineNumbers {
+            nsView.verticalRulerView = nil
+            nsView.hasVerticalRuler = false
+            nsView.rulersVisible = false
+            context.coordinator.rulerView = nil
+            if showLineNumbers {
+                let ruler = LineNumberRulerView(textView: textView)
+                nsView.verticalRulerView = ruler
+                nsView.hasVerticalRuler = true
+                nsView.rulersVisible = true
+                context.coordinator.rulerView = ruler
+            }
+            context.coordinator.lastShowLineNumbers = showLineNumbers
+        }
+        context.coordinator.rulerView?.needsDisplay = true
     }
 
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -523,13 +595,33 @@ struct HighlightingTextView: NSViewRepresentable {
         var lastFontSize: CGFloat = 0
         var lastTheme: String = ""
         var lastLanguage: String??
+        var rulerView: LineNumberRulerView?
+        var lastShowLineNumbers: Bool?
+        private var boundsObserver: NSObjectProtocol?
 
         init(_ parent: HighlightingTextView) { self.parent = parent }
+
+        deinit {
+            if let boundsObserver { NotificationCenter.default.removeObserver(boundsObserver) }
+        }
+
+        /// `NSRulerView` doesn't repaint on its own as the document scrolls — observe
+        /// the clip view's bounds and mark the ruler dirty, the standard wiring for a
+        /// line-number ruler alongside a scrolling `NSTextView`.
+        func attachRulerRedraw(to scrollView: NSScrollView) {
+            scrollView.contentView.postsBoundsChangedNotifications = true
+            boundsObserver = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification, object: scrollView.contentView, queue: .main
+            ) { [weak self] _ in
+                self?.rulerView?.needsDisplay = true
+            }
+        }
 
         func textDidChange(_ notification: Notification) {
             guard let tv = notification.object as? NSTextView else { return }
             parent.text = tv.string
             parent.onTextChange()
+            rulerView?.needsDisplay = true
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {

@@ -218,47 +218,103 @@ struct HighlightedCodeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage(Defaults.Key.codeWrapEnabled) private var wrapEnabled = false
-    @State private var highlighted: AttributedString?
+    @State private var highlightedLines: [AttributedString]?
+
+    // A single very long line (e.g. one minified line in a bundled asset) can produce
+    // an intrinsic Text width past practical CALayer backing-store limits, which draws
+    // blank. Force-wrap just that one line regardless of the wrap toggle, rather than
+    // letting one pathological line blank out — every other line stays unaffected since
+    // each is now its own row/Text, not one Text for the whole file.
+    private static let maxUnwrappedLineLength = 2000
+
+    private var fontSize: CGFloat { Theme.Typography.codeSize * dynamicTypeSize.monoScale }
 
     var body: some View {
+        // Split once per body evaluation (not per row) so scrolling a huge file doesn't
+        // re-run this O(n) split on every visible row's re-evaluation.
+        let lines = code.split(separator: "\n", omittingEmptySubsequences: false)
         Group {
             if wrapEnabled {
-                codeText
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                lineRows(lines)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    codeText
-                        .fixedSize(horizontal: true, vertical: false)
-                        .frame(minWidth: 0, alignment: .leading)
+                    lineRows(lines)
                 }
             }
         }
         .task(id: [code.hashValue, language.hashValue, colorScheme.hashValue, dynamicTypeSize.hashValue]) {
-            highlighted = await computeHighlighted()
+            highlightedLines = await computeHighlightedLines()
         }
     }
 
-    @ViewBuilder
-    private var codeText: some View {
-        if let attr = highlighted {
-            Text(attr)
-                .textSelection(.enabled)
-        } else {
-            Text(code)
-                .font(.system(size: Theme.Typography.codeSize * dynamicTypeSize.monoScale, design: .monospaced))
-                .foregroundStyle(.primary)
-                .textSelection(.enabled)
+    private func lineRows(_ lines: [Substring]) -> some View {
+        let gutterDigits = max(2, String(lines.count).count)
+        let gutterWidth = CGFloat(gutterDigits) * fontSize * 0.62 + 6
+        return LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { index, plainLine in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("\(index + 1)")
+                        .font(.system(size: fontSize, design: .monospaced))
+                        .monospacedDigit()
+                        .foregroundStyle(.tertiary)
+                        .frame(minWidth: gutterWidth, alignment: .trailing)
+                    lineText(index: index, plainLine: plainLine)
+                        .textSelection(.enabled)
+                        .modifier(LineWidthModifier(wrap: wrapEnabled || plainLine.count > Self.maxUnwrappedLineLength))
+                }
+            }
         }
     }
 
-    private func computeHighlighted() async -> AttributedString? {
+    private func lineText(index: Int, plainLine: Substring) -> Text {
+        if let highlightedLines, index < highlightedLines.count {
+            return Text(highlightedLines[index])
+        }
+        return Text(String(plainLine))
+            .font(.system(size: fontSize, design: .monospaced))
+            .foregroundStyle(.primary)
+    }
+
+    private func computeHighlightedLines() async -> [AttributedString]? {
         guard let lang = language.flatMap({ FileKind.languageMap[$0.lowercased()] }) else { return nil }
-        return await HighlightrEngine.shared.highlight(
+        guard let attr = await HighlightrEngine.shared.highlight(
             code: code,
             language: lang,
             theme: colorScheme == .dark ? "atom-one-dark" : "atom-one-light",
-            fontSize: Theme.Typography.codeSize * dynamicTypeSize.monoScale
-        )
+            fontSize: fontSize
+        ) else { return nil }
+        return Self.splitLines(of: attr)
+    }
+
+    /// Split a highlighted `AttributedString` on "\n" boundaries into per-line
+    /// `AttributedString`s, preserving each character's attributes.
+    private static func splitLines(of attr: AttributedString) -> [AttributedString] {
+        var lines: [AttributedString] = []
+        var start = attr.startIndex
+        var idx = attr.startIndex
+        while idx < attr.endIndex {
+            if attr.characters[idx] == "\n" {
+                lines.append(AttributedString(attr[start..<idx]))
+                start = attr.index(afterCharacter: idx)
+            }
+            idx = attr.index(afterCharacter: idx)
+        }
+        lines.append(AttributedString(attr[start..<attr.endIndex]))
+        return lines
+    }
+}
+
+/// Applies either a flexible (wrap) or a fixed-intrinsic-size (horizontal-scroll) width
+/// to a single line's `Text`, per-row rather than for the whole document — the fix for
+/// item 8's blank-render bug hinges on no single `Text` ever spanning more than one line.
+private struct LineWidthModifier: ViewModifier {
+    let wrap: Bool
+    func body(content: Content) -> some View {
+        if wrap {
+            content.frame(maxWidth: .infinity, alignment: .leading)
+        } else {
+            content.fixedSize(horizontal: true, vertical: false)
+        }
     }
 }
 
