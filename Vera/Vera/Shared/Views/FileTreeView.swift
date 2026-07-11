@@ -164,7 +164,8 @@ struct FileTreeView: View {
     }
 
     private func repoNode(_ repo: SavedRepo) -> some View {
-        DisclosureGroup(isExpanded: repoBinding(repo)) {
+        let binding = repoBinding(repo)
+        return DisclosureGroup(isExpanded: binding) {
             repoContent(repo)
         } label: {
             Label {
@@ -173,6 +174,10 @@ struct FileTreeView: View {
                 Image(systemName: "chevron.left.forwardslash.chevron.right")
                     .foregroundStyle(Theme.accent)
             }
+            .contentShape(Rectangle())
+            // DisclosureGroup only toggles on the chevron itself by default (especially
+            // on macOS) — this makes tapping/clicking anywhere on the row expand it too.
+            .onTapGesture { binding.wrappedValue.toggle() }
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
@@ -235,14 +240,15 @@ struct FileTreeView: View {
     private func repoNodeRow(_ node: RepoTreeNode, repoID: String) -> AnyView {
         if node.isFolder {
             let key = repoID + "|" + node.id
+            let binding = Binding(
+                get: { expandedRepoFolders.contains(key) },
+                set: { isOpen in
+                    if isOpen { expandedRepoFolders.insert(key) }
+                    else { expandedRepoFolders.remove(key) }
+                }
+            )
             return AnyView(
-                DisclosureGroup(isExpanded: Binding(
-                    get: { expandedRepoFolders.contains(key) },
-                    set: { isOpen in
-                        if isOpen { expandedRepoFolders.insert(key) }
-                        else { expandedRepoFolders.remove(key) }
-                    }
-                )) {
+                DisclosureGroup(isExpanded: binding) {
                     ForEach(node.children) { child in
                         repoNodeRow(child, repoID: repoID)
                     }
@@ -252,6 +258,8 @@ struct FileTreeView: View {
                             .accessibilityHidden(true)
                         Text(node.name)
                     }
+                    .contentShape(Rectangle())
+                    .onTapGesture { binding.wrappedValue.toggle() }
                 }
             )
         } else if let ref = node.ref {
@@ -303,6 +311,8 @@ struct FileTreeView: View {
                         Image(systemName: "folder.fill")
                             .foregroundStyle(Theme.accent)
                     }
+                    .contentShape(Rectangle())
+                    .onTapGesture { iCloudFolderExpanded.toggle() }
                 }
             }
         } else if vm.rootURL == nil {
@@ -325,8 +335,9 @@ struct FileTreeView: View {
     private func nodeRow(_ node: FileNode) -> AnyView {
         switch node {
         case .folder(let id, let name, let folderURL, _):
+            let binding = folderBinding(id: id, url: folderURL)
             return AnyView(
-                DisclosureGroup(isExpanded: folderBinding(id: id, url: folderURL)) {
+                DisclosureGroup(isExpanded: binding) {
                     ForEach(node.children ?? []) { child in
                         nodeRow(child)
                     }
@@ -337,6 +348,8 @@ struct FileTreeView: View {
                             .accessibilityHidden(true)
                         Text(name)
                     }
+                    .contentShape(Rectangle())
+                    .onTapGesture { binding.wrappedValue.toggle() }
                 }
             )
         case .file:
