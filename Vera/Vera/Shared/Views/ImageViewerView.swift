@@ -207,13 +207,17 @@ private struct ZoomableImageView: UIViewRepresentable {
     }
 }
 #elseif os(macOS)
-/// macOS trackpad pinch routes through SwiftUI's `MagnificationGesture` cleanly, so no
-/// `NSScrollView`/`NSImageView` wrapping is needed here unlike iOS.
+/// macOS trackpad pinch routes through SwiftUI's `MagnificationGesture`, plus explicit
+/// +/- controls since a mouse (Magic Mouse included) has no OS-level pinch gesture at
+/// all — trackpad-only zoom would leave mouse users with no way to zoom in or out.
 private struct ZoomableImageView: View {
     let image: PlatformImage
 
     @State private var scale: CGFloat = 1
     @GestureState private var pinchScale: CGFloat = 1
+
+    private static let minScale: CGFloat = 0.25
+    private static let maxScale: CGFloat = 6
 
     var body: some View {
         ScrollView([.horizontal, .vertical]) {
@@ -226,9 +230,55 @@ private struct ZoomableImageView: View {
         .gesture(
             MagnificationGesture()
                 .updating($pinchScale) { value, state, _ in state = value }
-                .onEnded { value in scale = max(1, min(6, scale * value)) }
+                .onEnded { value in
+                    // Previously clamped to a minimum of 1 (fit-to-width), which made
+                    // pinching to zoom out appear to do nothing once already at fit size —
+                    // a tall image fit to width can still need to zoom out further to see
+                    // in full.
+                    scale = max(Self.minScale, min(Self.maxScale, scale * value))
+                }
         )
         .onTapGesture(count: 2) { scale = scale > 1 ? 1 : 2 }
+        .overlay(alignment: .bottomTrailing) {
+            zoomControls
+        }
+    }
+
+    private var zoomControls: some View {
+        HStack(spacing: 14) {
+            Button {
+                scale = max(Self.minScale, scale - 0.25)
+            } label: {
+                Image(systemName: "minus.magnifyingglass")
+            }
+            .disabled(scale <= Self.minScale)
+            .help("Zoom Out")
+            .accessibilityLabel("Zoom out")
+
+            Button {
+                scale = 1
+            } label: {
+                Text("\(Int(scale * 100))%")
+                    .monospacedDigit()
+                    .frame(minWidth: 44)
+            }
+            .help("Reset Zoom")
+            .accessibilityLabel("Reset zoom")
+
+            Button {
+                scale = min(Self.maxScale, scale + 0.25)
+            } label: {
+                Image(systemName: "plus.magnifyingglass")
+            }
+            .disabled(scale >= Self.maxScale)
+            .help("Zoom In")
+            .accessibilityLabel("Zoom in")
+        }
+        .buttonStyle(.borderless)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.regularMaterial, in: Capsule())
+        .padding(16)
     }
 }
 #endif
