@@ -116,7 +116,7 @@ extension MarkdownUI.Theme {
                 ForegroundColor(.primary)
             }
             .codeBlock { cfg in
-                CopyableCodeBlock(language: cfg.language, content: cfg.content)
+                CopyableCodeBlock(language: cfg.language, content: cfg.content, fontSize: fontSize)
             }
     }
 }
@@ -163,7 +163,7 @@ struct MarkdownDocumentView: View {
                 .textSelection(.enabled)
                 .padding(.vertical, 4)
         case .codeBlock(let lang, let code):
-            CopyableCodeBlock(language: lang, content: code)
+            CopyableCodeBlock(language: lang, content: code, fontSize: fontSize)
                 .padding(.vertical, 6)
         case .table(let headers, let rows):
             DocTableBlock(headers: headers, rows: rows)
@@ -188,7 +188,7 @@ struct PlainDocumentView: View {
         ScrollView {
             Group {
                 if let language {
-                    HighlightedCodeView(code: rawText, language: language)
+                    HighlightedCodeView(code: rawText, language: language, baseFontSize: fontSize)
                 } else {
                     Text(rawText)
                         .font(.system(size: fontSize))
@@ -214,6 +214,7 @@ struct PlainDocumentView: View {
 struct HighlightedCodeView: View {
     let code: String
     let language: String?
+    var baseFontSize: CGFloat = Theme.Typography.codeSize
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -227,7 +228,12 @@ struct HighlightedCodeView: View {
     // each is now its own row/Text, not one Text for the whole file.
     private static let maxUnwrappedLineLength = 2000
 
-    private var fontSize: CGFloat { Theme.Typography.codeSize * dynamicTypeSize.monoScale }
+    // Combines the user's font-size preference (the A/A toolbar buttons) with the
+    // system Dynamic Type accessibility multiplier — this view previously ignored the
+    // former entirely, computing its size only from a fixed constant, so increasing
+    // text size did nothing for any syntax-highlighted code (fenced blocks, and any
+    // code-language file viewed read-only, not just .swift/.tsx).
+    private var fontSize: CGFloat { baseFontSize * dynamicTypeSize.monoScale }
 
     var body: some View {
         // Split once per body evaluation (not per row) so scrolling a huge file doesn't
@@ -242,7 +248,7 @@ struct HighlightedCodeView: View {
                 }
             }
         }
-        .task(id: [code.hashValue, language.hashValue, colorScheme.hashValue, dynamicTypeSize.hashValue]) {
+        .task(id: [code.hashValue, language.hashValue, colorScheme.hashValue, dynamicTypeSize.hashValue, fontSize.hashValue]) {
             highlightedLines = await computeHighlightedLines()
         }
     }
@@ -323,6 +329,7 @@ private struct LineWidthModifier: ViewModifier {
 struct CopyableCodeBlock: View {
     let language: String?
     let content: String
+    var fontSize: CGFloat = Theme.Typography.codeSize
     @State private var copied = false
 
     var body: some View {
@@ -354,7 +361,7 @@ struct CopyableCodeBlock: View {
 
             Divider().opacity(0.5)
 
-            HighlightedCodeView(code: content, language: language)
+            HighlightedCodeView(code: content, language: language, baseFontSize: fontSize)
                 .padding(12)
         }
         .background(
