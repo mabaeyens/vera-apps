@@ -452,8 +452,13 @@ struct GitHubBrowserView: View {
 
             if let error = model.errorText {
                 Section {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
+                    Label {
+                        Text(error)
+                            .textSelection(.enabled)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
+                    .foregroundStyle(.red)
                     if model.needsInstallationHelp {
                         Text("If this is a private repo, Vera's GitHub App may not be installed on it yet.")
                             .font(.caption)
