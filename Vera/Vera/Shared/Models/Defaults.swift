@@ -13,6 +13,7 @@ enum Defaults {
         static let tabBarVisible        = "tabBarVisible"
         static let hasSeenOnboarding    = "hasSeenOnboarding"
         static let pinnedFiles          = "pinnedFiles"
+        static let focusModePlainTextFiles = "focusModePlainTextFiles"
         static let pendingReset         = "pendingReset"
         static let openFilesExpanded    = "openFilesExpanded"
         static let iCloudFolderExpanded = "iCloudFolderExpanded"

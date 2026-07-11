@@ -4,6 +4,48 @@ Manual release checklist. Each release section lists the specific features intro
 
 ---
 
+## Unreleased
+
+### Browse, view, and highlight any text file; render images; inert binaries
+- [ ] Open a local folder or GitHub repo containing non-md files (`.py`, `.swift`, `.lock`, `.toml`, `.sh`, `.yml`, `.entitlements`, `.json`, `.css`, etc.) → all now appear in the sidebar tree (previously only `.md`/`.txt`/`.json`/`.yaml` were visible)
+- [ ] Tap a `.py`/`.swift`/other source file → opens read-only with correct syntax highlighting for that language (not Markdown coloring)
+- [ ] Tap a `.entitlements` or `.plist` file → opens read-only with XML highlighting
+- [ ] Tap a file with an extension Vera doesn't recognize (e.g. a random dotfile) → still opens as plain, unhighlighted monospace text (doesn't error)
+- [ ] Open one of the newly-visible files → **no Edit button** appears anywhere in the toolbar (confirms it's read-only, no accidental edit path)
+- [ ] Tap a `.png`/`.jpg`/`.svg` file in a local folder → renders as an image (fit-to-width, scrollable)
+- [ ] Tap a `.png`/`.jpg` in a **private** GitHub repo → renders correctly (confirms the authenticated Contents-API path works, not just public raw URLs)
+- [ ] Add a binary file (`.dmg`, `.zip`, `.pdf`, etc.) to a test folder → it appears in the tree with a distinct/dimmed icon, but tapping or clicking it **does nothing** (no crash, no blank screen, no error)
+- [ ] Drag-and-drop or Cmd+O a genuinely binary file directly → shows the "not a supported document type" alert (different from the silent tree-tap behavior, since this is an explicit user action)
+- [ ] Open a deliberately malformed `.json` file → a lint warning banner appears ("Invalid JSON…") with **no Auto-fix button** (read-only/non-editable formats never get one)
+- [ ] Open a `.yaml` file with a tab-indented line → flagged as a lint warning
+- [ ] Open any read-only text file with trailing whitespace or no final newline → flagged as lint warnings
+- [ ] Confirm the 4 original editable formats (`.md`/`.txt`/`.json`/`.yaml`) are completely unaffected — still fully editable, committable, and Markdown's own linter/Auto-fix behave exactly as before
+
+### Format-aware live editor highlighting + per-file "no highlighter in Focus Mode"
+- [ ] Open a `.json` file and edit it → now shows correct **JSON** syntax highlighting while typing (previously it was incorrectly highlighted as Markdown)
+- [ ] Open a `.yaml` file and edit it → now shows correct **YAML** highlighting while typing
+- [ ] Open a `.txt` file and edit it → now renders as plain, unhighlighted monospace text while typing (previously incorrectly Markdown-highlighted)
+- [ ] Open a `.md` file and edit it → Markdown highlighting is unchanged (no regression)
+- [ ] Enable Focus Mode while editing any file → highlighting stays on by default
+- [ ] With Focus Mode on, tap the new highlighter toggle in the toolbar → highlighting turns off live for that file; tap again to confirm it returns
+- [ ] Exit Focus Mode → highlighting returns regardless of the per-file toggle state
+- [ ] Close and reopen the same file with Focus Mode on → the "highlighting off" choice persists for that file
+- [ ] Open a *different* file with Focus Mode on → highlighting is on by default (the per-file choice doesn't leak across files)
+
+### GitHub sidebar file-format visibility + full-editor routing
+- [ ] Sidebar tree for a connected GitHub repo shows non-`.md` supported files too (not just Markdown)
+- [ ] Connect a **brand-new** GitHub repo via "Open from GitHub…" → the sheet dismisses right after connecting and the repo appears in the sidebar, ready to expand and pick a file from the tree
+- [ ] Tap a file from the sidebar tree, and tap a file from within the GitHub browser sheet (e.g. via search on an already-saved repo) → both open in the **same full editor** (tab bar visible, no cramped narrow-dialog push)
+- [ ] Revisit an already-saved repo via "Open from GitHub…" → branch switching and (with ≥2 dirty drafts) "Commit N Files" are still reachable
+- [ ] iOS: use the "Open folder or file" picker to select a standalone `.txt`, `.json`, or `.yaml` file directly (not via a scanned folder) → selectable and opens correctly
+
+### Regression
+- [ ] iCloud: open/edit/autosave/tabs/pinning unchanged
+- [ ] GitHub: single-file commit/PR, multi-file commit, branch switching, conflict recovery all still work unchanged
+- [ ] VoiceOver reads accessibility labels on the new toolbar buttons (highlighter toggle, image viewer)
+
+---
+
 ## Release 1.2.0 (build 1) — 2026-07-06
 
 ### GitHub sign-in (Device Flow)

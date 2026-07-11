@@ -161,6 +161,7 @@ final class GitHubBrowserModel {
 struct GitHubBrowserView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(GitHubDraftStore.self) private var draftStore
+    @Environment(FileTreeViewModel.self) private var vm
     @State private var model = GitHubBrowserModel()
     @State private var showBranchPicker = false
     @State private var showMultiCommit = false
@@ -408,12 +409,12 @@ struct GitHubBrowserView: View {
                     if model.hasConflictingToken {
                         pendingTokenAction = .connect
                     } else {
-                        Task { await model.connect() }
+                        Task { await connectAndMaybeDismiss() }
                     }
                 } label: {
                     HStack {
                         Spacer()
-                        if model.isLoading { ProgressView() } else { Text("Browse Markdown") }
+                        if model.isLoading { ProgressView() } else { Text("Browse Files") }
                         Spacer()
                     }
                 }
@@ -453,7 +454,7 @@ struct GitHubBrowserView: View {
                 case .deviceSignIn(let token):
                     CredentialStore.save(token)
                 case .connect:
-                    Task { await model.connect() }
+                    Task { await connectAndMaybeDismiss() }
                 case nil:
                     break
                 }
@@ -464,11 +465,38 @@ struct GitHubBrowserView: View {
         }
     }
 
+    /// Connects, then — only if this repo wasn't already saved — dismisses so the user
+    /// lands on the sidebar tree to pick a file, instead of staying parked in this sheet's
+    /// own file list. Revisiting an already-saved repo (branch switching, content search,
+    /// multi-file commit — all only reachable from here) keeps the current in-sheet flow.
+    private func connectAndMaybeDismiss() async {
+        let wasNew = !RepoListStore.all().contains(
+            SavedRepo(owner: model.owner.trimmingCharacters(in: .whitespaces),
+                      repo: model.repo.trimmingCharacters(in: .whitespaces))
+        )
+        await model.connect()
+        if wasNew && model.isConnected {
+            dismiss()
+        }
+    }
+
+    /// Opens `source` in the shared editor (same tab/split-view path as the sidebar tree)
+    /// and dismisses this sheet, instead of pushing `DocumentView` in the sheet's own
+    /// nested navigation stack.
+    private func open(_ source: DocumentSource) {
+        vm.openInNewTab(source)
+        dismiss()
+    }
+
     private var fileList: some View {
         List {
             if model.searchQuery.isEmpty {
                 if model.items.isEmpty {
-                    ContentUnavailableView("No Markdown Files", systemImage: "doc.text", description: Text("This repository has no .md files."))
+                    ContentUnavailableView(
+                        "No Documents",
+                        systemImage: "doc.text",
+                        description: Text("No Markdown, text, JSON, or YAML files found in this repository.")
+                    )
                 } else {
                     ForEach(model.items) { item in fileRow(item) }
                 }
@@ -491,13 +519,17 @@ struct GitHubBrowserView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(model.contentOnlyResults) { result in
-                            NavigationLink {
-                                DocumentView(source: .gitHub(model.ref(for: GitHubItem(path: result.path))))
+                            Button {
+                                open(.gitHub(model.ref(for: GitHubItem(path: result.path))))
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Label(result.path, systemImage: "doc.text")
-                                        .lineLimit(1)
-                                        .truncationMode(.middle)
+                                    Label {
+                                        Text(result.path)
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                    } icon: {
+                                        DocumentFileIcon(name: result.path)
+                                    }
                                     if let fragment = result.fragment {
                                         Text(fragment)
                                             .font(.caption)
@@ -521,13 +553,23 @@ struct GitHubBrowserView: View {
     }
 
     private func fileRow(_ item: GitHubItem) -> some View {
-        NavigationLink {
-            DocumentView(source: .gitHub(model.ref(for: item)))
+        // documentFiles() now returns every blob, including images and binaries — match
+        // the sidebar tree's icon (so a binary reads as non-interactive at a glance) and
+        // make binary rows genuinely non-interactive, instead of a silent no-op tap.
+        let isBinary = FileKind.classify(path: item.path) == .binary
+        return Button {
+            open(.gitHub(model.ref(for: item)))
         } label: {
-            Label(item.path, systemImage: "doc.text")
-                .lineLimit(1)
-                .truncationMode(.middle)
+            Label {
+                Text(item.path)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            } icon: {
+                DocumentFileIcon(name: item.path)
+            }
         }
+        .disabled(isBinary)
+        .foregroundStyle(isBinary ? .tertiary : .primary)
     }
 }
 

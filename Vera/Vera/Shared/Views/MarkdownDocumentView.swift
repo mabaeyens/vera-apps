@@ -175,20 +175,20 @@ struct MarkdownDocumentView: View {
 
 // MARK: - Plain-text / code preview (non-Markdown formats)
 
-/// Read-mode preview for `.txt`/`.json`/`.yaml` files: no Markdown parsing, since stray
-/// `#`/`*`/`|` characters in data or notes would otherwise be misread as syntax.
-/// JSON/YAML get monospaced Highlightr syntax highlighting (reusing `HighlightedCodeView`,
-/// the same renderer fenced code blocks use); plain text wraps as regular body text.
+/// Read-mode preview for anything that isn't Markdown: no Markdown parsing, since stray
+/// `#`/`*`/`|` characters in data or notes would otherwise be misread as syntax. A known
+/// `language` gets monospaced Highlightr syntax highlighting (reusing `HighlightedCodeView`,
+/// the same renderer fenced code blocks use); otherwise it wraps as regular body text.
 struct PlainDocumentView: View {
     let rawText: String
     let fontSize: CGFloat
-    let format: DocumentFormat
+    let language: String?
     @Binding var scrollFraction: CGFloat
 
     var body: some View {
         ScrollView {
             Group {
-                if let language = format.highlightLanguage {
+                if let language {
                     HighlightedCodeView(code: rawText, language: language)
                 } else {
                     Text(rawText)
@@ -220,31 +220,6 @@ struct HighlightedCodeView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var highlighted: AttributedString?
 
-    private static let languageMap: [String: String] = [
-        "py": "python", "python": "python",
-        "rb": "ruby", "ruby": "ruby",
-        "js": "javascript", "javascript": "javascript",
-        "ts": "typescript", "typescript": "typescript",
-        "swift": "swift",
-        "kotlin": "kotlin", "kt": "kotlin",
-        "java": "java",
-        "c": "c", "cpp": "cpp", "c++": "cpp",
-        "cs": "csharp", "csharp": "csharp",
-        "go": "go",
-        "rs": "rust", "rust": "rust",
-        "sh": "bash", "bash": "bash", "zsh": "bash",
-        "ps1": "powershell", "powershell": "powershell",
-        "sql": "sql",
-        "html": "html", "xml": "xml",
-        "css": "css", "scss": "scss",
-        "json": "json",
-        "yaml": "yaml", "yml": "yaml",
-        "toml": "ini",
-        "md": "markdown", "markdown": "markdown",
-        "r": "r",
-        "dockerfile": "dockerfile",
-    ]
-
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             Group {
@@ -265,7 +240,7 @@ struct HighlightedCodeView: View {
     }
 
     private func computeHighlighted() -> AttributedString? {
-        guard let lang = language.flatMap({ Self.languageMap[$0.lowercased()] }) else { return nil }
+        guard let lang = language.flatMap({ FileKind.languageMap[$0.lowercased()] }) else { return nil }
         guard let h = Highlightr() else { return nil }
         h.setTheme(to: colorScheme == .dark ? "atom-one-dark" : "atom-one-light")
         // SF Mono — the same signature monospace the editor uses (see DESIGN.md),

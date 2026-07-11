@@ -24,9 +24,9 @@ final class EditorViewModel {
     let source: DocumentSource
     private(set) var blobSHA: String?       // GitHub: current file blob SHA, for commits
 
-    /// The document's format, derived from its path extension. nil for an unrecognized
-    /// extension (shouldn't normally happen — the file tree only ever opens supported
-    /// formats — but callers should fall back to plain-text handling, not crash).
+    /// The document's format, derived from its path extension. nil for anything outside
+    /// the 4 editable formats — including the read-only files the tree now browses
+    /// (source code, `.entitlements`, etc.) — callers gate editing on this being non-nil.
     var format: DocumentFormat? {
         switch source {
         case .file(let url): return DocumentFormat.from(extension: url.pathExtension)
@@ -37,6 +37,35 @@ final class EditorViewModel {
     var isUncommitted: Bool {
         if case .uncommitted = saveState { return true }
         return false
+    }
+
+    // MARK: - Focus Mode highlighting
+
+    /// Files the user has opted out of live syntax highlighting while in Focus Mode.
+    /// Keyed by `DocumentSource.id` so the choice survives relaunches per file.
+    private var focusModePlainTextFiles: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: Defaults.Key.focusModePlainTextFiles) ?? []) }
+        set { UserDefaults.standard.set(Array(newValue), forKey: Defaults.Key.focusModePlainTextFiles) }
+    }
+
+    /// Whether this file is currently opted out of highlighting while Focus Mode is on.
+    var isPlainTextInFocusMode: Bool {
+        focusModePlainTextFiles.contains(source.id)
+    }
+
+    func setPlainTextInFocusMode(_ plain: Bool) {
+        var files = focusModePlainTextFiles
+        if plain { files.insert(source.id) } else { files.remove(source.id) }
+        focusModePlainTextFiles = files
+    }
+
+    /// Highlightr language key for the live editor. `nil` disables highlighting
+    /// (plain monospace text). Suppressed for this file while Focus Mode is on and the
+    /// user has opted this file out; otherwise falls back to the document format's
+    /// language (`DocumentFormat.highlightLanguage`).
+    func highlightLanguage(focusMode: Bool) -> String? {
+        if focusMode && isPlainTextInFocusMode { return nil }
+        return format?.highlightLanguage
     }
 
     var wordCount: Int {
@@ -90,14 +119,24 @@ final class EditorViewModel {
         case .file(let url): await loadFile(url)
         case .gitHub(let ref): await loadGitHub(ref)
         }
-        if rawText.isEmpty { mode = .editing }
+        if rawText.isEmpty && format != nil { mode = .editing }
+        scheduleLint()
     }
 
     private func loadFile(_ url: URL) async {
         do {
             rawText = try await DocumentStore.read(url)
         } catch {
-            // File may be an iCloud item mid-download; poll until available (up to 15 s).
+            // Only retry if this is genuinely an iCloud item still downloading — a file
+            // that's already local (or not an iCloud item at all) failed to decode as
+            // UTF-8 text for a real reason (e.g. a binary file the tree now shows
+            // optimistically as read-only text) and retrying for 15s would just stall.
+            let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+                .ubiquitousItemDownloadingStatus
+            guard status == .notDownloaded else {
+                rawText = ""
+                return
+            }
             for _ in 0..<15 {
                 try? await Task.sleep(for: .seconds(1))
                 let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
@@ -124,6 +163,7 @@ final class EditorViewModel {
     }
 
     func enterEditMode(tapY: CGFloat = 0, viewHeight: CGFloat = 0) {
+        guard format != nil else { return }
         if viewHeight > 0 {
             anchorFraction = tapY / viewHeight
         } else {
@@ -303,10 +343,6 @@ final class EditorViewModel {
     }
 
     private func scheduleLint() {
-        guard format == .markdown else {
-            lintResults = []
-            return
-        }
         let enabled = UserDefaults.standard.object(forKey: Defaults.Key.linterEnabled) == nil
             ? true : UserDefaults.standard.bool(forKey: Defaults.Key.linterEnabled)
         guard enabled else {
@@ -315,12 +351,22 @@ final class EditorViewModel {
         }
         lintTask?.cancel()
         let snapshot = rawText
+        let kind = FileKind.classify(extension: source.fileExtension)
         lintTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
             // Run the line scan off the main actor — for large files it's heavy
             // enough to stutter typing if left on the EditorViewModel's @MainActor.
-            let results = await Task.detached { snapshot.lintMarkdown() }.value
+            let results = await Task.detached {
+                switch kind {
+                case .editable(.markdown): return snapshot.lintMarkdown()
+                case .editable(.json): return snapshot.lintJSON() + snapshot.lintGenericHygiene()
+                case .editable(.yaml): return snapshot.lintYAML() + snapshot.lintGenericHygiene()
+                case .editable(.text): return snapshot.lintGenericHygiene()
+                case .readOnlyText: return snapshot.lintGenericHygiene()
+                case .image, .binary: return []
+                }
+            }.value
             guard !Task.isCancelled else { return }
             self?.lintResults = results
         }

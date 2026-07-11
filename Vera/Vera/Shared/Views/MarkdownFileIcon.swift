@@ -12,18 +12,28 @@ struct MarkdownFileIcon: View {
     }
 }
 
-/// File-row icon that picks the right glyph for the document's format — the Markdown
-/// mark for `.md`, an SF Symbol for the other supported text formats.
+/// File-row icon that picks the right glyph for the file — the Markdown mark for `.md`,
+/// an SF Symbol for the other editable formats, and a kind-appropriate icon (code, photo,
+/// or a dimmed generic glyph) for everything else the tree now shows.
 struct DocumentFileIcon: View {
     let name: String
 
     var body: some View {
-        let format = DocumentFormat.from(path: name)
-        switch format {
-        case nil, .markdown:
+        switch FileKind.classify(path: name) {
+        case .editable(.markdown):
             MarkdownFileIcon()
-        case .text, .json, .yaml:
-            Image(systemName: format?.systemImage ?? "doc.plaintext")
+        case .editable(let format):
+            Image(systemName: format.systemImage)
+                .frame(width: 18, height: 14)
+        case .readOnlyText:
+            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                .frame(width: 18, height: 14)
+        case .image:
+            Image(systemName: "photo")
+                .frame(width: 18, height: 14)
+        case .binary:
+            Image(systemName: "doc")
+                .foregroundStyle(.tertiary)
                 .frame(width: 18, height: 14)
         }
     }

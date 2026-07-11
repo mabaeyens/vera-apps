@@ -182,13 +182,17 @@ struct DocumentView: View {
     private var toolbarItems: some ToolbarContent {
         // iOS: Edit/Done + font size menu (preview mode); edit-mode tools live in the formatting bar
         // macOS: tools in toolbar, font size consolidated into one menu
-        ToolbarItem(placement: .primaryAction) {
-            switch viewModel.mode {
-            case .viewing:
-                Button("Edit") { viewModel.enterEditMode() }
-            case .editing:
-                Button("Done") { viewModel.exitEditMode() }
-                    .bold()
+        // Read-only files (anything outside the 4 editable formats) never get an Edit
+        // affordance — there's nothing to write back.
+        if viewModel.format != nil {
+            ToolbarItem(placement: .primaryAction) {
+                switch viewModel.mode {
+                case .viewing:
+                    Button("Edit") { viewModel.enterEditMode() }
+                case .editing:
+                    Button("Done") { viewModel.exitEditMode() }
+                        .bold()
+                }
             }
         }
         // GitHub source: commit + "what changed" live next to the editor tools.
@@ -220,6 +224,20 @@ struct DocumentView: View {
                 }
                 .help(focusMode ? "Exit Focus Mode" : "Focus Mode")
                 .accessibilityLabel("Focus mode")
+            }
+            if focusMode {
+                ToolbarItem(placement: .automatic) {
+                    Button {
+                        viewModel.setPlainTextInFocusMode(!viewModel.isPlainTextInFocusMode)
+                    } label: {
+                        Image(systemName: "highlighter")
+                            .symbolVariant(viewModel.isPlainTextInFocusMode ? .slash : .none)
+                    }
+                    .help(viewModel.isPlainTextInFocusMode
+                        ? "Enable Highlighting for This File in Focus Mode"
+                        : "Disable Highlighting for This File in Focus Mode")
+                    .accessibilityLabel(viewModel.isPlainTextInFocusMode ? "Enable highlighting" : "Disable highlighting")
+                }
             }
             if viewModel.format == .markdown {
                 ToolbarItem(placement: .automatic) {

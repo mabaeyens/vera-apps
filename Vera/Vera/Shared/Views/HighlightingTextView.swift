@@ -20,6 +20,8 @@ struct HighlightingTextView: UIViewRepresentable {
     var onIconHelpRequested: () -> Void = {}
     var useInputAccessory: Bool = true
     var onEditingChanged: (Bool) -> Void = { _ in }
+    /// Highlightr language key, or nil for plain unhighlighted text.
+    var language: String? = "markdown"
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -29,7 +31,7 @@ struct HighlightingTextView: UIViewRepresentable {
         let textStorage: NSTextStorage
         if Highlightr() != nil {
             let codeStorage = CodeAttributedString()
-            codeStorage.language = "markdown"
+            codeStorage.language = language
             codeStorage.highlightr.setTheme(to: "atom-one-light")
             applyMonoFont(to: codeStorage.highlightr, size: fontSize)
             textStorage = codeStorage
@@ -121,7 +123,8 @@ struct HighlightingTextView: UIViewRepresentable {
             context.coordinator.invalidateCachedRange()
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
-        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
+        let languageChanged = context.coordinator.lastLanguage != Optional(language)
+        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme || languageChanged {
             if let storage = uiView.textStorage as? CodeAttributedString {
                 storage.highlightr.setTheme(to: newTheme)
                 applyMonoFont(to: storage.highlightr, size: fontSize)
@@ -132,13 +135,14 @@ struct HighlightingTextView: UIViewRepresentable {
                     storage.endEditing()
                 }
                 storage.language = nil
-                storage.language = "markdown"
+                storage.language = language
             } else {
                 // Plain fallback: update font directly
                 uiView.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
             }
             context.coordinator.lastFontSize = fontSize
             context.coordinator.lastTheme = newTheme
+            context.coordinator.lastLanguage = language
         }
     }
 
@@ -208,6 +212,7 @@ struct HighlightingTextView: UIViewRepresentable {
 
         var lastFontSize: CGFloat = 0
         var lastTheme: String = ""
+        var lastLanguage: String??
         var lastUseInputAccessory: Bool?
         var isApplyingExternalChange = false
 
@@ -391,6 +396,8 @@ struct HighlightingTextView: NSViewRepresentable {
     var onIconHelpRequested: () -> Void = {}
     var useInputAccessory: Bool = true   // unused on macOS, kept for shared call site
     var onEditingChanged: (Bool) -> Void = { _ in }  // unused on macOS
+    /// Highlightr language key, or nil for plain unhighlighted text.
+    var language: String? = "markdown"
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -400,7 +407,7 @@ struct HighlightingTextView: NSViewRepresentable {
         let textStorage: NSTextStorage
         if Highlightr() != nil {
             let codeStorage = CodeAttributedString()
-            codeStorage.language = "markdown"
+            codeStorage.language = language
             codeStorage.highlightr.setTheme(to: "atom-one-light")
             applyMonoFont(to: codeStorage.highlightr, size: fontSize)
             textStorage = codeStorage
@@ -485,7 +492,8 @@ struct HighlightingTextView: NSViewRepresentable {
             context.coordinator.invalidateCachedRange()
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
-        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme {
+        let languageChanged = context.coordinator.lastLanguage != Optional(language)
+        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme || languageChanged {
             if let storage = textView.textStorage as? CodeAttributedString {
                 storage.highlightr.setTheme(to: newTheme)
                 applyMonoFont(to: storage.highlightr, size: fontSize)
@@ -496,13 +504,14 @@ struct HighlightingTextView: NSViewRepresentable {
                     storage.endEditing()
                 }
                 storage.language = nil
-                storage.language = "markdown"
+                storage.language = language
             } else {
                 // Plain fallback: update font directly on the text view
                 textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
             }
             context.coordinator.lastFontSize = fontSize
             context.coordinator.lastTheme = newTheme
+            context.coordinator.lastLanguage = language
         }
     }
 
@@ -513,6 +522,7 @@ struct HighlightingTextView: NSViewRepresentable {
 
         var lastFontSize: CGFloat = 0
         var lastTheme: String = ""
+        var lastLanguage: String??
 
         init(_ parent: HighlightingTextView) { self.parent = parent }
 

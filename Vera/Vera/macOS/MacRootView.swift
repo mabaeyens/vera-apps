@@ -29,7 +29,7 @@ struct MacRootView: View {
                     TabBarView()
                 }
                 if let source = vm.selectedSource {
-                    DocumentView(source: source)
+                    DocumentOrImageView(source: source)
                         .id(source)
                 } else {
                     ContentUnavailableView("Select a file", systemImage: "doc.text")

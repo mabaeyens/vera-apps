@@ -137,12 +137,14 @@ struct GitHubClient {
         return meta.default_branch
     }
 
-    /// All supported document files in the repo (recursive), sorted by path.
+    /// All files in the repo (recursive), sorted by path. `FileKind.classify` decides
+    /// per-file how each one is opened (editable/read-only/image/binary) — no filtering
+    /// happens here.
     func documentFiles(branch: String) async throws -> [GitHubItem] {
         let data = try await get("/repos/\(owner)/\(repo)/git/trees/\(encode(path: branch))?recursive=1")
         guard let tree = try? JSONDecoder().decode(Tree.self, from: data) else { throw GitHubError.decoding }
         return tree.tree
-            .filter { $0.type == "blob" && DocumentFormat.from(path: $0.path) != nil }
+            .filter { $0.type == "blob" }
             .map { GitHubItem(path: $0.path) }
             .sorted { $0.path.localizedCompare($1.path) == .orderedAscending }
     }
@@ -212,6 +214,18 @@ struct GitHubClient {
         guard let decoded = Data(base64Encoded: cleaned),
               let text = String(data: decoded, encoding: .utf8) else { throw GitHubError.decoding }
         return (text, c.sha)
+    }
+
+    /// Raw bytes of a file at `path`, for non-text content (e.g. images). Mirrors
+    /// `fileVersion(path:ref:)` — same authenticated Contents API + base64 decode — but
+    /// stops short of the UTF-8 string decode so binary content doesn't throw.
+    func fileData(path: String, ref: String) async throws -> Data {
+        let data = try await get("/repos/\(owner)/\(repo)/contents/\(encode(path: path))?ref=\(encode(query: ref))")
+        guard let c = try? JSONDecoder().decode(Contents.self, from: data),
+              c.encoding == "base64" else { throw GitHubError.decoding }
+        let cleaned = c.content.replacingOccurrences(of: "\n", with: "")
+        guard let decoded = Data(base64Encoded: cleaned) else { throw GitHubError.decoding }
+        return decoded
     }
 
     /// Commit new contents for a file on `branch`. `sha` is the existing file's blob SHA

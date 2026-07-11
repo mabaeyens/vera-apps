@@ -6,7 +6,7 @@ struct ViewingModeView: View {
 
     var body: some View {
         switch viewModel.format {
-        case .markdown, nil:
+        case .markdown:
             MarkdownDocumentView(
                 rawText: viewModel.rawText,
                 fontSize: CGFloat(fontSize),
@@ -17,9 +17,25 @@ struct ViewingModeView: View {
             PlainDocumentView(
                 rawText: viewModel.rawText,
                 fontSize: CGFloat(fontSize),
-                format: viewModel.format ?? .text,
+                language: viewModel.format?.highlightLanguage,
                 scrollFraction: $viewModel.readingScrollFraction
             )
+        case nil:
+            // Not one of the 4 editable formats — read-only source/text file. Resolve a
+            // Highlightr language from the extension so e.g. .py/.entitlements get correct
+            // highlighting instead of being misread as Markdown.
+            VStack(spacing: 0) {
+                PlainDocumentView(
+                    rawText: viewModel.rawText,
+                    fontSize: CGFloat(fontSize),
+                    language: FileKind.classify(extension: viewModel.source.fileExtension).readOnlyLanguage,
+                    scrollFraction: $viewModel.readingScrollFraction
+                )
+                // No onFix: read-only files can't be written back to.
+                if !viewModel.lintResults.isEmpty {
+                    LintPanelView(warnings: viewModel.lintResults)
+                }
+            }
         }
     }
 }

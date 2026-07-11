@@ -55,11 +55,17 @@ struct EditingModeView: View {
                     #if os(iOS)
                     isEditing = editing
                     #endif
-                }
+                },
+                language: viewModel.highlightLanguage(focusMode: focusMode)
             )
             // Focus mode hides the linter so writing stays distraction-free.
             if linterEnabled && !focusMode && !viewModel.lintResults.isEmpty {
-                LintPanelView(warnings: viewModel.lintResults, onFix: { viewModel.applyAutoFix() })
+                // Auto-fix is Markdown-specific (fixMarkdown()) — offering it for JSON/YAML
+                // would silently corrupt them, so only markdown gets the fix button.
+                LintPanelView(
+                    warnings: viewModel.lintResults,
+                    onFix: viewModel.format == .markdown ? { viewModel.applyAutoFix() } : nil
+                )
             }
         }
         #if os(iOS)
@@ -128,9 +134,11 @@ struct EditingModeView: View {
     #endif
 }
 
-private struct LintPanelView: View {
+/// `onFix` is nil for read-only contexts (nothing to write back to) — the Auto-fix
+/// button is omitted entirely in that case.
+struct LintPanelView: View {
     let warnings: [LintWarning]
-    let onFix: () -> Void
+    var onFix: (() -> Void)? = nil
     @State private var isExpanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -157,10 +165,12 @@ private struct LintPanelView: View {
                 }
                 .buttonStyle(.plain)
                 Spacer()
-                Button("Auto-fix", action: onFix)
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.mini)
-                    .padding(.trailing, 12)
+                if let onFix {
+                    Button("Auto-fix", action: onFix)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.mini)
+                        .padding(.trailing, 12)
+                }
             }
             .background(.bar)
 

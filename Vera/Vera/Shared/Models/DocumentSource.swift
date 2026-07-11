@@ -24,6 +24,19 @@ enum DocumentSource: Hashable, Identifiable {
         if case .gitHub = self { return true }
         return false
     }
+
+    /// This source's path extension, for `FileKind.classify(extension:)`.
+    var fileExtension: String {
+        switch self {
+        case .file(let url): return url.pathExtension
+        case .gitHub(let ref): return (ref.path as NSString).pathExtension
+        }
+    }
+
+    /// True for files the tree shows but should never actually open (e.g. `.dmg`).
+    var isBinary: Bool {
+        FileKind.classify(extension: fileExtension) == .binary
+    }
 }
 
 /// A file inside a GitHub repo, enough to read it and commit back to it. The token is

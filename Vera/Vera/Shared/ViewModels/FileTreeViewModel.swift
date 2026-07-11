@@ -91,6 +91,7 @@ final class FileTreeViewModel {
     var activeTabID: UUID? = nil
 
     func openInActiveTab(_ source: DocumentSource) {
+        guard !source.isBinary else { return }
         if let existing = tabs.first(where: { $0.source == source }) {
             activeTabID = existing.id
             selectedSource = source
@@ -111,6 +112,7 @@ final class FileTreeViewModel {
     }
 
     func openInNewTab(_ source: DocumentSource) {
+        guard !source.isBinary else { return }
         if let existing = tabs.first(where: { $0.source == source }) {
             activeTabID = existing.id
             selectedSource = source
@@ -164,7 +166,7 @@ final class FileTreeViewModel {
             return
         }
 
-        guard DocumentFormat.from(extension: resolved.pathExtension) != nil else {
+        guard FileKind.classify(extension: resolved.pathExtension) != .binary else {
             if accessStarted { url.stopAccessingSecurityScopedResource() }
             fileOpenError = .notMarkdown(url)
             return

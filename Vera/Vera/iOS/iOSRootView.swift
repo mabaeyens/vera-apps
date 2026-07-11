@@ -36,7 +36,7 @@ struct iOSRootView: View {
                         .navigationDestination(item: $vm.selectedSource) { source in
                             VStack(spacing: 0) {
                                 if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
-                                DocumentView(source: source).id(source)
+                                DocumentOrImageView(source: source).id(source)
                             }
                         }
                 }
@@ -51,7 +51,7 @@ struct iOSRootView: View {
                     VStack(spacing: 0) {
                         if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
                         if let source = vm.selectedSource {
-                            DocumentView(source: source).id(source)
+                            DocumentOrImageView(source: source).id(source)
                         } else {
                             ContentUnavailableView("Select a file", systemImage: "doc.text")
                         }
@@ -61,11 +61,11 @@ struct iOSRootView: View {
         }
         .fileImporter(
             isPresented: $showFolderPicker,
-            allowedContentTypes: [
-                .folder,
-                UTType(filenameExtension: "md")       ?? .plainText,
-                UTType(filenameExtension: "markdown") ?? .plainText,
-            ]
+            // .item is the most permissive UTType — Vera now browses/views far more than
+            // the 4 editable formats (any text file, images), so the picker shouldn't
+            // filter narrower than that. openFile(_:) still rejects genuinely binary
+            // files with a clear error, mirroring macOS's unrestricted NSOpenPanel.
+            allowedContentTypes: [.folder, .item]
         ) { result in
             showFolderPicker = false
             vm.needsFolderPicker = false

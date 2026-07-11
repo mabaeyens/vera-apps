@@ -1,8 +1,8 @@
 import Foundation
 
-/// A node in a GitHub repo's Markdown tree (folders + .md leaves), built from the flat
-/// recursive path list returned by `GitHubClient.documentFiles`. Files carry a
-/// `GitHubFileRef` so they open in the shared editor.
+/// A node in a GitHub repo's document tree (folders + Markdown/text/JSON/YAML leaves),
+/// built from the flat recursive path list returned by `GitHubClient.documentFiles`.
+/// Files carry a `GitHubFileRef` so they open in the shared editor.
 struct RepoTreeNode: Identifiable {
     let id: String          // repo-relative path (unique within the repo)
     let name: String

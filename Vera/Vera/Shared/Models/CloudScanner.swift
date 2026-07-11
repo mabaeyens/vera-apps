@@ -1,8 +1,8 @@
 import Foundation
 
 enum CloudScanner {
-    // Shallow scan: returns direct supported document files + direct subfolders with
-    // empty children.
+    // Shallow scan: returns every direct file (any type — FileKind.classify decides how
+    // each one opens) + direct subfolders with empty children.
     // Subfolders are loaded lazily when the user expands them in the sidebar.
     // nonisolated so FileManager work runs on the cooperative thread pool, not the main thread.
     nonisolated static func scan(root: URL) async throws -> [FileNode] {
@@ -33,7 +33,7 @@ enum CloudScanner {
                     node: .folder(id: stableID(for: itemURL), name: itemURL.lastPathComponent, url: itemURL, children: []),
                     date: modDate
                 ))
-            } else if DocumentFormat.from(extension: itemURL.pathExtension) != nil {
+            } else {
                 files.append(Dated(
                     node: .file(id: UUID(), name: itemURL.lastPathComponent, url: itemURL, downloadState: downloadState(for: itemURL)),
                     date: modDate

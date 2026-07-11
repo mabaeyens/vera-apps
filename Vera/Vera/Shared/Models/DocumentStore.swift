@@ -33,6 +33,30 @@ enum DocumentStore {
         }.value
     }
 
+    /// Byte-level read for non-text files (e.g. images). Mirrors `read(_:)` — same
+    /// coordinator pattern, off the main thread — but returns raw `Data`.
+    static func readData(_ url: URL) async throws -> Data {
+        try await Task.detached(priority: .userInitiated) {
+            var content: Data?
+            var readError: Error?
+            var coordError: NSError?
+
+            let coordinator = NSFileCoordinator()
+            coordinator.coordinate(readingItemAt: url, options: [], error: &coordError) { coordURL in
+                do {
+                    content = try Data(contentsOf: coordURL)
+                } catch {
+                    readError = error
+                }
+            }
+
+            if let coordError { throw coordError }
+            if let readError { throw readError }
+            guard let content else { throw CocoaError(.fileReadUnknown) }
+            return content
+        }.value
+    }
+
     static func write(_ url: URL, content: String) async throws {
         try await Task.detached(priority: .userInitiated) {
             var writeError: Error?
