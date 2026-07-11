@@ -6,57 +6,27 @@ Manual release checklist. Each release section lists the specific features intro
 
 ## Unreleased
 
-Full rewrite for 1.3.1 — the previous "Unreleased" section predated the entire 1.3.0
-surface and this release's "edit any file type" change, so it didn't check for any of
-this. Historical release sections below are unaffected.
+Everything from the prior 1.3.1 pass has been verified and passed. Remaining: the 4
+fixes from the latest round (macOS image zoom, background-thread publishing fault,
+`ConnectivityMonitor` isolation warning, Markdown table font size).
 
-### Edit any file type, not just Markdown/Text/JSON/YAML (1.3.1 headline change)
-- [ ] Open a local `.swift`/`.py`/`.tsx` (or any other previously read-only source) file → an **Edit button now appears** in the toolbar
-- [ ] Edit it and confirm autosave works exactly like Markdown (check the save indicator, relaunch and confirm the edit persisted)
-- [ ] Open the same kind of file from a **connected GitHub repo**, edit it, and **Commit** (direct commit) → succeeds
-- [ ] Same file, **open Pull Request** instead → succeeds, GitHub link works
-- [ ] While editing a `.swift` file: confirm **no bold/italic/heading/list/quote/paintbrush formatting bar** appears (iPad bottom bar and iPhone keyboard accessory) — syntax highlighting still applies, just no Markdown-insertion buttons
-- [ ] On iPad, while editing a `.swift` file: confirm the **font-size (A/A) buttons are still present** in the bottom bar even though the Markdown buttons are hidden
-- [ ] Open a `.md` file and edit it → formatting bar (bold/italic/etc.), Auto-fix button, and paintbrush "Format & Snippets" button are **all still present**, unchanged
-- [ ] Open a `.json` or `.yaml` file and edit it → editable, autosaves, **no** formatting bar, **no** Auto-fix button (JSON/YAML never had one), JSON/YAML-specific lint still runs
-- [ ] Open a `.txt` file and edit it → editable, no formatting bar, unchanged from before
-- [ ] Open a `.png`/`.jpg` or a binary file (`.dmg`, `.zip`, etc.) → still **no Edit button anywhere** (images/binaries stay non-editable)
-- [ ] New File… picker still shows only Markdown/Text/JSON/YAML (unchanged) — but an **existing** `.swift`/`.py`/etc. file opens straight into a working editor
-- [ ] Multi-file commit sheet: dirty a `.md` file and a `.swift` file together → both appear and commit atomically in one commit, same as any other multi-file commit
+### macOS image viewer: zoom out + mouse zoom
+- [ ] Open an image on macOS, pinch out on the trackpad past the initial fit-to-width size → the image actually shrinks further (previously clamped at fit, pinching out did nothing)
+- [ ] New `−` / `100%` / `+` zoom controls appear over the image (bottom-trailing) → each works, `−`/`+` disable at their min/max, tapping the percentage resets to 100%
+- [ ] Using a mouse only (no trackpad) → zoom controls give a working way to zoom in/out
+- [ ] Double-click/double-tap still toggles between fit and 2x
 
-### GitHub 404 diagnostics + stale-token detection (v1.3.0)
-- [ ] Connect a repo using an old/stale token (not signed in via Device Flow) → shows the specific "not signed in through Vera's GitHub App" message, not the generic "not found"
-- [ ] Tap "Not you? Sign in with a different account" → clears the token and reopens "Sign in with GitHub"
-- [ ] Fresh Device Flow sign-in, then connect a private repo the App has full access to (e.g. `mabaeyens/uigen`) → connects successfully
-- [ ] Error text in the connect sheet is selectable/copyable
-- [ ] "Open from GitHub" sheet shows only **one** Owner/Repository field pair after signing in (no duplicate fields)
+### Background-thread publishing fault
+- [ ] Add a repo to the saved list on one device, or trigger an iCloud KVS sync of the repo list — no more `Publishing changes from background threads is not allowed` fault in the console (check Console.app or Xcode console while syncing)
+- [ ] Repo list still updates correctly in the sidebar when changed externally (regression check for the fix itself)
 
-### Pull-to-refresh the sidebar (staged for 1.3.1)
-- [ ] iOS/iPadOS: swipe down on the file tree sidebar → shows the refresh spinner
-- [ ] Add/push a new file to a connected repo from another device or github.com, then pull to refresh in Vera → the new file appears **without relaunching the app**
-- [ ] Pull to refresh also rescans the local/iCloud folder tree (add a file locally via Finder/Files, pull to refresh, confirm it appears)
+### Xcode warning: ConnectivityMonitor
+- [ ] Build the project → no more `'nonisolated(unsafe)' has no effect` warning on `monitorTask`
+- [ ] Offline banner still appears/disappears correctly when toggling network connectivity (regression check — confirms the isolation change didn't break the monitor)
 
-### macOS folder click (regression check)
-- [ ] Click anywhere on a folder row (not just the chevron) → **iOS/iPadOS**: expands/collapses. **macOS**: clicking the chevron still expands/collapses correctly (macOS intentionally does NOT expand on a row-body click — confirm this still works via the chevron after the emergency revert)
-
-### macOS line-number gutter (needs real device confirmation — 2 prior attempts failed)
-- [ ] Open a long code file (30+ lines) on macOS, in edit mode with line numbers on
-- [ ] Scroll down slowly, then quickly — line numbers stay correctly aligned with their lines at every scroll depth, no drifting or disappearing
-- [ ] Scroll back up — same check in reverse
-
-### Font size in syntax-highlighted code (v1.3.0 fix)
-- [ ] View or edit a `.swift` file, tap the larger/smaller text buttons → text size actually changes (previously silently did nothing)
-- [ ] Open a Markdown file with a fenced code block, change font size → the code block's text resizes too
-
-### Carried over from 1.3.0 — still unconfirmed on device
-- [ ] Pinch to zoom an opened image (local and GitHub) on iOS → re-fits and zooms correctly, no longer stuck at native pixel size
-- [ ] `.tsx` and `.cjs` files → correct TypeScript/JavaScript syntax highlighting
-
-### Regression
-- [ ] iCloud: open/edit/autosave/tabs/pinning unchanged
-- [ ] GitHub: single-file commit/PR, multi-file commit, branch switching, conflict recovery all still work unchanged
-- [ ] Binary file in the tree → tapping/clicking still does nothing (no crash, no accidental open)
-- [ ] VoiceOver reads accessibility labels on toolbar buttons
+### Markdown table font size
+- [ ] Open a Markdown file containing a table, tap larger/smaller text → the table's text actually resizes (previously silently did nothing)
+- [ ] Column widths stay wide enough to fit the (now larger) text without clipping
 
 ---
 
