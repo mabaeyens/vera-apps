@@ -5,17 +5,30 @@ import Foundation
 /// classifier layers a broader, read-only-by-default set on top of it, so a file tree
 /// can show (and a viewer can render) far more than what's actually editable.
 enum FileKind: Equatable {
-    /// One of the 4 formats Vera can live-edit and commit.
+    /// One of the 4 formats Vera can live-edit and commit, with format-specific handling
+    /// (Markdown preview/auto-fix, JSON/YAML-specific lint).
     case editable(DocumentFormat)
-    /// Any other recognized text file — view + syntax-highlight only, never editable.
-    /// `language` is a Highlightr grammar id, or nil if the extension has no known grammar
-    /// (still rendered, just as plain monospace text).
+    /// Any other recognized text file — also editable (see `isEditable`), just without
+    /// any format-specific handling. `language` is a Highlightr grammar id, or nil if the
+    /// extension has no known grammar (still rendered/edited, just as plain monospace
+    /// text). Named `readOnlyText` from when this case predated general editability;
+    /// kept to avoid a wide rename with no functional benefit.
     case readOnlyText(language: String?)
     case image
     case binary
 
-    /// The Highlightr language for a read-only text file, or nil for anything else
-    /// (including editable formats, which use `DocumentFormat.highlightLanguage` instead).
+    /// Whether a file of this kind can be opened in the live editor at all. `false` only
+    /// for images and binaries — every text kind, editable-format or not, is editable.
+    var isEditable: Bool {
+        switch self {
+        case .editable, .readOnlyText: return true
+        case .image, .binary: return false
+        }
+    }
+
+    /// The Highlightr language for a non-`DocumentFormat` text file, or nil for anything
+    /// else (including editable formats, which use `DocumentFormat.highlightLanguage`
+    /// instead).
     var readOnlyLanguage: String? {
         if case .readOnlyText(let language) = self { return language }
         return nil

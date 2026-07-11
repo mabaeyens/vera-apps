@@ -25,13 +25,23 @@ final class EditorViewModel {
     private(set) var blobSHA: String?       // GitHub: current file blob SHA, for commits
 
     /// The document's format, derived from its path extension. nil for anything outside
-    /// the 4 editable formats — including the read-only files the tree now browses
-    /// (source code, `.entitlements`, etc.) — callers gate editing on this being non-nil.
+    /// the 4 rich formats (Markdown/Text/JSON/YAML) — including all the other file types
+    /// Vera browses (source code, `.entitlements`, etc.). This does NOT gate editability
+    /// (see `canEdit`) — it only gates format-*specific* behavior: Markdown preview/auto-
+    /// fix, JSON/YAML-specific lint.
     var format: DocumentFormat? {
         switch source {
         case .file(let url): return DocumentFormat.from(extension: url.pathExtension)
         case .gitHub(let ref): return DocumentFormat.from(path: ref.path)
         }
+    }
+
+    /// Whether this file can be opened in the live editor. True for every text file Vera
+    /// can browse, not just the 4 `DocumentFormat` cases — only images and binaries are
+    /// excluded. `format` still gates format-*specific* behavior (Markdown preview/auto-
+    /// fix, JSON/YAML lint), which is unaffected by this being broader.
+    var canEdit: Bool {
+        FileKind.classify(path: source.path).isEditable
     }
 
     var isUncommitted: Bool {
@@ -72,11 +82,12 @@ final class EditorViewModel {
 
     /// Highlightr language key for the live editor. `nil` disables highlighting
     /// (plain monospace text). Suppressed for this file while Focus Mode is on and the
-    /// user has opted this file out; otherwise falls back to the document format's
-    /// language (`DocumentFormat.highlightLanguage`).
+    /// user has opted this file out; otherwise the document format's language
+    /// (`DocumentFormat.highlightLanguage`) for the 4 rich formats, falling back to
+    /// `FileKind`'s broader language map for every other editable text file.
     func highlightLanguage(focusMode: Bool) -> String? {
         if focusMode && isPlainTextInFocusMode { return nil }
-        return format?.highlightLanguage
+        return format?.highlightLanguage ?? FileKind.classify(path: source.path).readOnlyLanguage
     }
 
     var wordCount: Int {
@@ -130,7 +141,7 @@ final class EditorViewModel {
         case .file(let url): await loadFile(url)
         case .gitHub(let ref): await loadGitHub(ref)
         }
-        if rawText.isEmpty && format != nil { mode = .editing }
+        if rawText.isEmpty && canEdit { mode = .editing }
         scheduleLint()
     }
 
@@ -180,7 +191,7 @@ final class EditorViewModel {
     }
 
     func enterEditMode(tapY: CGFloat = 0, viewHeight: CGFloat = 0) {
-        guard format != nil else { return }
+        guard canEdit else { return }
         if viewHeight > 0 {
             anchorFraction = tapY / viewHeight
         } else {

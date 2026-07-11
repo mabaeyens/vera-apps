@@ -21,7 +21,8 @@ struct ViewingModeView: View {
                 scrollFraction: $viewModel.readingScrollFraction
             )
         case nil:
-            // Not one of the 4 editable formats — read-only source/text file. Resolve a
+            // Not one of the 4 rich formats — a source/text file with no format-specific
+            // handling, but still editable (see EditorViewModel.canEdit). Resolve a
             // Highlightr language from the extension so e.g. .py/.entitlements get correct
             // highlighting instead of being misread as Markdown.
             VStack(spacing: 0) {
@@ -31,7 +32,8 @@ struct ViewingModeView: View {
                     language: FileKind.classify(path: viewModel.source.path).readOnlyLanguage,
                     scrollFraction: $viewModel.readingScrollFraction
                 )
-                // No onFix: read-only files can't be written back to.
+                // No onFix: Auto-fix is Markdown-specific (fixMarkdown()), not tied to
+                // editability — these files are editable, just via the plain editor.
                 if !viewModel.lintResults.isEmpty {
                     LintPanelView(warnings: viewModel.lintResults)
                 }

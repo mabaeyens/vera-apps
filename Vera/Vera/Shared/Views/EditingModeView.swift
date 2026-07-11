@@ -46,8 +46,11 @@ struct EditingModeView: View {
                 useInputAccessory: {
                     #if os(iOS)
                     // iPhone: the keyboard formatting bar is the inputAccessoryView.
-                    // Focus Mode hides it (matching how it hides the iPad bar below).
-                    return sizeClass != .regular && !focusMode
+                    // Focus Mode hides it (matching how it hides the iPad bar below); it's
+                    // Markdown-only (inserts literal **/##/etc.), and unlike the iPad bar
+                    // below it has no other content (no font-size controls) worth keeping
+                    // for other formats, so it's simplest to just not show it at all.
+                    return sizeClass != .regular && !focusMode && viewModel.format == .markdown
                     #else
                     return true
                     #endif
@@ -85,19 +88,23 @@ struct EditingModeView: View {
     #if os(iOS)
     private var iPadFormattingBar: some View {
         HStack(spacing: 0) {
-            // Inline formatting — all surfaced, no nested menu.
-            formatButton("bold", "Bold")                 { viewModel.wrapSelection?("**", "**") }
-            formatButton("italic", "Italic")             { viewModel.wrapSelection?("_", "_") }
-            formatButton("strikethrough", "Strikethrough") { viewModel.wrapSelection?("~~", "~~") }
-            formatButton("chevron.left.forwardslash.chevron.right", "Code") { viewModel.wrapSelection?("`", "`") }
-            barDivider
-            // Block formatting.
-            formatButton("number", "Heading")            { viewModel.insertAtCursor?("## ") }
-            formatButton("list.bullet", "List")          { viewModel.insertAtCursor?("- ") }
-            formatButton("text.quote", "Quote")          { viewModel.insertAtCursor?("> ") }
-            barDivider
-            formatButton("paintbrush", "Format & Snippets") { onAtlasRequested() }
-            barDivider
+            // Markdown-syntax insertion — inserts literal **/##/etc., which would corrupt
+            // any other file type, so it's Markdown-only. Font size below stays universal.
+            if viewModel.format == .markdown {
+                // Inline formatting — all surfaced, no nested menu.
+                formatButton("bold", "Bold")                 { viewModel.wrapSelection?("**", "**") }
+                formatButton("italic", "Italic")             { viewModel.wrapSelection?("_", "_") }
+                formatButton("strikethrough", "Strikethrough") { viewModel.wrapSelection?("~~", "~~") }
+                formatButton("chevron.left.forwardslash.chevron.right", "Code") { viewModel.wrapSelection?("`", "`") }
+                barDivider
+                // Block formatting.
+                formatButton("number", "Heading")            { viewModel.insertAtCursor?("## ") }
+                formatButton("list.bullet", "List")          { viewModel.insertAtCursor?("- ") }
+                formatButton("text.quote", "Quote")          { viewModel.insertAtCursor?("> ") }
+                barDivider
+                formatButton("paintbrush", "Format & Snippets") { onAtlasRequested() }
+                barDivider
+            }
             formatButton("textformat.size.smaller", "Smaller Text") { fontSize = Defaults.FontSize.decreased(from: fontSize) }
             formatButton("textformat.size.larger", "Larger Text") { fontSize = Defaults.FontSize.increased(from: fontSize) }
             // Only genuinely-secondary, non-formatting items remain in overflow.

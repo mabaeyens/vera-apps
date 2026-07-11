@@ -184,9 +184,9 @@ struct DocumentView: View {
     private var toolbarItems: some ToolbarContent {
         // iOS: Edit/Done + font size menu (preview mode); edit-mode tools live in the formatting bar
         // macOS: tools in toolbar, font size consolidated into one menu
-        // Read-only files (anything outside the 4 editable formats) never get an Edit
-        // affordance — there's nothing to write back.
-        if viewModel.format != nil {
+        // Only images/binaries never get an Edit affordance — every other text file Vera
+        // can open is editable, not just the 4 rich `DocumentFormat` cases.
+        if viewModel.canEdit {
             ToolbarItem(placement: .primaryAction) {
                 switch viewModel.mode {
                 case .viewing:
@@ -287,12 +287,16 @@ struct DocumentView: View {
         }
         #endif
         #if os(macOS)
-        ToolbarItem(placement: .automatic) {
-            Button { showAtlas = true } label: {
-                Image(systemName: "paintbrush")
+        // Markdown-only: inserts literal Markdown syntax (**, ##, etc.), which would
+        // corrupt any other file type now that all of them are editable.
+        if viewModel.format == .markdown {
+            ToolbarItem(placement: .automatic) {
+                Button { showAtlas = true } label: {
+                    Image(systemName: "paintbrush")
+                }
+                .help("Format & Snippets")
+                .accessibilityLabel("Format and snippets")
             }
-            .help("Format & Snippets")
-            .accessibilityLabel("Format and snippets")
         }
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .automatic) {
