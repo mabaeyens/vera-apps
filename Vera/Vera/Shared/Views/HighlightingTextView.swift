@@ -63,6 +63,15 @@ struct HighlightingTextView: UIViewRepresentable {
 
         if showLineNumbers {
             let gutter = LineNumberGutterView(frame: CGRect(x: 0, y: 0, width: LineNumberGutterView.width, height: 0))
+            // The text view's real bounds aren't resolved yet at this point (SwiftUI
+            // hasn't sized it), so the gutter starts at zero height. It was previously
+            // only ever corrected in scrollViewDidScroll — on layouts where no scroll
+            // delegate callback happens to fire before the user first looks at the screen
+            // (seen on iPad, not iPhone/Mac — likely a different initial layout sequence
+            // with the split sidebar), the gutter stayed zero-height and drew nothing
+            // until the user scrolled. flexibleHeight makes UIKit track the real height
+            // automatically once layout resolves, independent of any scroll event.
+            gutter.autoresizingMask = [.flexibleHeight]
             gutter.textView = textView
             gutter.fontSize = fontSize
             textView.addSubview(gutter)
@@ -139,7 +148,15 @@ struct HighlightingTextView: UIViewRepresentable {
         let themeChanged = newTheme != context.coordinator.lastTheme
         if fontSize != context.coordinator.lastFontSize || themeChanged || languageChanged {
             if let storage = uiView.textStorage as? CodeAttributedString {
-                storage.highlightr.setTheme(to: newTheme)
+                // Highlightr.setTheme(to:) always builds a brand-new Theme object and
+                // reassigns highlightr.theme, which fires Highlightr's themeChanged
+                // closure -- CodeAttributedString listens for that and re-highlights the
+                // ENTIRE document, regardless of whether the theme name actually changed.
+                // This alone was still causing the full-document re-tokenize on every
+                // font-size tap even after guarding the explicit language reset below.
+                if themeChanged {
+                    storage.highlightr.setTheme(to: newTheme)
+                }
                 applyMonoFont(to: storage.highlightr, size: fontSize)
                 if storage.length > 0 {
                     let fullRange = NSRange(location: 0, length: storage.length)
@@ -176,6 +193,7 @@ struct HighlightingTextView: UIViewRepresentable {
                 let gutter = LineNumberGutterView(
                     frame: CGRect(x: uiView.contentOffset.x, y: uiView.contentOffset.y, width: LineNumberGutterView.width, height: uiView.bounds.height)
                 )
+                gutter.autoresizingMask = [.flexibleHeight]
                 gutter.textView = uiView
                 gutter.fontSize = fontSize
                 uiView.addSubview(gutter)
@@ -561,7 +579,15 @@ struct HighlightingTextView: NSViewRepresentable {
         let themeChanged = newTheme != context.coordinator.lastTheme
         if fontSize != context.coordinator.lastFontSize || themeChanged || languageChanged {
             if let storage = textView.textStorage as? CodeAttributedString {
-                storage.highlightr.setTheme(to: newTheme)
+                // See the iOS variant of this same guard: Highlightr.setTheme(to:) always
+                // rebuilds the Theme object and reassigns highlightr.theme, which fires
+                // Highlightr's themeChanged closure -- CodeAttributedString re-highlights
+                // the entire document from that alone, regardless of whether the theme
+                // name actually changed, which was still causing the hang on every
+                // font-size tap even with the explicit language-reset guard below.
+                if themeChanged {
+                    storage.highlightr.setTheme(to: newTheme)
+                }
                 applyMonoFont(to: storage.highlightr, size: fontSize)
                 if storage.length > 0 {
                     let fullRange = NSRange(location: 0, length: storage.length)
