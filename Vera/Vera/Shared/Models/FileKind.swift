@@ -21,6 +21,28 @@ enum FileKind: Equatable {
         return nil
     }
 
+    /// Best-available SF Symbol for this kind, for file-tree row icons. There's no
+    /// dedicated SF Symbol for most languages (Python, Swift, etc.) — those fall back to
+    /// a generic code-brackets glyph; only languages with a meaningfully different symbol
+    /// get one. `.editable(.markdown)` isn't handled here — callers use the custom
+    /// `MarkdownFileIcon` asset for that case instead.
+    var systemImage: String {
+        switch self {
+        case .editable(let format): return format.systemImage
+        case .readOnlyText(let language):
+            return language.flatMap { Self.readOnlySystemImages[$0] } ?? "chevron.left.forwardslash.chevron.right"
+        case .image: return "photo"
+        case .binary: return "doc"
+        }
+    }
+
+    private static let readOnlySystemImages: [String: String] = [
+        "bash": "terminal", "powershell": "terminal",
+        "json": "curlybraces",
+        "yaml": "list.bullet.rectangle", "toml": "list.bullet.rectangle",
+        "sql": "cylinder",
+    ]
+
     private static let imageExtensions: Set<String> = [
         "png", "jpg", "jpeg", "gif", "heic", "webp", "bmp"
     ]

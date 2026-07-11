@@ -19,21 +19,15 @@ struct DocumentFileIcon: View {
     let name: String
 
     var body: some View {
-        switch FileKind.classify(path: name) {
-        case .editable(.markdown):
+        let kind = FileKind.classify(path: name)
+        if kind == .editable(.markdown) {
             MarkdownFileIcon()
-        case .editable(let format):
-            Image(systemName: format.systemImage)
-                .frame(width: 18, height: 14)
-        case .readOnlyText:
-            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                .frame(width: 18, height: 14)
-        case .image:
-            Image(systemName: "photo")
-                .frame(width: 18, height: 14)
-        case .binary:
-            Image(systemName: "doc")
+        } else if kind == .binary {
+            Image(systemName: kind.systemImage)
                 .foregroundStyle(.tertiary)
+                .frame(width: 18, height: 14)
+        } else {
+            Image(systemName: kind.systemImage)
                 .frame(width: 18, height: 14)
         }
     }
