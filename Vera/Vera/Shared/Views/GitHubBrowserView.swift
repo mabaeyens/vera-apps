@@ -369,8 +369,11 @@ struct GitHubBrowserView: View {
                 }
             }
 
-            // Token section — always shown if no OAuth client ID; toggled in below it if OAuth is configured.
-            if GitHubApp.clientID.isEmpty || !model.token.isEmpty || showTokenFields {
+            // Token section — always shown if no OAuth client ID; toggled in below it if OAuth
+            // is configured. Deliberately NOT `|| !model.token.isEmpty`: once OAuth sign-in sets
+            // model.token, that clause used to keep this section visible alongside the
+            // post-OAuth "Repository" section below, duplicating the owner/repo fields.
+            if GitHubApp.clientID.isEmpty || showTokenFields {
                 Section {
                     if model.token.isEmpty {
                         SecureField("Fine-grained token (ghp_…)", text: $model.token)
