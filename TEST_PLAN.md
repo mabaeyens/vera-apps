@@ -6,20 +6,9 @@ Manual release checklist. Each release section lists the specific features intro
 
 ## Unreleased
 
-### 11 fixes from the previous test pass (iOS open/tree, GitHub, rendering, icons)
-- [ ] iOS: fresh launch → pick a folder → pick a file → Open → opens on the **first** attempt (previously required a second try)
-- [ ] iOS: expand `mira-core` → `core` → open a file → go back to the sidebar → `core`'s children are still there (previously showed an expanded chevron over an empty list)
-- [ ] Open a read-only source file like `server.py` → opens promptly, no noticeable stall
-- [ ] Sign in via Device Flow → the "Signed In" screen explains the App still needs to be installed on specific repos, with a link to GitHub's installation page
-- [ ] Connect a private repo that 404s → the error includes a "Configure Access on GitHub" link, not just a bare "not found"
-- [ ] Open a `config.yaml.template` or `Info.plist.template`-style file → highlights as YAML/XML respectively (previously fell back to plain text)
-- [ ] Read-only source files (`.sh`, `.json`, `.yaml`, `.sql`, etc.) show a language-appropriate icon in the tree, not all the same generic glyph
-- [ ] Sidebar navigation title just says "Files" — doesn't show a stale/mismatched folder name
-- [ ] Open a large bundled file like `mira-core/static/index.html` → renders its full content, not blank (scrollbar previously indicated content that never drew)
-- [ ] Reopen a GitHub file already viewed this session (close tab, tap it again in the tree) → opens instantly, no re-fetch delay
-- [ ] Pinch to zoom an opened image (local and GitHub) on iOS; trackpad-pinch zoom on macOS
-- [ ] Read-only code viewer shows line numbers in the gutter, always on
-- [ ] Editable file's editor shows a line-number gutter by default; toolbar toggle hides/shows it, on both iOS and macOS
+### Still open from the 11-item fix pass (retest on iOS)
+- [ ] Connect a private repo the GitHub App has "All repositories" access to (e.g. `mabaeyens/uigen`) → previously still 404'd despite full account access; now diagnoses a signed-in-account mismatch by name instead of a bare "not found" — confirm the repo actually connects, or if not, that the new error correctly names which account has access
+- [ ] Pinch to zoom an opened image (local and GitHub, e.g. `vera-apps/vera_icon_light_2014.png`) on iOS → previously stuck at native pixel size with pinch doing nothing perceptible; now re-fits via layoutSubviews(). If the image still shows a checkerboard pattern behind its transparency, check whether that's baked into the PNG's own pixels (no checkerboard-drawing code exists anywhere in Vera) rather than a rendering bug
 
 ### Deferred fixes: oversized GitHub images, bounded focus-mode prefs, GitHub client dedupe
 - [ ] Open an image file in a GitHub repo that's over 1MB → shows a specific "Image Too Large" message (not the generic "Can't Load Image" failure)
