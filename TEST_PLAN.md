@@ -6,61 +6,57 @@ Manual release checklist. Each release section lists the specific features intro
 
 ## Unreleased
 
-### Still open from the 11-item fix pass (retest on iOS)
-- [ ] Connect a private repo the GitHub App has "All repositories" access to (e.g. `mabaeyens/uigen`) → previously still 404'd despite full account access; now diagnoses a signed-in-account mismatch by name instead of a bare "not found" — confirm the repo actually connects, or if not, that the new error correctly names which account has access
-- [ ] Pinch to zoom an opened image (local and GitHub, e.g. `vera-apps/vera_icon_light_2014.png`) on iOS → previously stuck at native pixel size with pinch doing nothing perceptible; now re-fits via layoutSubviews(). If the image still shows a checkerboard pattern behind its transparency, check whether that's baked into the PNG's own pixels (no checkerboard-drawing code exists anywhere in Vera) rather than a rendering bug
+Full rewrite for 1.3.1 — the previous "Unreleased" section predated the entire 1.3.0
+surface and this release's "edit any file type" change, so it didn't check for any of
+this. Historical release sections below are unaffected.
 
-### Deferred fixes: oversized GitHub images, bounded focus-mode prefs, GitHub client dedupe
-- [ ] Open an image file in a GitHub repo that's over 1MB → shows a specific "Image Too Large" message (not the generic "Can't Load Image" failure)
-- [ ] Open an image under 1MB in a GitHub repo → still loads and renders normally (no regression)
-- [ ] Toggle the Focus Mode "no highlighter" opt-out on a file, then relaunch → the choice still persists for that file (unaffected by the new 500-entry cap)
-- [ ] Local and GitHub file viewing/editing (`fileVersion`/`fileData` callers — opening, committing, conflict/diff flows) all work unchanged
+### Edit any file type, not just Markdown/Text/JSON/YAML (1.3.1 headline change)
+- [ ] Open a local `.swift`/`.py`/`.tsx` (or any other previously read-only source) file → an **Edit button now appears** in the toolbar
+- [ ] Edit it and confirm autosave works exactly like Markdown (check the save indicator, relaunch and confirm the edit persisted)
+- [ ] Open the same kind of file from a **connected GitHub repo**, edit it, and **Commit** (direct commit) → succeeds
+- [ ] Same file, **open Pull Request** instead → succeeds, GitHub link works
+- [ ] While editing a `.swift` file: confirm **no bold/italic/heading/list/quote/paintbrush formatting bar** appears (iPad bottom bar and iPhone keyboard accessory) — syntax highlighting still applies, just no Markdown-insertion buttons
+- [ ] On iPad, while editing a `.swift` file: confirm the **font-size (A/A) buttons are still present** in the bottom bar even though the Markdown buttons are hidden
+- [ ] Open a `.md` file and edit it → formatting bar (bold/italic/etc.), Auto-fix button, and paintbrush "Format & Snippets" button are **all still present**, unchanged
+- [ ] Open a `.json` or `.yaml` file and edit it → editable, autosaves, **no** formatting bar, **no** Auto-fix button (JSON/YAML never had one), JSON/YAML-specific lint still runs
+- [ ] Open a `.txt` file and edit it → editable, no formatting bar, unchanged from before
+- [ ] Open a `.png`/`.jpg` or a binary file (`.dmg`, `.zip`, etc.) → still **no Edit button anywhere** (images/binaries stay non-editable)
+- [ ] New File… picker still shows only Markdown/Text/JSON/YAML (unchanged) — but an **existing** `.swift`/`.py`/etc. file opens straight into a working editor
+- [ ] Multi-file commit sheet: dirty a `.md` file and a `.swift` file together → both appear and commit atomically in one commit, same as any other multi-file commit
 
-### Wrap toggle for long lines in the code/text viewer
-- [ ] Open a read-only source file (e.g. `.py`, `.json`, `.yaml`, or the `nil`-format read-only viewer) containing a very long single line → by default it requires left/right scrolling to read the full line
-- [ ] Tap/click the new wrap toggle in the toolbar (viewing mode only) → the long line now wraps to fit the screen width, no horizontal scroll needed
-- [ ] Toggle wrap off again → reverts to horizontal scroll for long lines
-- [ ] The wrap preference is global and persists across files and relaunch
-- [ ] Open a Markdown file with a fenced code block containing a long line → the same wrap toggle affects the code block too
-- [ ] Confirm the toggle only appears in viewing mode (not editing mode, where the live editor already wraps by default)
+### GitHub 404 diagnostics + stale-token detection (v1.3.0)
+- [ ] Connect a repo using an old/stale token (not signed in via Device Flow) → shows the specific "not signed in through Vera's GitHub App" message, not the generic "not found"
+- [ ] Tap "Not you? Sign in with a different account" → clears the token and reopens "Sign in with GitHub"
+- [ ] Fresh Device Flow sign-in, then connect a private repo the App has full access to (e.g. `mabaeyens/uigen`) → connects successfully
+- [ ] Error text in the connect sheet is selectable/copyable
+- [ ] "Open from GitHub" sheet shows only **one** Owner/Repository field pair after signing in (no duplicate fields)
 
-### Browse, view, and highlight any text file; render images; inert binaries
-- [ ] Open a local folder or GitHub repo containing non-md files (`.py`, `.swift`, `.lock`, `.toml`, `.sh`, `.yml`, `.entitlements`, `.json`, `.css`, etc.) → all now appear in the sidebar tree (previously only `.md`/`.txt`/`.json`/`.yaml` were visible)
-- [ ] Tap a `.py`/`.swift`/other source file → opens read-only with correct syntax highlighting for that language (not Markdown coloring)
-- [ ] Tap a `.entitlements` or `.plist` file → opens read-only with XML highlighting
-- [ ] Tap a file with an extension Vera doesn't recognize (e.g. a random dotfile) → still opens as plain, unhighlighted monospace text (doesn't error)
-- [ ] Open one of the newly-visible files → **no Edit button** appears anywhere in the toolbar (confirms it's read-only, no accidental edit path)
-- [ ] Tap a `.png`/`.jpg`/`.svg` file in a local folder → renders as an image (fit-to-width, scrollable)
-- [ ] Tap a `.png`/`.jpg` in a **private** GitHub repo → renders correctly (confirms the authenticated Contents-API path works, not just public raw URLs)
-- [ ] Add a binary file (`.dmg`, `.zip`, `.pdf`, etc.) to a test folder → it appears in the tree with a distinct/dimmed icon, but tapping or clicking it **does nothing** (no crash, no blank screen, no error)
-- [ ] Drag-and-drop or Cmd+O a genuinely binary file directly → shows the "not a supported document type" alert (different from the silent tree-tap behavior, since this is an explicit user action)
-- [ ] Open a deliberately malformed `.json` file → a lint warning banner appears ("Invalid JSON…") with **no Auto-fix button** (read-only/non-editable formats never get one)
-- [ ] Open a `.yaml` file with a tab-indented line → flagged as a lint warning
-- [ ] Open any read-only text file with trailing whitespace or no final newline → flagged as lint warnings
-- [ ] Confirm the 4 original editable formats (`.md`/`.txt`/`.json`/`.yaml`) are completely unaffected — still fully editable, committable, and Markdown's own linter/Auto-fix behave exactly as before
+### Pull-to-refresh the sidebar (staged for 1.3.1)
+- [ ] iOS/iPadOS: swipe down on the file tree sidebar → shows the refresh spinner
+- [ ] Add/push a new file to a connected repo from another device or github.com, then pull to refresh in Vera → the new file appears **without relaunching the app**
+- [ ] Pull to refresh also rescans the local/iCloud folder tree (add a file locally via Finder/Files, pull to refresh, confirm it appears)
 
-### Format-aware live editor highlighting + per-file "no highlighter in Focus Mode"
-- [ ] Open a `.json` file and edit it → now shows correct **JSON** syntax highlighting while typing (previously it was incorrectly highlighted as Markdown)
-- [ ] Open a `.yaml` file and edit it → now shows correct **YAML** highlighting while typing
-- [ ] Open a `.txt` file and edit it → now renders as plain, unhighlighted monospace text while typing (previously incorrectly Markdown-highlighted)
-- [ ] Open a `.md` file and edit it → Markdown highlighting is unchanged (no regression)
-- [ ] Enable Focus Mode while editing any file → highlighting stays on by default
-- [ ] With Focus Mode on, tap the new highlighter toggle in the toolbar → highlighting turns off live for that file; tap again to confirm it returns
-- [ ] Exit Focus Mode → highlighting returns regardless of the per-file toggle state
-- [ ] Close and reopen the same file with Focus Mode on → the "highlighting off" choice persists for that file
-- [ ] Open a *different* file with Focus Mode on → highlighting is on by default (the per-file choice doesn't leak across files)
+### macOS folder click (regression check)
+- [ ] Click anywhere on a folder row (not just the chevron) → **iOS/iPadOS**: expands/collapses. **macOS**: clicking the chevron still expands/collapses correctly (macOS intentionally does NOT expand on a row-body click — confirm this still works via the chevron after the emergency revert)
 
-### GitHub sidebar file-format visibility + full-editor routing
-- [ ] Sidebar tree for a connected GitHub repo shows non-`.md` supported files too (not just Markdown)
-- [ ] Connect a **brand-new** GitHub repo via "Open from GitHub…" → the sheet dismisses right after connecting and the repo appears in the sidebar, ready to expand and pick a file from the tree
-- [ ] Tap a file from the sidebar tree, and tap a file from within the GitHub browser sheet (e.g. via search on an already-saved repo) → both open in the **same full editor** (tab bar visible, no cramped narrow-dialog push)
-- [ ] Revisit an already-saved repo via "Open from GitHub…" → branch switching and (with ≥2 dirty drafts) "Commit N Files" are still reachable
-- [ ] iOS: use the "Open folder or file" picker to select a standalone `.txt`, `.json`, or `.yaml` file directly (not via a scanned folder) → selectable and opens correctly
+### macOS line-number gutter (needs real device confirmation — 2 prior attempts failed)
+- [ ] Open a long code file (30+ lines) on macOS, in edit mode with line numbers on
+- [ ] Scroll down slowly, then quickly — line numbers stay correctly aligned with their lines at every scroll depth, no drifting or disappearing
+- [ ] Scroll back up — same check in reverse
+
+### Font size in syntax-highlighted code (v1.3.0 fix)
+- [ ] View or edit a `.swift` file, tap the larger/smaller text buttons → text size actually changes (previously silently did nothing)
+- [ ] Open a Markdown file with a fenced code block, change font size → the code block's text resizes too
+
+### Carried over from 1.3.0 — still unconfirmed on device
+- [ ] Pinch to zoom an opened image (local and GitHub) on iOS → re-fits and zooms correctly, no longer stuck at native pixel size
+- [ ] `.tsx` and `.cjs` files → correct TypeScript/JavaScript syntax highlighting
 
 ### Regression
 - [ ] iCloud: open/edit/autosave/tabs/pinning unchanged
 - [ ] GitHub: single-file commit/PR, multi-file commit, branch switching, conflict recovery all still work unchanged
-- [ ] VoiceOver reads accessibility labels on the new toolbar buttons (highlighter toggle, image viewer)
+- [ ] Binary file in the tree → tapping/clicking still does nothing (no crash, no accidental open)
+- [ ] VoiceOver reads accessibility labels on toolbar buttons
 
 ---
 
