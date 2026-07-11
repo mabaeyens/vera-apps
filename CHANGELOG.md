@@ -1,6 +1,26 @@
 # Changelog
 
-## v1.3.0
+## v1.3.1
+
+v1.3.0 was pulled before release, so this changelog folds in everything from that build
+plus what shipped since.
+
+**Editing**
+- Every supported file type is now editable, in-app and via GitHub — not just Markdown/Text/JSON/YAML. Opening a Swift, Python, TSX, or any other syntax-highlighted file now shows an Edit button, with the same autosave and GitHub commit flow Markdown already had
+- The Markdown formatting/snippet toolbar only appears for Markdown files now, so it can't insert stray `**`/`##` characters into code
+- Fixed font size not applying to Markdown tables and syntax-highlighted code blocks (fenced code and any code-language file)
+- Fixed several iPad-only editor issues: font-size changes freezing the app while editing or previewing code, and line numbers not appearing until the view was scrolled
+
+**Sidebar & navigation**
+- Pull-to-refresh in the iOS/iPadOS sidebar — swipe down to rescan local files and refetch every connected GitHub repo
+- Tap or click anywhere on a folder row to expand it, not just the small chevron (macOS unaffected — chevron/native click behavior preserved)
+
+**Images**
+- Fixed image zoom on Mac: pinch/scroll-wheel zoom out below 100%, plus on-screen +/- zoom controls (previously clamped at fit-to-width with no way to zoom out via mouse)
+
+**Reliability**
+- Fixed a background-thread SwiftUI warning from iCloud repo-list sync
+- Fixed a Swift 6 actor-isolation warning in the connectivity monitor
 
 **File browsing & viewing**
 - Browse, view, and syntax-highlight any text file, not just Markdown — Python, Swift, Go, Rust, shell, JSON, YAML, SQL, TypeScript/TSX, JavaScript/CJS, and more
