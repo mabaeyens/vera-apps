@@ -6,7 +6,9 @@ import AppKit
 #endif
 
 /// Read-only viewer for image files (`FileKind.image`) opened from the file tree.
-/// Fit-to-width, scrollable — no dedicated zoom/pan controls.
+/// Pinch/double-tap to zoom (iOS via a real `UIScrollView`; macOS via trackpad
+/// pinch), works identically for local and GitHub-sourced images since both
+/// converge on the same `imageData` here.
 struct ImageViewerView: View {
     let source: DocumentSource
 
@@ -17,12 +19,7 @@ struct ImageViewerView: View {
     var body: some View {
         Group {
             if let imageData, let platformImage = PlatformImage(data: imageData) {
-                ScrollView([.horizontal, .vertical]) {
-                    platformImage.swiftUIImage
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity)
-                }
+                ZoomableImageView(image: platformImage)
             } else if tooLarge {
                 ContentUnavailableView(
                     "Image Too Large",
@@ -85,14 +82,136 @@ struct ImageViewerView: View {
 /// Thin cross-platform wrapper so `ImageViewerView` doesn't need `#if os` branches.
 private struct PlatformImage {
     let swiftUIImage: Image
+    #if os(iOS)
+    let uiImage: UIImage
+    #elseif os(macOS)
+    let nsImage: NSImage
+    #endif
 
     init?(data: Data) {
         #if os(iOS)
         guard let uiImage = UIImage(data: data) else { return nil }
+        self.uiImage = uiImage
         swiftUIImage = Image(uiImage: uiImage)
         #elseif os(macOS)
         guard let nsImage = NSImage(data: data) else { return nil }
+        self.nsImage = nsImage
         swiftUIImage = Image(nsImage: nsImage)
         #endif
     }
 }
+
+#if os(iOS)
+/// A real `UIScrollView` + `UIImageView`, for correct pinch-to-zoom and
+/// double-tap-to-zoom — SwiftUI's `ScrollView` has no magnification support on iOS,
+/// unlike `UIScrollView.minimumZoomScale`/`maximumZoomScale`, so this is the standard
+/// photo-viewer pattern rather than composing `MagnificationGesture` by hand.
+private struct ZoomableImageView: UIViewRepresentable {
+    let image: PlatformImage
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIScrollView {
+        let scrollView = UIScrollView()
+        scrollView.minimumZoomScale = 1
+        scrollView.maximumZoomScale = 4
+        scrollView.showsHorizontalScrollIndicator = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.delegate = context.coordinator
+
+        let imageView = UIImageView(image: image.uiImage)
+        imageView.contentMode = .scaleAspectFit
+        imageView.isUserInteractionEnabled = true
+        scrollView.addSubview(imageView)
+        context.coordinator.imageView = imageView
+        context.coordinator.scrollView = scrollView
+
+        let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap))
+        doubleTap.numberOfTapsRequired = 2
+        imageView.addGestureRecognizer(doubleTap)
+
+        return scrollView
+    }
+
+    func updateUIView(_ scrollView: UIScrollView, context: Context) {
+        context.coordinator.layout()
+    }
+
+    final class Coordinator: NSObject, UIScrollViewDelegate {
+        weak var scrollView: UIScrollView?
+        weak var imageView: UIImageView?
+        private var lastBoundsSize: CGSize = .zero
+
+        func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
+
+        func layout() {
+            guard let scrollView, let imageView, let image = imageView.image else { return }
+            let bounds = scrollView.bounds.size
+            guard bounds.width > 0, bounds.height > 0, image.size.width > 0, image.size.height > 0 else { return }
+            // Only re-fit on an actual size change (e.g. rotation) — updateUIView can
+            // fire for unrelated SwiftUI re-renders, and resetting the frame/contentSize
+            // every time would reset the user's current zoom/pan.
+            guard bounds != lastBoundsSize else { return }
+            lastBoundsSize = bounds
+            scrollView.zoomScale = 1
+            let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
+            let fitSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+            imageView.frame = CGRect(origin: .zero, size: fitSize)
+            scrollView.contentSize = fitSize
+            centerImage()
+        }
+
+        func scrollViewDidZoom(_ scrollView: UIScrollView) { centerImage() }
+
+        private func centerImage() {
+            guard let scrollView, let imageView else { return }
+            let boundsSize = scrollView.bounds.size
+            var frame = imageView.frame
+            frame.origin.x = frame.width < boundsSize.width ? (boundsSize.width - frame.width) / 2 : 0
+            frame.origin.y = frame.height < boundsSize.height ? (boundsSize.height - frame.height) / 2 : 0
+            imageView.frame = frame
+        }
+
+        @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
+            guard let scrollView else { return }
+            if scrollView.zoomScale > scrollView.minimumZoomScale {
+                scrollView.setZoomScale(scrollView.minimumZoomScale, animated: true)
+            } else {
+                let point = gesture.location(in: imageView)
+                let zoomRect = CGRect(
+                    x: point.x - (scrollView.bounds.width / 4),
+                    y: point.y - (scrollView.bounds.height / 4),
+                    width: scrollView.bounds.width / 2,
+                    height: scrollView.bounds.height / 2
+                )
+                scrollView.zoom(to: zoomRect, animated: true)
+            }
+        }
+    }
+}
+#elseif os(macOS)
+/// macOS trackpad pinch routes through SwiftUI's `MagnificationGesture` cleanly, so no
+/// `NSScrollView`/`NSImageView` wrapping is needed here unlike iOS.
+private struct ZoomableImageView: View {
+    let image: PlatformImage
+
+    @State private var scale: CGFloat = 1
+    @GestureState private var pinchScale: CGFloat = 1
+
+    var body: some View {
+        ScrollView([.horizontal, .vertical]) {
+            image.swiftUIImage
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .scaleEffect(scale * pinchScale)
+        }
+        .gesture(
+            MagnificationGesture()
+                .updating($pinchScale) { value, state, _ in state = value }
+                .onEnded { value in scale = max(1, min(6, scale * value)) }
+        )
+        .onTapGesture(count: 2) { scale = scale > 1 ? 1 : 2 }
+    }
+}
+#endif
