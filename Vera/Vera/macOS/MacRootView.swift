@@ -22,7 +22,7 @@ struct MacRootView: View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             FileTreeView(selectedSource: $vm.selectedSource)
                 .frame(minWidth: 200)
-                .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
+                .navigationTitle("Files")
         } detail: {
             VStack(spacing: 0) {
                 if vm.tabs.count >= 1 && tabBarVisible && !focusMode {

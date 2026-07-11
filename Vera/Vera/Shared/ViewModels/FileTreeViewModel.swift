@@ -166,7 +166,7 @@ final class FileTreeViewModel {
             return
         }
 
-        guard FileKind.classify(extension: resolved.pathExtension) != .binary else {
+        guard FileKind.classify(path: resolved.path) != .binary else {
             if accessStarted { url.stopAccessingSecurityScopedResource() }
             fileOpenError = .notMarkdown(url)
             return
@@ -179,10 +179,12 @@ final class FileTreeViewModel {
 
         if let root = rootURL, resolved.path.hasPrefix(root.path + "/") {
             openFileInNewTab(resolved)
-        } else if rootURL == nil {
-            pendingExternalURL = resolved
-            setRoot(url.deletingLastPathComponent())
         } else {
+            // No root yet, or the file is outside the current root: open it directly
+            // as a standalone file. Promoting its parent directory to a fake root
+            // doesn't work — .fileImporter only vends a security-scoped grant for
+            // the picked file itself, not its enclosing directory, so a later
+            // directory scan of that "root" would fail permission checks.
             addStandaloneAndSelect(resolved)
         }
     }
@@ -218,7 +220,6 @@ final class FileTreeViewModel {
     // Coalesces concurrent load() callers — at launch both FileTreeView's
     // .task and MacRootView's scenePhase==.active fire load() at once.
     private var loadTask: Task<Void, Never>?
-    private var pendingExternalURL: URL?
 
     init() {
         let hasSeen = UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
@@ -270,10 +271,6 @@ final class FileTreeViewModel {
                 }
                 loadFailed = false
                 repinDownloads()
-                if let pending = pendingExternalURL {
-                    openFileInNewTab(pending)
-                    pendingExternalURL = nil
-                }
                 return
             } catch {
                 // If the root directory itself is gone, clear the stale bookmark
@@ -319,7 +316,6 @@ final class FileTreeViewModel {
         selectedSource = nil
         isLoading = false
         loadFailed = false
-        pendingExternalURL = nil
         needsFolderPicker = true
     }
 

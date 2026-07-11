@@ -30,7 +30,7 @@ struct iOSRootView: View {
                 // column's toolbar items don't reach the navigation bar.
                 NavigationStack {
                     FileTreeView(selectedSource: $vm.selectedSource)
-                        .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
+                        .navigationTitle("Files")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar { sharedToolbar }
                         .navigationDestination(item: $vm.selectedSource) { source in
@@ -44,7 +44,7 @@ struct iOSRootView: View {
                 // iPad: standard split view
                 NavigationSplitView(columnVisibility: $columnVisibility) {
                     FileTreeView(selectedSource: $vm.selectedSource)
-                        .navigationTitle(vm.rootURL?.lastPathComponent ?? "Files")
+                        .navigationTitle("Files")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar { sharedToolbar }
                 } detail: {

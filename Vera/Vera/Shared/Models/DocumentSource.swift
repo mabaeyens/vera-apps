@@ -25,17 +25,19 @@ enum DocumentSource: Hashable, Identifiable {
         return false
     }
 
-    /// This source's path extension, for `FileKind.classify(extension:)`.
-    var fileExtension: String {
+    /// This source's full path, for `FileKind.classify(path:)` — using the full path
+    /// (not just the last extension) lets classify() see through wrapper extensions
+    /// like `.template` down to the real format underneath.
+    var path: String {
         switch self {
-        case .file(let url): return url.pathExtension
-        case .gitHub(let ref): return (ref.path as NSString).pathExtension
+        case .file(let url): return url.path
+        case .gitHub(let ref): return ref.path
         }
     }
 
     /// True for files the tree shows but should never actually open (e.g. `.dmg`).
     var isBinary: Bool {
-        FileKind.classify(extension: fileExtension) == .binary
+        FileKind.classify(path: path) == .binary
     }
 }
 

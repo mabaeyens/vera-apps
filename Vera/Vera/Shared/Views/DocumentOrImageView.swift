@@ -6,7 +6,7 @@ struct DocumentOrImageView: View {
     let source: DocumentSource
 
     var body: some View {
-        if FileKind.classify(extension: source.fileExtension) == .image {
+        if FileKind.classify(path: source.path) == .image {
             ImageViewerView(source: source)
         } else {
             DocumentView(source: source)

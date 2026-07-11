@@ -64,6 +64,13 @@ enum FileKind: Equatable {
         "entitlements": "xml", "plist": "xml",
     ]
 
+    /// A file named e.g. `config.yaml.template` should still highlight as YAML — these
+    /// wrapper extensions are stripped so classification falls through to the extension
+    /// one level in, but the result always stays read-only (never `.editable`), even if
+    /// the inner extension is one of the 4 editable formats: only an exact match on one
+    /// of those 4 extensions is ever live-editable.
+    private static let wrapperExtensions: Set<String> = ["template", "sample", "example", "dist", "orig"]
+
     static func classify(extension ext: String) -> FileKind {
         let lower = ext.lowercased()
         if let format = DocumentFormat.from(extension: lower) { return .editable(format) }
@@ -73,6 +80,17 @@ enum FileKind: Equatable {
     }
 
     static func classify(path: String) -> FileKind {
-        classify(extension: (path as NSString).pathExtension)
+        let ns = path as NSString
+        let ext = ns.pathExtension.lowercased()
+        if wrapperExtensions.contains(ext) {
+            let inner = (ns.deletingPathExtension as NSString).pathExtension
+            if !inner.isEmpty {
+                switch classify(extension: inner) {
+                case .editable(let format): return .readOnlyText(language: format.highlightLanguage)
+                case let other: return other
+                }
+            }
+        }
+        return classify(extension: ext)
     }
 }

@@ -28,7 +28,7 @@ struct ViewingModeView: View {
                 PlainDocumentView(
                     rawText: viewModel.rawText,
                     fontSize: CGFloat(fontSize),
-                    language: FileKind.classify(extension: viewModel.source.fileExtension).readOnlyLanguage,
+                    language: FileKind.classify(path: viewModel.source.path).readOnlyLanguage,
                     scrollFraction: $viewModel.readingScrollFraction
                 )
                 // No onFix: read-only files can't be written back to.

@@ -162,11 +162,17 @@ final class EditorViewModel {
     }
 
     private func loadGitHub(_ ref: GitHubFileRef) async {
+        if let cached = GitHubFileCache.lookup(ref) {
+            rawText = cached.text
+            blobSHA = cached.sha
+            return
+        }
         guard let client = gitHubClient() else { rawText = ""; return }
         do {
             let version = try await client.fileVersion(path: ref.path, ref: ref.branch)
             rawText = version.text
             blobSHA = version.sha
+            GitHubFileCache.store(ref, text: version.text, sha: version.sha)
         } catch {
             saveState = .error(error.localizedDescription)
             rawText = ""
@@ -291,6 +297,11 @@ final class EditorViewModel {
                     blobSHA = version.sha
                 }
             }
+            // The committed branch's cached content is now stale; the PR-branch case
+            // doesn't touch commitBranch's own content, so nothing to invalidate there.
+            if !openPR {
+                GitHubFileCache.invalidate(GitHubFileRef(owner: ref.owner, repo: ref.repo, path: ref.path, branch: commitBranch))
+            }
             saveState = .saved
             return urlString.flatMap(URL.init(string:))
         } catch {
@@ -362,7 +373,7 @@ final class EditorViewModel {
         }
         lintTask?.cancel()
         let snapshot = rawText
-        let kind = FileKind.classify(extension: source.fileExtension)
+        let kind = FileKind.classify(path: source.path)
         lintTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled else { return }
