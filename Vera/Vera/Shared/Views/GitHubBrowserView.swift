@@ -1,4 +1,9 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 @MainActor
 @Observable
@@ -12,6 +17,13 @@ final class GitHubBrowserModel {
     var isConnected = false
     var isLoading = false
     var errorText: String?
+    /// True when `connect()` failed with a 404 — ambiguous between "repo genuinely
+    /// doesn't exist" and "GitHub App isn't installed on this repo" (a Device-Flow
+    /// token's access is scoped to wherever the App is installed, so a 404 there is
+    /// common even for a real, correctly-spelled private repo). Surfaces a link to
+    /// GitHub's installation-management page alongside the generic error either way,
+    /// since there's no cheap way to distinguish the two from a single 404.
+    var needsInstallationHelp = false
 
     var searchQuery: String = ""
     var searchResults: [CodeSearchResult] = []
@@ -71,6 +83,7 @@ final class GitHubBrowserModel {
     func connect() async {
         isLoading = true
         errorText = nil
+        needsInstallationHelp = false
         availableBranches = []
         defer { isLoading = false }
         do {
@@ -87,6 +100,9 @@ final class GitHubBrowserModel {
             UserDefaults.standard.set(cleanOwner, forKey: Defaults.Key.githubLastOwner)
             UserDefaults.standard.set(cleanRepo, forKey: Defaults.Key.githubLastRepo)
             isConnected = true
+        } catch GitHubError.badResponse(404) {
+            errorText = "Repository or path not found."
+            needsInstallationHelp = true
         } catch {
             errorText = error.localizedDescription
         }
@@ -401,6 +417,16 @@ struct GitHubBrowserView: View {
                 Section {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.red)
+                    if model.needsInstallationHelp {
+                        Text("If this is a private repo, Vera's GitHub App may not be installed on it yet.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            openInstallationsPage()
+                        } label: {
+                            Label("Configure Access on GitHub", systemImage: "safari")
+                        }
+                    }
                 }
             }
 
@@ -469,6 +495,14 @@ struct GitHubBrowserView: View {
     /// lands on the sidebar tree to pick a file, instead of staying parked in this sheet's
     /// own file list. Revisiting an already-saved repo (branch switching, content search,
     /// multi-file commit — all only reachable from here) keeps the current in-sheet flow.
+    private func openInstallationsPage() {
+        #if os(iOS)
+        UIApplication.shared.open(DeviceAuthSheet.installationsURL)
+        #else
+        NSWorkspace.shared.open(DeviceAuthSheet.installationsURL)
+        #endif
+    }
+
     private func connectAndMaybeDismiss() async {
         let wasNew = !RepoListStore.all().contains(
             SavedRepo(owner: model.owner.trimmingCharacters(in: .whitespaces),

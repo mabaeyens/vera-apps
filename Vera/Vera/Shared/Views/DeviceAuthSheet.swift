@@ -15,6 +15,12 @@ struct DeviceAuthSheet: View {
 
     enum Phase { case requesting, waiting, done }
 
+    /// GitHub's generic "manage app installations" page — lists every GitHub App
+    /// installed on the user's account and lets them add/remove repo access. Used
+    /// instead of the app-specific `github.com/apps/<slug>/installations/new` deep
+    /// link since it needs no slug and works whether or not the App is installed yet.
+    static let installationsURL = URL(string: "https://github.com/settings/installations")!
+
     var body: some View {
         NavigationStack {
             Group {
@@ -25,10 +31,23 @@ struct DeviceAuthSheet: View {
                 case .waiting:
                     waitingView
                 case .done:
-                    ContentUnavailableView {
-                        Label("Signed In", systemImage: "checkmark.circle")
-                    } description: {
-                        Text("You're connected. Tap Done to continue.")
+                    VStack(spacing: 16) {
+                        ContentUnavailableView {
+                            Label("Signed In", systemImage: "checkmark.circle")
+                        } description: {
+                            Text("One more step: choose which repos Vera can access.")
+                        }
+                        Button {
+                            openURL(Self.installationsURL)
+                        } label: {
+                            Label("Open GitHub to Select Repos", systemImage: "safari")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        Text("Signing in authorizes your GitHub account, but the Vera app still needs to be installed on the specific repos you want to browse — including any private ones.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 32)
                     }
                 }
             }
