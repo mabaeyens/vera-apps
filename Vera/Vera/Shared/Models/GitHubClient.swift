@@ -144,7 +144,22 @@ struct GitHubClient {
     private struct UserDTO: Decodable { let login: String }
     private struct InstallationsDTO: Decodable {
         let installations: [Installation]
-        struct Installation: Decodable { let account: Account?; struct Account: Decodable { let login: String? } }
+        struct Installation: Decodable {
+            let id: Int
+            let account: Account?
+            let repository_selection: String
+            struct Account: Decodable { let login: String? }
+        }
+    }
+
+    /// One GitHub App installation the token can see, with enough to diagnose a 404:
+    /// which account it's on, and whether it's scoped to all of that account's repos
+    /// or only a hand-picked "selected" list.
+    struct Installation {
+        let id: Int
+        let accountLogin: String
+        /// `true` for "All repositories," `false` for a "Selected repositories" list.
+        let coversAllRepos: Bool
     }
 
     /// The GitHub login the token authenticates as. Used to give a specific diagnosis
@@ -161,9 +176,10 @@ struct GitHubClient {
         return try? JSONDecoder().decode(UserDTO.self, from: data).login
     }
 
-    /// Account logins the token's GitHub App installation(s) cover, for the same
-    /// diagnostic purpose as `currentUserLogin`.
-    static func installedAccountLogins(token: String) async -> [String] {
+    /// The token's GitHub App installations, for diagnosing a 404 on a repo the user
+    /// believes the App has access to: which account(s) it's installed on, and whether
+    /// each installation covers all of that account's repos or only a selected subset.
+    static func installations(token: String) async -> [Installation] {
         guard let url = URL(string: "\(apiBase)/user/installations") else { return [] }
         var req = URLRequest(url: url)
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -171,7 +187,10 @@ struct GitHubClient {
         guard let (data, response) = try? await URLSession.shared.data(for: req),
               (response as? HTTPURLResponse)?.statusCode == 200,
               let dto = try? JSONDecoder().decode(InstallationsDTO.self, from: data) else { return [] }
-        return dto.installations.compactMap { $0.account?.login }
+        return dto.installations.compactMap { install in
+            guard let login = install.account?.login else { return nil }
+            return Installation(id: install.id, accountLogin: login, coversAllRepos: install.repository_selection == "all")
+        }
     }
 
     /// All files in the repo (recursive), sorted by path. `FileKind.classify` decides

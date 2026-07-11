@@ -101,16 +101,19 @@ final class GitHubBrowserModel {
             UserDefaults.standard.set(cleanRepo, forKey: Defaults.Key.githubLastRepo)
             isConnected = true
         } catch GitHubError.badResponse(404) {
-            // A 404 here is ambiguous between "repo doesn't exist" and "this token can't
-            // see it" — the latter happens even with an installation that has full
-            // account access, if the signed-in user differs from that installation's
-            // account. Diagnose which, so the error is actionable instead of opaque.
+            // A 404 here is ambiguous between three distinct states — diagnose which one
+            // this actually is instead of guessing, since a repo the App genuinely has
+            // no access to and a repo it *should* see both look identical otherwise.
             let cleanToken = token.trimmingCharacters(in: .whitespaces)
-            let login = await GitHubClient.currentUserLogin(token: cleanToken)
-            let installedAccounts = await GitHubClient.installedAccountLogins(token: cleanToken)
             let cleanOwner = owner.trimmingCharacters(in: .whitespaces)
-            if let login, !installedAccounts.isEmpty, !installedAccounts.contains(where: { $0.caseInsensitiveCompare(cleanOwner) == .orderedSame }) {
-                errorText = "Signed in to GitHub as \(login), whose app access covers \(installedAccounts.joined(separator: ", ")) — not \(cleanOwner). Sign in as the right account, or add \(cleanOwner) in GitHub's app settings."
+            let installations = await GitHubClient.installations(token: cleanToken)
+            let match = installations.first { $0.accountLogin.caseInsensitiveCompare(cleanOwner) == .orderedSame }
+            if let match {
+                if match.coversAllRepos {
+                    errorText = "Vera's GitHub App has full access to \(cleanOwner), so \(cleanOwner)/\(repo.trimmingCharacters(in: .whitespaces)) not being found is unexpected. Double-check the exact name/case, whether it's been renamed or transferred, or try disconnecting and reinstalling the app."
+                } else {
+                    errorText = "Vera's GitHub App is installed on \(cleanOwner), but only for selected repositories — \(cleanOwner)/\(repo.trimmingCharacters(in: .whitespaces)) may not be one of them."
+                }
             } else {
                 errorText = "Repository or path not found."
             }
