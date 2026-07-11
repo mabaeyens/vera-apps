@@ -136,7 +136,8 @@ struct HighlightingTextView: UIViewRepresentable {
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
         let languageChanged = context.coordinator.lastLanguage != Optional(language)
-        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme || languageChanged {
+        let themeChanged = newTheme != context.coordinator.lastTheme
+        if fontSize != context.coordinator.lastFontSize || themeChanged || languageChanged {
             if let storage = uiView.textStorage as? CodeAttributedString {
                 storage.highlightr.setTheme(to: newTheme)
                 applyMonoFont(to: storage.highlightr, size: fontSize)
@@ -146,8 +147,16 @@ struct HighlightingTextView: UIViewRepresentable {
                     storage.addAttribute(.font, value: UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular), range: fullRange)
                     storage.endEditing()
                 }
-                storage.language = nil
-                storage.language = language
+                // Re-tokenizing via Highlightr's JS engine is expensive for real code
+                // files (unlike the short Markdown/JSON/YAML notes this used to be the
+                // only editable content) — only force it when language or theme actually
+                // changed. A pure font-size change is already fully handled by the direct
+                // .font attribute pass above; forcing a re-tokenize on every size tap was
+                // freezing the main thread on larger files.
+                if languageChanged || themeChanged {
+                    storage.language = nil
+                    storage.language = language
+                }
             } else {
                 // Plain fallback: update font directly
                 uiView.font = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
@@ -549,7 +558,8 @@ struct HighlightingTextView: NSViewRepresentable {
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
         let languageChanged = context.coordinator.lastLanguage != Optional(language)
-        if fontSize != context.coordinator.lastFontSize || newTheme != context.coordinator.lastTheme || languageChanged {
+        let themeChanged = newTheme != context.coordinator.lastTheme
+        if fontSize != context.coordinator.lastFontSize || themeChanged || languageChanged {
             if let storage = textView.textStorage as? CodeAttributedString {
                 storage.highlightr.setTheme(to: newTheme)
                 applyMonoFont(to: storage.highlightr, size: fontSize)
@@ -559,8 +569,14 @@ struct HighlightingTextView: NSViewRepresentable {
                     storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular), range: fullRange)
                     storage.endEditing()
                 }
-                storage.language = nil
-                storage.language = language
+                // See the iOS variant of this same guard: only force a full re-tokenize
+                // via Highlightr's JS engine when language/theme actually changed, not on
+                // every font-size tap — expensive on real code files, and unnecessary
+                // since the direct .font attribute pass above already handles size.
+                if languageChanged || themeChanged {
+                    storage.language = nil
+                    storage.language = language
+                }
             } else {
                 // Plain fallback: update font directly on the text view
                 textView.font = NSFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
