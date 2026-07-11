@@ -139,6 +139,41 @@ struct GitHubClient {
         return meta.default_branch
     }
 
+    // MARK: - Access diagnostics (not repo-scoped)
+
+    private struct UserDTO: Decodable { let login: String }
+    private struct InstallationsDTO: Decodable {
+        let installations: [Installation]
+        struct Installation: Decodable { let account: Account?; struct Account: Decodable { let login: String? } }
+    }
+
+    /// The GitHub login the token authenticates as. Used to give a specific diagnosis
+    /// when a repo 404s despite the GitHub App reporting full account access — a
+    /// Device-Flow user token can only see repos through installations *this* account
+    /// can access, so signing in as the wrong account looks identical to "not found."
+    static func currentUserLogin(token: String) async -> String? {
+        guard let url = URL(string: "\(apiBase)/user") else { return nil }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        guard let (data, response) = try? await URLSession.shared.data(for: req),
+              (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return try? JSONDecoder().decode(UserDTO.self, from: data).login
+    }
+
+    /// Account logins the token's GitHub App installation(s) cover, for the same
+    /// diagnostic purpose as `currentUserLogin`.
+    static func installedAccountLogins(token: String) async -> [String] {
+        guard let url = URL(string: "\(apiBase)/user/installations") else { return [] }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        guard let (data, response) = try? await URLSession.shared.data(for: req),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let dto = try? JSONDecoder().decode(InstallationsDTO.self, from: data) else { return [] }
+        return dto.installations.compactMap { $0.account?.login }
+    }
+
     /// All files in the repo (recursive), sorted by path. `FileKind.classify` decides
     /// per-file how each one is opened (editable/read-only/image/binary) — no filtering
     /// happens here.

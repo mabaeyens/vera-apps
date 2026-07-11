@@ -101,7 +101,19 @@ final class GitHubBrowserModel {
             UserDefaults.standard.set(cleanRepo, forKey: Defaults.Key.githubLastRepo)
             isConnected = true
         } catch GitHubError.badResponse(404) {
-            errorText = "Repository or path not found."
+            // A 404 here is ambiguous between "repo doesn't exist" and "this token can't
+            // see it" — the latter happens even with an installation that has full
+            // account access, if the signed-in user differs from that installation's
+            // account. Diagnose which, so the error is actionable instead of opaque.
+            let cleanToken = token.trimmingCharacters(in: .whitespaces)
+            let login = await GitHubClient.currentUserLogin(token: cleanToken)
+            let installedAccounts = await GitHubClient.installedAccountLogins(token: cleanToken)
+            let cleanOwner = owner.trimmingCharacters(in: .whitespaces)
+            if let login, !installedAccounts.isEmpty, !installedAccounts.contains(where: { $0.caseInsensitiveCompare(cleanOwner) == .orderedSame }) {
+                errorText = "Signed in to GitHub as \(login), whose app access covers \(installedAccounts.joined(separator: ", ")) — not \(cleanOwner). Sign in as the right account, or add \(cleanOwner) in GitHub's app settings."
+            } else {
+                errorText = "Repository or path not found."
+            }
             needsInstallationHelp = true
         } catch {
             errorText = error.localizedDescription

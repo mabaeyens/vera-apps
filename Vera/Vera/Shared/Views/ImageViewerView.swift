@@ -112,19 +112,25 @@ private struct ZoomableImageView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> UIScrollView {
-        let scrollView = UIScrollView()
+        let scrollView = LayoutObservingScrollView()
         scrollView.minimumZoomScale = 1
         scrollView.maximumZoomScale = 4
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.showsVerticalScrollIndicator = false
         scrollView.delegate = context.coordinator
-
+        // UIImageView(image:) sizes its frame to the image's native pixel size, which
+        // is typically far larger than the screen — layoutSubviews() below re-fits it
+        // to the scroll view's actual bounds as soon as those are resolved. Relying on
+        // updateUIView for that (as an earlier version did) doesn't work: SwiftUI has
+        // no obligation to call it again after the view's real frame is laid out, so
+        // the image could get stuck at native size with pinch doing nothing useful.
         let imageView = UIImageView(image: image.uiImage)
         imageView.contentMode = .scaleAspectFit
         imageView.isUserInteractionEnabled = true
         scrollView.addSubview(imageView)
         context.coordinator.imageView = imageView
         context.coordinator.scrollView = scrollView
+        scrollView.onLayout = { [weak coordinator = context.coordinator] in coordinator?.layout() }
 
         let doubleTap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleDoubleTap))
         doubleTap.numberOfTapsRequired = 2
@@ -135,6 +141,17 @@ private struct ZoomableImageView: UIViewRepresentable {
 
     func updateUIView(_ scrollView: UIScrollView, context: Context) {
         context.coordinator.layout()
+    }
+
+    /// Calls back into the coordinator on every real Auto Layout pass (initial layout,
+    /// rotation, split-view resize) — not just when SwiftUI happens to call
+    /// `updateUIView`, which isn't reliably re-invoked once the view appears.
+    private final class LayoutObservingScrollView: UIScrollView {
+        var onLayout: (() -> Void)?
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            onLayout?()
+        }
     }
 
     final class Coordinator: NSObject, UIScrollViewDelegate {
