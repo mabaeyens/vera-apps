@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct FileTreeView: View {
     @Environment(FileTreeViewModel.self) private var vm
@@ -104,10 +105,14 @@ struct FileTreeView: View {
             didInitialLoad = true
             await vm.load()
         }
-        .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChange)) { _ in
+        // NSUbiquitousKeyValueStore.didChangeExternallyNotification (and, to be safe,
+        // its same-process counterpart) can be posted off the main thread — .onReceive
+        // doesn't hop threads on its own, and writing to @State off-main is exactly what
+        // triggered "Publishing changes from background threads is not allowed."
+        .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChange).receive(on: DispatchQueue.main)) { _ in
             savedRepos = RepoListStore.all()
         }
-        .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChangeExternally)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChangeExternally).receive(on: DispatchQueue.main)) { _ in
             savedRepos = RepoListStore.all()
         }
         // macOS List selection → open the iCloud file. (The editor is driven by the
