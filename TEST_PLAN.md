@@ -6,27 +6,12 @@ Manual release checklist. Each release section lists the specific features intro
 
 ## Unreleased
 
-Everything from the prior 1.3.1 pass has been verified and passed. Remaining: the 4
-fixes from the latest round (macOS image zoom, background-thread publishing fault,
-`ConnectivityMonitor` isolation warning, Markdown table font size).
+Everything from the prior 1.3.1 passes has been verified and passed, including past
+releases. Remaining: one build-breaking regression caught before it could even be tested.
 
-### macOS image viewer: zoom out + mouse zoom
-- [ ] Open an image on macOS, pinch out on the trackpad past the initial fit-to-width size → the image actually shrinks further (previously clamped at fit, pinching out did nothing)
-- [ ] New `−` / `100%` / `+` zoom controls appear over the image (bottom-trailing) → each works, `−`/`+` disable at their min/max, tapping the percentage resets to 100%
-- [ ] Using a mouse only (no trackpad) → zoom controls give a working way to zoom in/out
-- [ ] Double-click/double-tap still toggles between fit and 2x
-
-### Background-thread publishing fault
-- [ ] Add a repo to the saved list on one device, or trigger an iCloud KVS sync of the repo list — no more `Publishing changes from background threads is not allowed` fault in the console (check Console.app or Xcode console while syncing)
-- [ ] Repo list still updates correctly in the sidebar when changed externally (regression check for the fix itself)
-
-### Xcode warning: ConnectivityMonitor
-- [ ] Build the project → no more `'nonisolated(unsafe)' has no effect` warning on `monitorTask`
-- [ ] Offline banner still appears/disappears correctly when toggling network connectivity (regression check — confirms the isolation change didn't break the monitor)
-
-### Markdown table font size
-- [ ] Open a Markdown file containing a table, tap larger/smaller text → the table's text actually resizes (previously silently did nothing)
-- [ ] Column widths stay wide enough to fit the (now larger) text without clipping
+### HighlightrEngine actor isolation (compile error, blocked all testing)
+- [ ] Build the project (iOS + macOS) → compiles cleanly, no more "Call to main actor-isolated global function 'applyMonoFont(to:size:)' in a synchronous actor-isolated context"
+- [ ] Open any file with syntax highlighting (code file, or a Markdown fenced code block) on both platforms → highlighting still renders correctly (regression check — confirms the `nonisolated` fix didn't break font application)
 
 ---
 
