@@ -17,7 +17,6 @@ IMG_*.JPG
 
 # Demo / scratch material — local only
 demo/
-screenshots-tmp/
 
 # Signing/export config — per-developer (carries the Team ID). Copy the
 # matching *.plist.template, fill in your Team ID, and keep the real file local.
