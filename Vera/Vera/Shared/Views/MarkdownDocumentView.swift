@@ -166,7 +166,7 @@ struct MarkdownDocumentView: View {
             CopyableCodeBlock(language: lang, content: code, fontSize: fontSize)
                 .padding(.vertical, 6)
         case .table(let headers, let rows):
-            DocTableBlock(headers: headers, rows: rows)
+            DocTableBlock(headers: headers, rows: rows, fontSize: fontSize)
                 .padding(.vertical, 6)
         }
     }
@@ -394,12 +394,21 @@ struct CopyableCodeBlock: View {
 struct DocTableBlock: View {
     let headers: [String]
     let rows: [[String]]
+    var fontSize: CGFloat = CGFloat(Defaults.FontSize.default)
+
+    // Cell text uses .footnote-equivalent sizing, scaled to the user's font-size
+    // preference — this view previously used a hardcoded `.footnote` text style,
+    // completely ignoring the A/A toolbar buttons.
+    private var cellFontSize: CGFloat { fontSize * 0.8 }
 
     private var colWidths: [CGFloat] {
         let allRows = [headers] + rows.map { padded($0) }
+        // Per-character width heuristic, scaled proportionally to cellFontSize so columns
+        // stay wide enough to fit the text (not just the text itself) as font size changes.
+        let charWidth = cellFontSize * 0.73
         return (0..<headers.count).map { col in
             let maxLen = allRows.map { row in row[col].count }.max() ?? 1
-            return CGFloat(maxLen) * 9.5 + 24.0
+            return CGFloat(maxLen) * charWidth + 24.0
         }
     }
 
@@ -438,7 +447,7 @@ struct DocTableBlock: View {
     @ViewBuilder
     private func cellView(text: String, isHeader: Bool, width: CGFloat, isLast: Bool) -> some View {
         Text(attrCell(text))
-            .font(isHeader ? .footnote.weight(.semibold) : .footnote)
+            .font(isHeader ? .system(size: cellFontSize).weight(.semibold) : .system(size: cellFontSize))
             .foregroundStyle(Color.primary)
             .lineLimit(2)
             .padding(.horizontal, 10)
