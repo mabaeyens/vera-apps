@@ -16,7 +16,10 @@ private typealias PlatformFont = NSFont
 /// back to the **proportional** system font — which is why headings/bold tokens render
 /// in a different typeface than the monospaced body. We override the derived fonts with
 /// real monospaced variants so the whole editor stays one face.
-func applyMonoFont(to highlightr: Highlightr, size: CGFloat) {
+/// `nonisolated`: called from `HighlightrEngine`, a plain (non-MainActor) actor, so this
+/// can't be implicitly MainActor-isolated (the project's default). Font-creation APIs
+/// here (UIFont/NSFont) are thread-safe, so this is safe to run off the main actor.
+nonisolated func applyMonoFont(to highlightr: Highlightr, size: CGFloat) {
     guard let theme = highlightr.theme else { return }
     let regular = PlatformFont.monospacedSystemFont(ofSize: size, weight: .regular)
     theme.setCodeFont(regular)
@@ -25,7 +28,7 @@ func applyMonoFont(to highlightr: Highlightr, size: CGFloat) {
 }
 
 /// SF Mono with the italic trait applied while preserving the monospace trait.
-private func italicMonospacedFont(size: CGFloat) -> PlatformFont? {
+private nonisolated func italicMonospacedFont(size: CGFloat) -> PlatformFont? {
     let base = PlatformFont.monospacedSystemFont(ofSize: size, weight: .regular)
     #if os(iOS)
     guard let descriptor = base.fontDescriptor.withSymbolicTraits([.traitItalic, .traitMonoSpace]) else {
