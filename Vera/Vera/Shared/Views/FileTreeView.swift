@@ -178,9 +178,14 @@ struct FileTreeView: View {
                     .foregroundStyle(Theme.accent)
             }
             .contentShape(Rectangle())
-            // DisclosureGroup only toggles on the chevron itself by default (especially
-            // on macOS) — this makes tapping/clicking anywhere on the row expand it too.
+            #if os(iOS)
+            // DisclosureGroup only toggles on the chevron by default on iOS — this makes
+            // tapping anywhere on the row expand it too. macOS's List/DisclosureGroup
+            // click handling is AppKit-backed (NSOutlineView); a competing SwiftUI
+            // .onTapGesture there breaks the native chevron-click expand entirely rather
+            // than adding a second way to trigger it, so this stays iOS-only.
             .onTapGesture { binding.wrappedValue.toggle() }
+            #endif
         }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive) {
@@ -262,7 +267,9 @@ struct FileTreeView: View {
                         Text(node.name)
                     }
                     .contentShape(Rectangle())
+                    #if os(iOS)
                     .onTapGesture { binding.wrappedValue.toggle() }
+                    #endif
                 }
             )
         } else if let ref = node.ref {
@@ -315,7 +322,9 @@ struct FileTreeView: View {
                             .foregroundStyle(Theme.accent)
                     }
                     .contentShape(Rectangle())
+                    #if os(iOS)
                     .onTapGesture { iCloudFolderExpanded.toggle() }
+                    #endif
                 }
             }
         } else if vm.rootURL == nil {
@@ -352,7 +361,9 @@ struct FileTreeView: View {
                         Text(name)
                     }
                     .contentShape(Rectangle())
+                    #if os(iOS)
                     .onTapGesture { binding.wrappedValue.toggle() }
+                    #endif
                 }
             )
         case .file:
