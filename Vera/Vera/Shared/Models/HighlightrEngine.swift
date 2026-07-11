@@ -19,6 +19,12 @@ actor HighlightrEngine {
     private var currentTheme: String?
 
     func highlight(code: String, language: String, theme: String, fontSize: CGFloat) -> AttributedString? {
+        // Bails out calls that got queued on the actor behind a slower one and whose
+        // originating `.task(id:)` has since been cancelled (e.g. superseded by a rapid
+        // follow-up font-size change) — skips the full highlight pass and its
+        // full-file `AttributedString` allocation instead of doing wasted, ever-piling-up
+        // work. See IPAD_FONT_SIZE_HANG.md, remediation (b).
+        guard !Task.isCancelled else { return nil }
         let h: Highlightr
         if let existing = highlightr {
             h = existing

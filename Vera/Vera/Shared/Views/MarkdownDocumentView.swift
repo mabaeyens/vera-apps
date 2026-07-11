@@ -266,6 +266,14 @@ struct HighlightedCodeView: View {
     private func lineRows(_ lines: [Substring]) -> some View {
         let gutterDigits = max(2, String(lines.count).count)
         let gutterWidth = CGFloat(gutterDigits) * fontSize * 0.62 + 6
+        // SF Mono is fixed-width, so one upfront max-length pass gives an exact row width
+        // for every line, computed once. This replaces a per-row `.fixedSize` intrinsic-size
+        // measurement, which forced UIKit to resolve N independent lazy layout passes any
+        // time fontSize changed — traced as the likely cause of an iPad-only layout
+        // non-convergence hang inside the horizontal ScrollView (see IPAD_FONT_SIZE_HANG.md).
+        // Excludes pathological long lines (forced to wrap below) so one minified line can't
+        // blow up the shared width for every other row.
+        let maxLineWidth = CGFloat(lines.map(\.count).filter { $0 <= Self.maxUnwrappedLineLength }.max() ?? 0) * fontSize * 0.62
         return LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, plainLine in
                 HStack(alignment: .top, spacing: 8) {
@@ -276,7 +284,10 @@ struct HighlightedCodeView: View {
                         .frame(minWidth: gutterWidth, alignment: .trailing)
                     lineText(index: index, plainLine: plainLine)
                         .textSelection(.enabled)
-                        .modifier(LineWidthModifier(wrap: wrapEnabled || plainLine.count > Self.maxUnwrappedLineLength))
+                        .modifier(LineWidthModifier(
+                            wrap: wrapEnabled || plainLine.count > Self.maxUnwrappedLineLength,
+                            fixedWidth: maxLineWidth
+                        ))
                 }
             }
         }
@@ -325,11 +336,12 @@ struct HighlightedCodeView: View {
 /// item 8's blank-render bug hinges on no single `Text` ever spanning more than one line.
 private struct LineWidthModifier: ViewModifier {
     let wrap: Bool
+    let fixedWidth: CGFloat
     func body(content: Content) -> some View {
         if wrap {
             content.frame(maxWidth: .infinity, alignment: .leading)
         } else {
-            content.fixedSize(horizontal: true, vertical: false)
+            content.frame(width: fixedWidth, alignment: .leading)
         }
     }
 }
