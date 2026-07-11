@@ -10,7 +10,7 @@ struct ViewingModeView: View {
             MarkdownDocumentView(
                 rawText: viewModel.rawText,
                 fontSize: CGFloat(fontSize),
-                scrollFraction: $viewModel.readingScrollFraction,
+                onScrollFractionChange: { viewModel.readingScrollFraction = $0 },
                 imageBaseURL: viewModel.previewBaseURL
             )
         case .text, .json, .yaml:
@@ -18,7 +18,7 @@ struct ViewingModeView: View {
                 rawText: viewModel.rawText,
                 fontSize: CGFloat(fontSize),
                 language: viewModel.format?.highlightLanguage,
-                scrollFraction: $viewModel.readingScrollFraction
+                onScrollFractionChange: { viewModel.readingScrollFraction = $0 }
             )
         case nil:
             // Not one of the 4 rich formats — a source/text file with no format-specific
@@ -30,7 +30,7 @@ struct ViewingModeView: View {
                     rawText: viewModel.rawText,
                     fontSize: CGFloat(fontSize),
                     language: FileKind.classify(path: viewModel.source.path).readOnlyLanguage,
-                    scrollFraction: $viewModel.readingScrollFraction
+                    onScrollFractionChange: { viewModel.readingScrollFraction = $0 }
                 )
                 // No onFix: Auto-fix is Markdown-specific (fixMarkdown()), not tied to
                 // editability — these files are editable, just via the plain editor.

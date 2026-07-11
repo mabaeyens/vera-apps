@@ -126,7 +126,14 @@ extension MarkdownUI.Theme {
 struct MarkdownDocumentView: View {
     let rawText: String
     let fontSize: CGFloat
-    @Binding var scrollFraction: CGFloat
+    // A plain write-only closure, not a `@Binding` into the view model: binding through
+    // `$viewModel.someProperty` reads the property to build the binding, which makes the
+    // *owning* view's body a tracked dependent of it — so every scroll-geometry tick would
+    // re-invoke that ancestor's body, reconstruct this ScrollView, and re-trigger geometry
+    // evaluation within the same frame. That feedback loop is what SwiftUI's "OnScrollGeometryChange
+    // Modifier tried to update multiple times per frame" fault reports, and it pegged CPU on iPad.
+    // A closure writes without reading, so the ancestor never subscribes to the value.
+    var onScrollFractionChange: (CGFloat) -> Void = { _ in }
     var imageBaseURL: URL? = nil
 
     // Memoized: the document is parsed only when rawText changes, not on every body
@@ -149,7 +156,7 @@ struct MarkdownDocumentView: View {
             guard maxOffset > 0 else { return 0 }
             return geo.contentOffset.y / maxOffset
         } action: { _, new in
-            scrollFraction = Swift.max(0, Swift.min(1, new))
+            onScrollFractionChange(Swift.max(0, Swift.min(1, new)))
         }
         .task(id: rawText) { segments = parseDocSegments(rawText) }
     }
@@ -182,7 +189,10 @@ struct PlainDocumentView: View {
     let rawText: String
     let fontSize: CGFloat
     let language: String?
-    @Binding var scrollFraction: CGFloat
+    // See the matching comment on `MarkdownDocumentView.onScrollFractionChange` — a plain
+    // write-only closure, not a `@Binding`, so the owning view never becomes a tracked
+    // dependent of the scroll fraction and can't re-trigger geometry evaluation mid-frame.
+    var onScrollFractionChange: (CGFloat) -> Void = { _ in }
 
     var body: some View {
         ScrollView {
@@ -204,7 +214,7 @@ struct PlainDocumentView: View {
             guard maxOffset > 0 else { return 0 }
             return geo.contentOffset.y / maxOffset
         } action: { _, new in
-            scrollFraction = Swift.max(0, Swift.min(1, new))
+            onScrollFractionChange(Swift.max(0, Swift.min(1, new)))
         }
     }
 }
