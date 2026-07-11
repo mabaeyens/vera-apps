@@ -6,6 +6,20 @@ Manual release checklist. Each release section lists the specific features intro
 
 ## Unreleased
 
+### Deferred fixes: oversized GitHub images, bounded focus-mode prefs, GitHub client dedupe
+- [ ] Open an image file in a GitHub repo that's over 1MB → shows a specific "Image Too Large" message (not the generic "Can't Load Image" failure)
+- [ ] Open an image under 1MB in a GitHub repo → still loads and renders normally (no regression)
+- [ ] Toggle the Focus Mode "no highlighter" opt-out on a file, then relaunch → the choice still persists for that file (unaffected by the new 500-entry cap)
+- [ ] Local and GitHub file viewing/editing (`fileVersion`/`fileData` callers — opening, committing, conflict/diff flows) all work unchanged
+
+### Wrap toggle for long lines in the code/text viewer
+- [ ] Open a read-only source file (e.g. `.py`, `.json`, `.yaml`, or the `nil`-format read-only viewer) containing a very long single line → by default it requires left/right scrolling to read the full line
+- [ ] Tap/click the new wrap toggle in the toolbar (viewing mode only) → the long line now wraps to fit the screen width, no horizontal scroll needed
+- [ ] Toggle wrap off again → reverts to horizontal scroll for long lines
+- [ ] The wrap preference is global and persists across files and relaunch
+- [ ] Open a Markdown file with a fenced code block containing a long line → the same wrap toggle affects the code block too
+- [ ] Confirm the toggle only appears in viewing mode (not editing mode, where the live editor already wraps by default)
+
 ### Browse, view, and highlight any text file; render images; inert binaries
 - [ ] Open a local folder or GitHub repo containing non-md files (`.py`, `.swift`, `.lock`, `.toml`, `.sh`, `.yml`, `.entitlements`, `.json`, `.css`, etc.) → all now appear in the sidebar tree (previously only `.md`/`.txt`/`.json`/`.yaml` were visible)
 - [ ] Tap a `.py`/`.swift`/other source file → opens read-only with correct syntax highlighting for that language (not Markdown coloring)

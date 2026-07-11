@@ -218,25 +218,36 @@ struct HighlightedCodeView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @AppStorage(Defaults.Key.codeWrapEnabled) private var wrapEnabled = false
     @State private var highlighted: AttributedString?
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            Group {
-                if let attr = highlighted {
-                    Text(attr)
-                        .textSelection(.enabled)
-                } else {
-                    Text(code)
-                        .font(.system(size: Theme.Typography.codeSize * dynamicTypeSize.monoScale, design: .monospaced))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
+        Group {
+            if wrapEnabled {
+                codeText
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    codeText
+                        .fixedSize(horizontal: true, vertical: false)
+                        .frame(minWidth: 0, alignment: .leading)
                 }
             }
-            .fixedSize(horizontal: true, vertical: false)
-            .frame(minWidth: 0, alignment: .leading)
         }
         .task(id: [colorScheme.hashValue, dynamicTypeSize.hashValue]) { highlighted = computeHighlighted() }
+    }
+
+    @ViewBuilder
+    private var codeText: some View {
+        if let attr = highlighted {
+            Text(attr)
+                .textSelection(.enabled)
+        } else {
+            Text(code)
+                .font(.system(size: Theme.Typography.codeSize * dynamicTypeSize.monoScale, design: .monospaced))
+                .foregroundStyle(.primary)
+                .textSelection(.enabled)
+        }
     }
 
     private func computeHighlighted() -> AttributedString? {

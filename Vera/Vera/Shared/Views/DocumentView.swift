@@ -21,6 +21,7 @@ struct DocumentView: View {
     @State private var lastSeen: String?
     @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
     @AppStorage(Defaults.Key.focusMode) private var focusMode = false
+    @AppStorage(Defaults.Key.codeWrapEnabled) private var wrapCode = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(GitHubDraftStore.self) private var draftStore
 
@@ -254,6 +255,13 @@ struct DocumentView: View {
         #if os(iOS)
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .topBarTrailing) {
+                Button { wrapCode.toggle() } label: {
+                    Image(systemName: wrapCode ? "text.alignleft" : "arrow.left.and.right")
+                }
+                .help(wrapCode ? "Disable Line Wrap" : "Wrap Long Lines")
+                .accessibilityLabel(wrapCode ? "Disable line wrap" : "Wrap long lines")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button { fontSize = Defaults.FontSize.decreased(from: fontSize) } label: {
                     Image(systemName: "textformat.size.smaller")
                 }
@@ -287,6 +295,13 @@ struct DocumentView: View {
                 }
                 .help("Copy all text")
                 .accessibilityLabel("Copy all text")
+            }
+            ToolbarItem(placement: .automatic) {
+                Button { wrapCode.toggle() } label: {
+                    Image(systemName: wrapCode ? "text.alignleft" : "arrow.left.and.right")
+                }
+                .help(wrapCode ? "Disable Line Wrap" : "Wrap Long Lines")
+                .accessibilityLabel(wrapCode ? "Disable line wrap" : "Wrap long lines")
             }
         }
         ToolbarItem(placement: .automatic) {
