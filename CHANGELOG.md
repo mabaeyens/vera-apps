@@ -1,5 +1,44 @@
 # Changelog
 
+## v1.3.0
+
+**File browsing & viewing**
+- Browse, view, and syntax-highlight any text file, not just Markdown — Python, Swift, Go, Rust, shell, JSON, YAML, SQL, TypeScript/TSX, JavaScript/CJS, and more
+- Curated per-language file icons in the tree
+- Wrapper extensions (`.template`, `.sample`, `.example`, `.dist`, `.orig`) now highlight using their inner file type
+- New "wrap" toggle for long lines, so wide code doesn't require horizontal scrolling
+- Line numbers in the code/text viewer on both platforms, with fixes to keep them correctly positioned while scrolling on macOS
+- Fixed very long single-line files (like minified HTML/JS) rendering blank
+
+**Images**
+- Pinch-to-zoom on GitHub and local images — native gesture on iOS, trackpad pinch on macOS
+- Fixed images getting stuck oversized with zooming doing nothing
+- Fixed handling of oversized GitHub images
+
+**GitHub**
+- Create new files of any supported format directly in a connected repo, not just Markdown
+- Relative-path images and links inside GitHub-hosted Markdown now resolve correctly
+- Word/character counter in the editor toolbar
+- Recent commit history now shows in the "What Changed" sheet
+- Much clearer diagnostics when a repo can't be opened: Vera now tells you whether it's a stale sign-in token, an installation scoped to only some repos, or something else, instead of a generic "not found"
+- Fixed the "Open from GitHub" sheet showing duplicate owner/repository fields after signing in
+- GitHub requests now time out after 15 seconds instead of potentially hanging for minutes on a flaky connection
+- Error messages in the GitHub connect sheet are now selectable and copyable
+- Confirmation prompt before replacing an already-saved GitHub token
+- "Remove Repository" reworded to "Disconnect" for clarity
+
+**Sidebar & navigation**
+- Tap or click anywhere on a folder row to expand it, not just the small chevron
+- Fixed the file tree losing its expanded-folder state after opening a file and navigating back (iOS)
+- Fixed a folder-title mismatch in the sidebar
+
+**iOS reliability**
+- Fixed a bug where the very first tap to open a file after launch silently failed (a second tap was needed)
+- Faster file opening: syntax highlighting now runs on a shared background engine instead of reinitializing per file
+
+**Editor**
+- Separate "larger text" / "smaller text" buttons, with a unified default font size across platforms
+
 ## v1.2.0
 
 GitHub sign-in now works with one-tap OAuth, no more copy-pasting a token. New: switch branches while browsing a repo, pick a target branch when committing, and commit multiple edited files at once in a single atomic commit. Also fixed several conflict-detection and cross-branch commit bugs.
