@@ -69,6 +69,9 @@ struct FileTreeView: View {
                     iCloudSections
                 }
                 .listStyle(.sidebar)
+                #if os(iOS)
+                .refreshable { await refreshAll() }
+                #endif
             }
         }
         .confirmationDialog(
@@ -536,6 +539,20 @@ struct FileTreeView: View {
         }
         return nil
     }
+
+    #if os(iOS)
+    /// Pull-to-refresh: rescans the local/iCloud tree and forces every connected GitHub
+    /// repo to refetch, bypassing `RepoBrowser`'s session-long cache — otherwise commits
+    /// made elsewhere (another device, the web) never show up until the app relaunches.
+    private func refreshAll() async {
+        await vm.load()
+        await withTaskGroup(of: Void.self) { group in
+            for repo in savedRepos {
+                group.addTask { await repoBrowser.reload(repo) }
+            }
+        }
+    }
+    #endif
 }
 
 // MARK: - macOS file row

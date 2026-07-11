@@ -71,6 +71,17 @@ final class RepoBrowser {
     func loadIfNeeded(_ repo: SavedRepo) async {
         if case .loaded = state(for: repo) { return }
         if case .loading = state(for: repo) { return }
+        await fetch(repo)
+    }
+
+    /// Bypasses the cache — a repo's tree otherwise stays cached for the whole app
+    /// session, so new commits made elsewhere (e.g. from another device) never appear
+    /// until the app relaunches. Used by pull-to-refresh.
+    func reload(_ repo: SavedRepo) async {
+        await fetch(repo)
+    }
+
+    private func fetch(_ repo: SavedRepo) async {
         guard let token = CredentialStore.load() else { return }
         states[repo.id] = .loading
         let client = GitHubClient(owner: repo.owner, repo: repo.repo, token: token)
