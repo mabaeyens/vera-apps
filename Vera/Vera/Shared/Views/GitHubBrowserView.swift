@@ -106,15 +106,26 @@ final class GitHubBrowserModel {
             // no access to and a repo it *should* see both look identical otherwise.
             let cleanToken = token.trimmingCharacters(in: .whitespaces)
             let cleanOwner = owner.trimmingCharacters(in: .whitespaces)
-            let installations = await GitHubClient.installations(token: cleanToken)
-            let match = installations.first { $0.accountLogin.caseInsensitiveCompare(cleanOwner) == .orderedSame }
-            if let match {
-                if match.coversAllRepos {
-                    errorText = "Vera's GitHub App has full access to \(cleanOwner), so \(cleanOwner)/\(repo.trimmingCharacters(in: .whitespaces)) not being found is unexpected. Double-check the exact name/case, whether it's been renamed or transferred, or try disconnecting and reinstalling the app."
+            let cleanRepo = repo.trimmingCharacters(in: .whitespaces)
+            switch await GitHubClient.installations(token: cleanToken) {
+            case .success(let installations):
+                let match = installations.first { $0.accountLogin.caseInsensitiveCompare(cleanOwner) == .orderedSame }
+                if let match {
+                    if match.coversAllRepos {
+                        errorText = "Vera's GitHub App has full access to \(cleanOwner), so \(cleanOwner)/\(cleanRepo) not being found is unexpected. Double-check the exact name/case, whether it's been renamed or transferred, or try disconnecting and reinstalling the app."
+                    } else {
+                        errorText = "Vera's GitHub App is installed on \(cleanOwner), but only for selected repositories — \(cleanOwner)/\(cleanRepo) may not be one of them."
+                    }
                 } else {
-                    errorText = "Vera's GitHub App is installed on \(cleanOwner), but only for selected repositories — \(cleanOwner)/\(repo.trimmingCharacters(in: .whitespaces)) may not be one of them."
+                    errorText = "Repository or path not found."
                 }
-            } else {
+            case .notAppToken:
+                // This token wasn't issued by Vera's GitHub App sign-in, so its access is
+                // whatever a personal access token was granted directly — GitHub App
+                // installation scope is irrelevant to it. Most often this is a token saved
+                // before "Sign in with GitHub" existed, or one pasted in by hand.
+                errorText = "This connection isn't using a Vera GitHub App sign-in token, so \(cleanOwner)/\(cleanRepo) not being found means the saved token itself doesn't have access to this repo — not an App installation issue. This is likely an older personal access token saved before \"Sign in with GitHub\" existed; fine-grained tokens also must have each repository explicitly selected when created. Tap \"Not you? Sign in with a different account\" below and use \"Sign in with GitHub\" instead for App-based access."
+            case .failed:
                 errorText = "Repository or path not found."
             }
             needsInstallationHelp = true
@@ -414,7 +425,7 @@ struct GitHubBrowserView: View {
 
             // Repo fields after OAuth sign-in (token is set but owner/repo may be empty).
             if !GitHubApp.clientID.isEmpty && !model.token.isEmpty && !showTokenFields {
-                Section("Repository") {
+                Section {
                     TextField("Owner (e.g. mabaeyens)", text: $model.owner)
                         .accessibilityLabel("Repository owner")
                         .textContentType(.username)
@@ -428,6 +439,14 @@ struct GitHubBrowserView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         #endif
+                } header: {
+                    Text("Repository")
+                } footer: {
+                    // Clearing model.token here (not the Keychain) reopens the "Sign in
+                    // with GitHub" section above, since it's gated on model.token.isEmpty —
+                    // this is the only way to replace a stale saved token from this screen.
+                    Button("Not you? Sign in with a different account") { model.token = "" }
+                        .font(.footnote)
                 }
             }
 

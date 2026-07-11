@@ -176,21 +176,36 @@ struct GitHubClient {
         return try? JSONDecoder().decode(UserDTO.self, from: data).login
     }
 
+    /// Result of querying `/user/installations`, which only succeeds for a token issued
+    /// through this GitHub App's own OAuth/Device Flow — a personal access token (fine-
+    /// grained or classic) gets a 403 there even if it's perfectly valid for repo access,
+    /// since PATs aren't tied to any GitHub App installation.
+    enum InstallationsQuery {
+        case success([Installation])
+        /// 403: the token isn't a GitHub App user-to-server token (e.g. a PAT saved
+        /// before Device Flow existed, or pasted manually) — installation access can't
+        /// be checked for it at all, and this is itself the useful diagnosis.
+        case notAppToken
+        case failed
+    }
+
     /// The token's GitHub App installations, for diagnosing a 404 on a repo the user
     /// believes the App has access to: which account(s) it's installed on, and whether
     /// each installation covers all of that account's repos or only a selected subset.
-    static func installations(token: String) async -> [Installation] {
-        guard let url = URL(string: "\(apiBase)/user/installations") else { return [] }
+    static func installations(token: String) async -> InstallationsQuery {
+        guard let url = URL(string: "\(apiBase)/user/installations") else { return .failed }
         var req = URLRequest(url: url)
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        guard let (data, response) = try? await URLSession.shared.data(for: req),
-              (response as? HTTPURLResponse)?.statusCode == 200,
-              let dto = try? JSONDecoder().decode(InstallationsDTO.self, from: data) else { return [] }
-        return dto.installations.compactMap { install in
+        guard let (data, response) = try? await URLSession.shared.data(for: req) else { return .failed }
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 403 { return .notAppToken }
+        guard status == 200, let dto = try? JSONDecoder().decode(InstallationsDTO.self, from: data) else { return .failed }
+        let installations = dto.installations.compactMap { install -> Installation? in
             guard let login = install.account?.login else { return nil }
             return Installation(id: install.id, accountLogin: login, coversAllRepos: install.repository_selection == "all")
         }
+        return .success(installations)
     }
 
     /// All files in the repo (recursive), sorted by path. `FileKind.classify` decides
