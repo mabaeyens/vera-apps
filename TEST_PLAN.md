@@ -7,11 +7,20 @@ Manual release checklist. Each release section lists the specific features intro
 ## Unreleased
 
 Everything from the prior 1.3.1 passes has been verified and passed, including past
-releases. Remaining: one build-breaking regression caught before it could even be tested.
+releases. Remaining: the compile-error fix, and a new iPad-only hang found during that
+retest. Per the iPad-is-a-distinct-target correction below, device rows are now split
+explicitly wherever a feature has a real iPhone/iPad code-path difference — don't lump
+"iOS" together for anything touching edit-mode toolbars.
 
 ### HighlightrEngine actor isolation (compile error, blocked all testing)
 - [ ] Build the project (iOS + macOS) → compiles cleanly, no more "Call to main actor-isolated global function 'applyMonoFont(to:size:)' in a synchronous actor-isolated context"
-- [ ] Open any file with syntax highlighting (code file, or a Markdown fenced code block) on both platforms → highlighting still renders correctly (regression check — confirms the `nonisolated` fix didn't break font application)
+- [ ] Open any file with syntax highlighting (code file, or a Markdown fenced code block) on iPhone, iPad, and Mac → highlighting still renders correctly (regression check — confirms the `nonisolated` fix didn't break font application)
+
+### Font-size change while editing a code file froze the app (iPad-only regression)
+- [ ] **iPad**: open `RepoStatusCard.tsx` (or any sizeable code file), tap Edit, tap the smaller/larger text buttons in the bottom formatting bar repeatedly → no freeze, resizes instantly
+- [ ] **iPhone**: same steps (font-size buttons aren't in the compact-width keyboard accessory bar today, so this is mainly a regression guard, not a new repro path)
+- [ ] **Mac**: same steps via the toolbar font-size control while editing a code file → no freeze (was already fine, confirm it stays fine)
+- [ ] On all 3: switching theme (light/dark) and switching to a different file's language while editing still re-highlights correctly (confirms the fix didn't break the cases that *do* need a full re-tokenize)
 
 ---
 
