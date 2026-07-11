@@ -8,7 +8,12 @@ final class ConnectivityMonitor {
 
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "vera.connectivity")
-    nonisolated(unsafe) private var monitorTask: Task<Void, Never>?
+    // A class's deinit has implicit nonisolated access to its stored properties (the
+    // language treats deinit specially, since no concurrent access can be in flight by
+    // then) — no isolation annotation is needed here at all; `nonisolated(unsafe)` was
+    // redundant, which is what the compiler warning was pointing out.
+    @ObservationIgnored
+    private var monitorTask: Task<Void, Never>?
 
     init() {
         let (stream, continuation) = AsyncStream<Bool>.makeStream()
