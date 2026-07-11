@@ -86,9 +86,13 @@ final class LineNumberRulerView: NSRulerView {
             let lineNumber = nsString.substring(to: charIndex).components(separatedBy: "\n").count
             let label = "\(lineNumber)" as NSString
             let size = label.size(withAttributes: attrs)
-            // NSTextView's line-fragment y-origin is already in the view's own flipped
-            // coordinate space, which the ruler shares along its scrolled axis.
-            let y = fragmentRect.minY + textView.textContainerInset.height - self.convert(NSPoint.zero, from: textView).y
+            // NSRulerView's coordinate system already tracks its client view's scroll
+            // position (unlike iOS, which has no such API and pins a subview manually by
+            // subtracting contentOffset) — no extra scroll compensation needed here. Adding
+            // one (as an earlier version did via `self.convert(.zero, from: textView)`)
+            // double-corrects, drifting numbers off the ruler's drawable strip the further
+            // you scroll down.
+            let y = fragmentRect.minY + textView.textContainerInset.height
             label.draw(at: NSPoint(x: self.ruleThickness - size.width - 6, y: y), withAttributes: attrs)
         }
     }
