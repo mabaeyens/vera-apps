@@ -9,6 +9,7 @@ struct FileTreeView: View {
     @State private var fileToDelete: (url: URL, name: String)?
     @State private var expandedFolders: Set<UUID> = []
     @State private var loadedFolderIDs: Set<UUID> = []
+    @State private var didInitialLoad = false
     @AppStorage(Defaults.Key.openFilesExpanded) private var openFilesExpanded: Bool = true
     @AppStorage(Defaults.Key.iCloudFolderExpanded) private var iCloudFolderExpanded: Bool = true
     @State private var savedRepos: [SavedRepo] = RepoListStore.all()
@@ -91,6 +92,13 @@ struct FileTreeView: View {
         .task {
             RepoListStore.startSyncing()
             savedRepos = RepoListStore.all()
+            // On iPhone this view sits at the root of a NavigationStack, and SwiftUI
+            // re-fires .task on it every time a pushed file is popped back to the
+            // sidebar — guard so that doesn't re-run a full top-level rescan on every
+            // "open file, go back." (Legitimate refreshes still happen via
+            // FileTreeViewModel.scheduleRefresh/scenePhase, which call load() directly.)
+            guard !didInitialLoad else { return }
+            didInitialLoad = true
             await vm.load()
         }
         .onReceive(NotificationCenter.default.publisher(for: RepoListStore.didChange)) { _ in

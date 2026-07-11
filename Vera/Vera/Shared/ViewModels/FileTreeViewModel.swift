@@ -220,6 +220,10 @@ final class FileTreeViewModel {
     // Coalesces concurrent load() callers — at launch both FileTreeView's
     // .task and MacRootView's scenePhase==.active fire load() at once.
     private var loadTask: Task<Void, Never>?
+    // Folders the sidebar has lazily expanded at least once, so a top-level rescan
+    // (CloudScanner.scanShallow always returns subfolders with empty children) can
+    // re-fetch their children instead of silently emptying an already-expanded folder.
+    private var loadedFolders: [UUID: URL] = [:]
 
     init() {
         let hasSeen = UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
@@ -271,6 +275,7 @@ final class FileTreeViewModel {
                 }
                 loadFailed = false
                 repinDownloads()
+                await reloadExpandedFolderChildren()
                 return
             } catch {
                 // If the root directory itself is gone, clear the stale bookmark
@@ -308,6 +313,7 @@ final class FileTreeViewModel {
         refreshTask?.cancel()
         refreshTask = nil
         roots = []
+        loadedFolders = [:]
         standaloneFiles = []
         tabs = []
         activeTabID = nil
@@ -341,6 +347,26 @@ final class FileTreeViewModel {
     func loadFolderChildren(id: UUID, url: URL) async {
         let children = (try? await CloudScanner.scanShallow(at: url)) ?? []
         roots = replacingChildren(in: roots, forID: id, with: children)
+        loadedFolders[id] = url
+    }
+
+    /// After a top-level rescan, re-fetch children for every folder the sidebar had
+    /// already lazily expanded — `CloudScanner.scanShallow` resets subfolders to empty
+    /// children on every scan, so without this a previously-expanded folder would show
+    /// its chevron open over an empty list. `CloudScanner.stableID` is deterministic per
+    /// path, so ids from the new scan line up with the ones already in `loadedFolders`.
+    private func reloadExpandedFolderChildren() async {
+        guard !loadedFolders.isEmpty else { return }
+        await withTaskGroup(of: (UUID, [FileNode]).self) { group in
+            for (id, url) in loadedFolders {
+                group.addTask {
+                    (id, (try? await CloudScanner.scanShallow(at: url)) ?? [])
+                }
+            }
+            for await (id, children) in group {
+                roots = replacingChildren(in: roots, forID: id, with: children)
+            }
+        }
     }
 
     private func replacingChildren(in nodes: [FileNode], forID targetID: UUID, with newChildren: [FileNode]) -> [FileNode] {
@@ -397,6 +423,7 @@ final class FileTreeViewModel {
         needsFolderPicker = false
         rootURL = url
         roots = []
+        loadedFolders = [:]
         Task { await load() }
     }
 

@@ -1,6 +1,5 @@
 import SwiftUI
 import MarkdownUI
-import Highlightr
 
 // MARK: - Document segment model
 
@@ -234,7 +233,9 @@ struct HighlightedCodeView: View {
                 }
             }
         }
-        .task(id: [colorScheme.hashValue, dynamicTypeSize.hashValue]) { highlighted = computeHighlighted() }
+        .task(id: [code.hashValue, language.hashValue, colorScheme.hashValue, dynamicTypeSize.hashValue]) {
+            highlighted = await computeHighlighted()
+        }
     }
 
     @ViewBuilder
@@ -250,23 +251,14 @@ struct HighlightedCodeView: View {
         }
     }
 
-    private func computeHighlighted() -> AttributedString? {
+    private func computeHighlighted() async -> AttributedString? {
         guard let lang = language.flatMap({ FileKind.languageMap[$0.lowercased()] }) else { return nil }
-        guard let h = Highlightr() else { return nil }
-        h.setTheme(to: colorScheme == .dark ? "atom-one-dark" : "atom-one-light")
-        // SF Mono — the same signature monospace the editor uses (see DESIGN.md),
-        // including correct bold/italic variants (see applyMonoFont), so a code block
-        // reads identically whether you're editing or previewing.
-        applyMonoFont(to: h, size: Theme.Typography.codeSize * dynamicTypeSize.monoScale)
-        guard let ns = h.highlight(code, as: lang) else { return nil }
-        let mutable = NSMutableAttributedString(attributedString: ns)
-        mutable.removeAttribute(.backgroundColor,
-                                range: NSRange(location: 0, length: mutable.length))
-        #if os(macOS)
-        return try? AttributedString(mutable, including: \.appKit)
-        #else
-        return try? AttributedString(mutable, including: \.uiKit)
-        #endif
+        return await HighlightrEngine.shared.highlight(
+            code: code,
+            language: lang,
+            theme: colorScheme == .dark ? "atom-one-dark" : "atom-one-light",
+            fontSize: Theme.Typography.codeSize * dynamicTypeSize.monoScale
+        )
     }
 }
 
