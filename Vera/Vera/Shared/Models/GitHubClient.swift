@@ -58,12 +58,17 @@ struct GitHubClient {
     let token: String
 
     private static let apiBase = "https://api.github.com"
+    /// A stuck socket (e.g. iOS suspending Wi-Fi on backgrounding, then resuming into a
+    /// dead connection) would otherwise hang on URLSession's ~60s default for every call
+    /// in a chain (default branch → tree → file), stacking into multi-minute freezes.
+    private static let requestTimeout: TimeInterval = 15
 
     /// Build a request to `path` with the standard GitHub auth + version headers.
     private func request(_ path: String, method: String = "GET") throws -> URLRequest {
         guard let url = URL(string: Self.apiBase + path) else { throw GitHubError.badResponse(0) }
         var req = URLRequest(url: url)
         req.httpMethod = method
+        req.timeoutInterval = Self.requestTimeout
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         req.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
@@ -169,6 +174,7 @@ struct GitHubClient {
     static func currentUserLogin(token: String) async -> String? {
         guard let url = URL(string: "\(apiBase)/user") else { return nil }
         var req = URLRequest(url: url)
+        req.timeoutInterval = requestTimeout
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         guard let (data, response) = try? await URLSession.shared.data(for: req),
@@ -195,6 +201,7 @@ struct GitHubClient {
     static func installations(token: String) async -> InstallationsQuery {
         guard let url = URL(string: "\(apiBase)/user/installations") else { return .failed }
         var req = URLRequest(url: url)
+        req.timeoutInterval = requestTimeout
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         guard let (data, response) = try? await URLSession.shared.data(for: req) else { return .failed }
