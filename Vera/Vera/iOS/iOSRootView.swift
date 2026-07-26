@@ -47,6 +47,16 @@ struct iOSRootView: View {
                         .navigationTitle("Files")
                         .navigationBarTitleDisplayMode(.large)
                         .toolbar { sharedToolbar }
+                        // The sidebar is a floating glass panel and the detail scroll view
+                        // runs full-width underneath it, so bright text in the document was
+                        // showing through the panel and shifting its tone as you scrolled.
+                        // An opaque column background makes the sidebar independent of
+                        // whatever happens to be behind it. Keeps the panel's shape and
+                        // shadow; only the see-through part goes.
+                        .containerBackground(
+                            Color(.secondarySystemBackground),
+                            for: .navigationSplitView
+                        )
                 } detail: {
                     VStack(spacing: 0) {
                         if let source = vm.selectedSource, let editor = vm.editor(for: source) {

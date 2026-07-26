@@ -103,6 +103,30 @@ enum Theme {
     }
 }
 
+// MARK: - Scroll edge treatment
+
+extension View {
+    /// Reading and list surfaces scroll underneath floating Liquid Glass controls: the
+    /// A/A/Edit cluster in the detail column, the title and toolbar row in the sidebar.
+    /// The default *soft* edge only fades the topmost few points, so a line of text is
+    /// still at full brightness while it sits right beside a control — two bright things
+    /// competing for the same corner, which reads as clutter and flickers while scrolling.
+    ///
+    /// A *hard* edge draws a defined strip in the scroll view's own background instead, so
+    /// content disappears cleanly under the controls rather than ghosting through them. It
+    /// is the localized version of the same idea: separate the bar, don't dim the document.
+    ///
+    /// iOS only. macOS gets a real titlebar with its own material and needs none of this.
+    @ViewBuilder
+    func veraHardTopEdge() -> some View {
+        #if os(iOS)
+        scrollEdgeEffectStyle(.hard, for: .top)
+        #else
+        self
+        #endif
+    }
+}
+
 #if os(iOS)
 extension DynamicTypeSize {
     /// Bridge to UIKit so `UIFontMetrics` can be asked for the *exact* scaled value for

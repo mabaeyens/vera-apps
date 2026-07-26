@@ -102,6 +102,18 @@ is the monospace, not a custom display face. Tokens/notes live in `Theme.Typogra
   notifications the toolbar posts. Adding a menu item that duplicates an action's logic is
   how the formatting actions ended up existing three times, which is why iPad had none.
   Preferences live in the `Settings` scene (⌘,), not in About.
+- **Scroll edges** — reading surfaces and the sidebar list use a **hard** top scroll edge
+  (`Theme.swift`, `veraHardTopEdge()`), not the default soft one. Under floating Liquid
+  Glass controls a soft edge fades only the topmost points, so text stays at full
+  brightness beside the A/A/Edit cluster and the two compete. Separate the bar; don't dim
+  the document. The style is inherited by nested scroll views, so code blocks and tables
+  reset it explicitly.
+- **Sidebar opacity** — on iPad the sidebar carries an opaque
+  `containerBackground(for: .navigationSplitView)`. The detail scroll view runs full-width
+  beneath the floating panel, so with the default glass, bright document text bled through
+  and shifted the sidebar's tone while scrolling. **The sidebar's appearance must not
+  depend on what is behind it.** Keep the panel's shape and shadow; only the translucency
+  goes.
 
 ## Roadmap hooks
 

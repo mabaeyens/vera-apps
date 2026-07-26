@@ -168,6 +168,7 @@ struct MarkdownDocumentView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
+        .veraHardTopEdge()
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             let maxOffset = geo.contentSize.height - geo.containerSize.height
             guard maxOffset > 0 else { return 0 }
@@ -243,6 +244,7 @@ struct PlainDocumentView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
+        .veraHardTopEdge()
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             let maxOffset = geo.contentSize.height - geo.containerSize.height
             guard maxOffset > 0 else { return 0 }
@@ -323,6 +325,10 @@ struct HighlightedCodeView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         lineRows(split)
                     }
+                    // The enclosing reading surface sets a hard top edge, and that style
+                    // is inherited by every scroll view beneath it. A code block must not
+                    // grow a strip across its own first line, so reset it here.
+                    .scrollEdgeEffectStyle(.automatic, for: .top)
                 }
             }
         }
@@ -512,6 +518,8 @@ struct DocTableBlock: View {
     }
 
     var body: some View {
+        // See the code-block note: reset the inherited hard top edge so a table's header
+        // row isn't overdrawn by an edge strip of its own.
         ScrollView(.horizontal, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 0) {
@@ -541,6 +549,7 @@ struct DocTableBlock: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 6))
         }
+        .scrollEdgeEffectStyle(.automatic, for: .top)
     }
 
     @ViewBuilder

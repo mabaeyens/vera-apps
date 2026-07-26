@@ -19,12 +19,17 @@ second font-size-in-preview hang/CPU spin).
 
 ## 2026-07-26 rework — check on device
 
-Six commits, build-verified only. Nothing below has run on hardware.
 Check on **iPhone, iPad and Mac** — they are three targets, not "iOS + macOS".
 
-### A. Data loss (do these first)
+**Status 2026-07-26:** the user reports the rework as validated on device, with two
+exceptions carried forward: **section A was not run**, and section K below is new and
+unverified. Everything else is treated as passed.
+
+### A. Data loss (**not yet run** — still the one to do first)
 
 Autosave paths moved when editors started outliving views. If any of these fail, stop.
+Nothing here depends on the tab bar; it's about the 500 ms autosave debounce surviving
+a switch, a close and a backgrounding, so it still needs a pass of its own.
 
 - [ ] Type in a file, immediately switch tabs (inside the 500 ms debounce), switch back → edit present, and on disk
 - [ ] Type, immediately **close the tab** → edit on disk
@@ -87,7 +92,23 @@ reduction — if it feels wrong, say so and I'll put a switcher back on iPhone o
 - [ ] Type in a local file → a quiet dot appears briefly while saving, then clears
 - [ ] GitHub file with uncommitted changes → accent dot persists; closing it **warns** first
 - [ ] Closing a local file does **not** warn (it autosaves), and the edit is on disk
+- [x] **iPad**: switching between open documents from the sidebar works well (confirmed 2026-07-26)
 - [ ] **iPhone**: does switching documents still feel workable without the tab bar?
+
+### K. Scroll edges and sidebar opacity (new, unverified)
+
+From the 2026-07-26 iPad screenshots: content stayed bright right beside the floating
+A/A/Edit controls, sidebar rows ghosted through the title row, and bright document text
+bled through the sidebar panel and shifted its tone while scrolling.
+
+- [ ] **iPad, Preview**: scroll a document → text passes under a defined strip at the top, not a soft fade; nothing bright sits beside the A/A/Edit cluster
+- [ ] **iPad, sidebar**: scroll the file tree → rows cut off cleanly under "Files" and the toolbar icons rather than half-fading into them
+- [ ] **iPad**: scroll a document with large white headings → the sidebar's tone does **not** change; no shimmer at its lower-left corner
+- [ ] Sidebar panel keeps its rounded shape and shadow; it should read as opaque, not flat against the detail
+- [ ] Light mode: the sidebar tone still looks right (it's `secondarySystemBackground`, not the old glass)
+- [ ] Code blocks and Markdown tables do **not** grow an edge strip across their own first row
+- [ ] **iPhone**: no visual change expected; confirm the file list and documents look unchanged
+- [ ] **Mac**: no visual change expected at all (the hard edge is iOS-only)
 
 ### H. Menu bar and keyboard shortcuts (new)
 

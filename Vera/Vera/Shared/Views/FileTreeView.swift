@@ -86,6 +86,10 @@ struct FileTreeView: View {
                     iCloudSections
                 }
                 .listStyle(.sidebar)
+                // Rows used to ghost through the title/toolbar row as they scrolled under
+                // it — a half-faded filename sitting at the same weight as the toolbar
+                // icons above it. A hard edge cuts them off cleanly instead.
+                .veraHardTopEdge()
                 #if os(iOS)
                 .refreshable { await refreshAll() }
                 #endif
