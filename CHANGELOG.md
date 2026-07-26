@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.3.2
+
+**Search**
+- Search across the whole open folder from the sidebar. Matches filenames and content, results stream in as they're found, and it skips `node_modules`, `.build`, `.git` and anything in `.gitignore`. Clicking a content match opens the file at that line
+- Find and replace inside a document with ⌘F, using the platform's own find UI on both Mac and iPad: match counts, ⌘G to cycle, wrap-around and Replace All
+
+**Menus and keyboard**
+- A real menu bar on Mac for the first time: File, Edit, Format, View, Navigate, Help. Every item works from the same shortcut on iPad with a hardware keyboard
+- Settings moved to its own window at ⌘, instead of being buried in About
+- ⌘S writes immediately rather than waiting out the autosave debounce, ⌘1-9 jump between open documents, ⇧⌘P toggles Edit/Preview
+
+**Documents and the sidebar**
+- The tab bar is gone. The sidebar is the only place open documents live, with the same close affordances on every platform
+- The last open document can finally be closed. The close control silently did nothing before
+- Switching documents is instant: an open document keeps its editor, so no re-read, no spinner, and scroll position and Edit/Preview mode both survive
+
+**Typography**
+- Editor and preview now share one text scale, so prose, tables and code no longer jump size when you toggle Edit and Done
+- Tables render at the same size as prose instead of 80% of it, and code blocks stop diverging from surrounding text as Dynamic Type grows
+- On Mac the line-number gutter follows the A/A control instead of being pinned at 11 pt
+
+**Reliability**
+- Fixed the iPad font-size hang for real this time, confirmed on a physical iPad. The v1.3.1 note below claiming this was already fixed was wrong: the hang survived that release
+- Line numbers no longer cost a full document scan per line, which is what made large files stutter while scrolling
+- iCloud files that aren't on the device now say so and are cancellable, and the download is actually requested rather than only polled for
+- Syntax highlighting is capped at 1 MB rather than attempting the whole file
+
+**Appearance**
+- The iPad sidebar is opaque, so bright text in a document no longer bleeds through it and shifts its tone while scrolling
+- Documents and the file list pass under a defined edge at the top rather than a soft fade, so nothing bright sits beside the floating controls
+
 ## v1.3.1
 
 v1.3.0 was pulled before release, so this changelog folds in everything from that build
@@ -9,7 +40,8 @@ plus what shipped since.
 - Every supported file type is now editable, in-app and via GitHub — not just Markdown/Text/JSON/YAML. Opening a Swift, Python, TSX, or any other syntax-highlighted file now shows an Edit button, with the same autosave and GitHub commit flow Markdown already had
 - The Markdown formatting/snippet toolbar only appears for Markdown files now, so it can't insert stray `**`/`##` characters into code
 - Fixed font size not applying to Markdown tables and syntax-highlighted code blocks (fenced code and any code-language file)
-- Fixed several iPad-only editor issues: font-size changes freezing the app while editing or previewing code, and line numbers not appearing until the view was scrolled
+- Fixed line numbers not appearing on iPad until the view was scrolled
+- ~~Fixed iPad font-size changes freezing the app while editing or previewing code~~ — **this claim was wrong.** The hang survived v1.3.1 and was only actually fixed in v1.3.2
 
 **Sidebar & navigation**
 - Pull-to-refresh in the iOS/iPadOS sidebar — swipe down to rescan local files and refetch every connected GitHub repo
