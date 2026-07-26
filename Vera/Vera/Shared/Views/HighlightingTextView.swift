@@ -73,7 +73,7 @@ struct HighlightingTextView: UIViewRepresentable {
             // automatically once layout resolves, independent of any scroll event.
             gutter.autoresizingMask = [.flexibleHeight]
             gutter.textView = textView
-            gutter.fontSize = fontSize
+            gutter.editorFontSize = fontSize
             textView.addSubview(gutter)
             context.coordinator.lineNumberGutterView = gutter
         }
@@ -141,7 +141,8 @@ struct HighlightingTextView: UIViewRepresentable {
             context.coordinator.isApplyingExternalChange = false
             uiView.selectedRange = sel
             context.coordinator.invalidateCachedRange()
-            context.coordinator.lineNumberGutterView?.setNeedsDisplay()
+            // Whole buffer swapped, so the cached newline offsets are stale.
+            context.coordinator.lineNumberGutterView?.invalidateLineIndex()
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
         let languageChanged = context.coordinator.lastLanguage != Optional(language)
@@ -181,7 +182,7 @@ struct HighlightingTextView: UIViewRepresentable {
             context.coordinator.lastFontSize = fontSize
             context.coordinator.lastTheme = newTheme
             context.coordinator.lastLanguage = language
-            context.coordinator.lineNumberGutterView?.fontSize = fontSize
+            context.coordinator.lineNumberGutterView?.editorFontSize = fontSize
         }
 
         if showLineNumbers != context.coordinator.lastShowLineNumbers {
@@ -195,7 +196,7 @@ struct HighlightingTextView: UIViewRepresentable {
                 )
                 gutter.autoresizingMask = [.flexibleHeight]
                 gutter.textView = uiView
-                gutter.fontSize = fontSize
+                gutter.editorFontSize = fontSize
                 uiView.addSubview(gutter)
                 context.coordinator.lineNumberGutterView = gutter
             }
@@ -306,7 +307,7 @@ struct HighlightingTextView: UIViewRepresentable {
             guard !isApplyingExternalChange else { return }
             parent.text = textView.text
             parent.onTextChange()
-            lineNumberGutterView?.setNeedsDisplay()
+            lineNumberGutterView?.invalidateLineIndex()
         }
 
         func textViewDidChangeSelection(_ textView: UITextView) {
@@ -523,6 +524,7 @@ struct HighlightingTextView: NSViewRepresentable {
 
         if showLineNumbers {
             let ruler = LineNumberRulerView(textView: textView)
+            ruler.editorFontSize = fontSize
             scrollView.verticalRulerView = ruler
             scrollView.hasVerticalRuler = true
             scrollView.rulersVisible = true
@@ -573,6 +575,8 @@ struct HighlightingTextView: NSViewRepresentable {
             textView.selectedRanges = sel
             // The whole buffer was swapped — any cached selection range is now stale.
             context.coordinator.invalidateCachedRange()
+            // ...and so are the gutter's cached newline offsets.
+            context.coordinator.rulerView?.invalidateLineIndex()
         }
         let newTheme = context.environment.colorScheme == .dark ? "atom-one-dark" : "atom-one-light"
         let languageChanged = context.coordinator.lastLanguage != Optional(language)
@@ -610,6 +614,7 @@ struct HighlightingTextView: NSViewRepresentable {
             context.coordinator.lastFontSize = fontSize
             context.coordinator.lastTheme = newTheme
             context.coordinator.lastLanguage = language
+            context.coordinator.rulerView?.editorFontSize = fontSize
         }
 
         if showLineNumbers != context.coordinator.lastShowLineNumbers {
@@ -619,6 +624,7 @@ struct HighlightingTextView: NSViewRepresentable {
             context.coordinator.rulerView = nil
             if showLineNumbers {
                 let ruler = LineNumberRulerView(textView: textView)
+                ruler.editorFontSize = fontSize
                 nsView.verticalRulerView = ruler
                 nsView.hasVerticalRuler = true
                 nsView.rulersVisible = true
@@ -663,7 +669,7 @@ struct HighlightingTextView: NSViewRepresentable {
             guard let tv = notification.object as? NSTextView else { return }
             parent.text = tv.string
             parent.onTextChange()
-            rulerView?.needsDisplay = true
+            rulerView?.invalidateLineIndex()
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {

@@ -15,6 +15,30 @@ compile-error fix, and three related iPad-only issues found during that retest (
 hang while editing code, the line-number gutter not appearing until scrolled, and a
 second font-size-in-preview hang/CPU spin).
 
+### Line-number gutter performance + base font size 15 (2026-07-26)
+
+The gutter used to derive each line number by copying the whole document prefix and
+splitting it, once per visible line, inside `draw(_:)`. Measured at 140 ms per frame while
+scrolling a 5000-line file (roughly 7 fps); now 0.0006 ms per frame, with a 1.3 ms index
+rebuild per text change. The new line index was fuzz-checked against the old algorithm over
+69,555 cases (including CRLF, unicode, emoji, empty and newline-only documents) with zero
+divergence, so line numbers should be identical, not merely plausible.
+
+Also in this change: base font size is now 15 everywhere (`Theme.Typography.codeSize` and
+`Defaults.FontSize.default` agree, matching DESIGN.md; was 15 vs 18), and the macOS gutter
+now tracks the font-size control at all, which it never did before.
+
+- [ ] **Mac / iPhone / iPad**: open a large code file (5000+ lines) with line numbers on, scroll fast to the bottom → smooth, no stutter, numbers keep up with the text
+- [ ] **All 3**: line numbers are *correct* at the very bottom of a large file (not just present) — cross-check the last line number against the file's real line count
+- [ ] **All 3**: type in the middle of a large file, including pressing Return and deleting a line → numbers renumber immediately and stay correct
+- [ ] **All 3**: paste a large block, and undo it → numbers stay correct
+- [ ] **All 3**: a file with a very long soft-wrapped line → wrapped continuation rows get **no** number, only real line starts do
+- [ ] **Mac**: tap the A/A font-size control while editing → the **gutter digits resize too** (this is new; previously the macOS gutter was pinned at 11pt and ignored the control)
+- [ ] **Mac**: size up to the maximum (32) on a file with 4- and 5-digit line numbers → digits do not clip, gutter widens
+- [ ] **All 3**: toggle line numbers off and on → gutter reappears correctly
+- [ ] **All 3**: fresh install (or reset) → default text size is now 15, and editor and preview look the same size as each other
+- [ ] **iPad**: re-run the `RepoStatusCard.tsx` A/A checks below — this change touches the same file as the open hang in `IPAD_FONT_SIZE_HANG.md`
+
 Per the iPad-is-a-distinct-target correction: iPhone/iPad/Mac are checked as 3 separate
 targets below wherever a feature has a real per-device code-path difference — don't lump
 "iOS" together for anything touching edit-mode toolbars or layout timing.

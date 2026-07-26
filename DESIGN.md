@@ -51,8 +51,14 @@ is the monospace, not a custom display face. Tokens/notes live in `Theme.Typogra
   the preview/code blocks so a snippet reads the same whether you're writing or
   reading it. Always via `Font.system(_:design: .monospaced)` (SwiftUI) or
   `(NS|UI)Font.monospacedSystemFont(ofSize:weight:)` (TextKit/Highlightr) — never a
-  hardcoded face name like "Menlo". Default size 15; the editor size control spans
-  12–32 and the inline-code `.em(0.875)` scales with body text.
+  hardcoded face name like "Menlo". Default size 15 (`Theme.Typography.codeSize`, which
+  `Defaults.FontSize.default` must equal — the two disagreeing is what let the editor and
+  preview drift apart); the editor size control spans 12–32 and the inline-code
+  `.em(0.875)` scales with body text.
+- **Line-number gutter** — the same monospace at `Theme.Typography.gutterScale` (0.85) of
+  the editor's body size, on **both** platforms. It is reference furniture, not content, so
+  it reads one step quieter than the code it numbers. Never hardcode a gutter point size:
+  macOS was pinned at 11pt for months and silently ignored the size control.
 - **Reading view** — system text with comfortable line spacing for prose.
 
 ## Components

@@ -31,9 +31,11 @@ enum Defaults {
         static let min: Double = 12
         static let max: Double = 32
         static let step: Double = 1
-        /// One standard default across iOS and macOS — previously 20/17 respectively;
-        /// unified per product decision so a fresh install looks the same on both.
-        static let `default`: Double = 18
+        /// One standard default across iOS and macOS (previously 20/17 respectively, then
+        /// 18) so a fresh install looks the same on both. Must stay equal to
+        /// `Theme.Typography.codeSize`, which is what DESIGN.md documents; the two
+        /// disagreeing (15 vs 18) is what let editor and preview drift apart.
+        static let `default`: Double = 15
 
         static func increased(from value: Double) -> Double { Swift.min(max, value + step) }
         static func decreased(from value: Double) -> Double { Swift.max(min, value - step) }

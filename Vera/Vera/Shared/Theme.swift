@@ -42,7 +42,13 @@ enum Theme {
     /// never a hardcoded face name. See DESIGN.md.
     enum Typography {
         /// Default editor/code point size (the size control adjusts around this).
+        /// `Defaults.FontSize.default` must agree with this; see DESIGN.md.
         static let codeSize: CGFloat = 15
+
+        /// Line-number gutter size, relative to the editor's body size. The gutter is
+        /// reference furniture, not content, so it reads one step quieter than the code
+        /// it numbers (the convention in Xcode and TextEdit).
+        static let gutterScale: CGFloat = 0.85
     }
 }
 
