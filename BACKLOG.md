@@ -15,7 +15,16 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Open bugs
 
-*(none)*
+- **iPad font-size hang — unresolved** ([IPAD_FONT_SIZE_HANG.md](IPAD_FONT_SIZE_HANG.md)).
+  Tracked here from 2026-07-26; it was previously in neither the backlog nor the
+  changelog's known issues. Note the contradiction to settle: `CHANGELOG.md` claims v1.3.1
+  "fixed several iPad-only editor issues: font-size changes freezing the app", while that
+  doc says the hang is open and that the last attempt made it worse. One of the two is
+  wrong, and both shipped. The doc's own recommended next step — Instruments (Time
+  Profiler + Allocations) on a **physical** iPad — has still never been run. Do not mark
+  this fixed on a clean build; three prior attempts were verified that way and all were
+  wrong. The 2026-07-26 performance work touched this code path and may have helped, but
+  that is unverified.
 
 ---
 
@@ -39,7 +48,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 - **`DEVELOPMENT_TEAM` Team ID in `project.pbxproj`** — reviewed 2026-07-06 ahead of making the repo public: `HTVGRBVW58` is a Team ID (not a credential, grants no access) and is already exposed via every shipped IPA/TestFlight build/App Store Connect metadata. Accepted as non-sensitive; no git history rewrite planned.
 - **`GitHubDraftStore` is branch-scoped** (2026-07-06 fix) — `deregisterPaths` now takes a `branch` parameter and `MultiFileCommitSheet` only ever shows drafts for the currently-browsed branch. A same-path file dirty on two branches used to collide into one draft entry and one checkbox; don't reintroduce a path-only lookup across either type.
 - **Multi-file commits now pre-check blob SHAs** (`GitHubClient.commitFiles`, 2026-07-06 fix) — fetches the current tree via the recursive Git Data API and throws `.conflict` if any file's SHA moved since it was read, mirroring the single-file Contents API's optimistic concurrency. Don't strip this check back out to save the extra API call; it's what prevents multi-file commits from silently overwriting concurrent edits.
-- **Preferences live in `Defaults.swift`** (added 2026-06-22) — single source of truth for every `UserDefaults`/`@AppStorage` key (`Defaults.Key.*`) and the editor font-size config (`Defaults.FontSize`: 12–32 bounds, step, platform default + `increased/decreased`). Add new prefs there, not as inline string literals. The font-size default is 17 on macOS / 20 on iOS — fixed a prior mismatch where `DocumentView` hardcoded 20 on both, disagreeing with the editor's 17 on macOS; this feeds ACCESSIBILITY_SPEC F2 (the macOS control + iOS `monoScale` share one set of numbers).
+- **Preferences live in `Defaults.swift`** (added 2026-06-22) — single source of truth for every `UserDefaults`/`@AppStorage` key (`Defaults.Key.*`) and the editor font-size config (`Defaults.FontSize`: 12–32 bounds, step, platform default + `increased/decreased`). Add new prefs there, not as inline string literals. **Updated 2026-07-26:** the default is now **15 on both platforms**, equal to `Theme.Typography.codeSize` and to what DESIGN.md always documented (it had drifted 17/20 → 18 → 15, with `Theme` and `Defaults` disagreeing). `monoScale` is **deleted**: every surface resolves size through `Theme.Typography.size(_:preference:typeSize:)` on Apple's `.body` Dynamic Type ramp — the ramp MarkdownUI already applies internally. MarkdownUI is the one caller handed an *unscaled* size; giving it a scaled one double-scales. Three competing ramps (Vera's in the editor and code blocks, Apple's in MarkdownUI, none in tables) was the cause of the edit-vs-preview size mismatch.
 - **Root security-scoped access is balanced via `rootAccessURL`** in `FileTreeViewModel` (security review 2026-06-22) — acquired idempotently (once per root, released on root change), and released in `resetState`/`releaseAllAccess`. Don't re-add a `deinit` to release it: Swift 6 forbids a nonisolated `deinit` touching `@MainActor` state, and this single app-lifetime VM only deallocs at process exit. Don't re-introduce per-load `startAccessingSecurityScopedResource` (that was the leak).
 - **macOS editor caches the selection as an `NSRange`** (`HighlightingTextView` Coordinator) — it's clamped via `validRange(_:in:)` and cleared via `invalidateCachedRange()` after external text swaps. Keep both: a stale range here was an `NSRangeException` crash on format actions after autosave reload / auto-fix.
 - Reset folder picker: now Keychain-backed via `BookmarkStore` (no longer `defaults delete Vera rootFolderBookmark`); use About → "Reset Vera…".
