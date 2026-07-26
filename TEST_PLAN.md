@@ -75,6 +75,25 @@ Mostly regression checks: the visible behaviour should be unchanged except where
 - [ ] **All 3**: open a file just under 1 MB → still fully highlighted
 - [ ] **iPad**: re-run the `RepoStatusCard.tsx` preview A/A checks — several of these changes are in the code path `IPAD_FONT_SIZE_HANG.md` implicates, so this is the highest-value check in this block
 
+### One typography scale, one Dynamic Type ramp (2026-07-26)
+
+Vera's hand-written `monoScale` is gone. Every surface now resolves its size through
+`Theme.Typography` on Apple's `.body` ramp, which is the ramp MarkdownUI was already using
+internally. Tables lost a hardcoded `* 0.8` and gained Dynamic Type.
+
+The failure mode to watch for is **double scaling**: MarkdownUI applies `ScaledMetric`
+itself and is deliberately the only caller handed an *unscaled* size. If prose balloons at
+large accessibility sizes while code stays sane, that is the bug.
+
+- [ ] **All 3**: open a Markdown file with prose, a table and a fenced code block. Toggle Edit / Done repeatedly → **no perceptible size change** in any of the three
+- [ ] **iPhone + iPad**: set Larger Text to maximum (`.accessibility5`) in Settings, reopen the same file → prose, table cells, inline code and code blocks all grow **together**, and the editor still matches the preview
+- [ ] **iPhone + iPad**: at `.accessibility5`, confirm prose is not absurdly larger than code — that would be the double-scaling regression
+- [ ] **iPhone + iPad**: walk the middle sizes too (xSmall, large, xxxLarge) → everything tracks proportionally
+- [ ] **All 3**: **table text is now the same size as prose**, not visibly smaller (this is the most visible intended change)
+- [ ] **All 3**: wide table still lays out with sensible column widths and scrolls horizontally where needed (column widths are derived from cached character counts now)
+- [ ] **All 3**: a plain `.txt` file with no syntax highlighting responds to Larger Text (it previously ignored it entirely)
+- [ ] **Mac**: no Dynamic Type on macOS, so only the A/A control should move text; confirm it moves editor, preview, tables, code blocks and gutter together
+
 Per the iPad-is-a-distinct-target correction: iPhone/iPad/Mac are checked as 3 separate
 targets below wherever a feature has a real per-device code-path difference — don't lump
 "iOS" together for anything touching edit-mode toolbars or layout timing.

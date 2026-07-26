@@ -3,9 +3,9 @@ import SwiftUI
 struct EditingModeView: View {
     @Bindable var viewModel: EditorViewModel
     @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var isEditing = false
     #endif
     @AppStorage(Defaults.Key.linterEnabled) private var linterEnabled = true
@@ -15,15 +15,11 @@ struct EditingModeView: View {
     var onCheatSheetRequested: () -> Void = {}
     var onIconHelpRequested: () -> Void = {}
 
-    /// The user's chosen editor size, scaled for Dynamic Type on iOS so the
-    /// system "Larger Text" setting moves the editor too (macOS has no Dynamic Type;
-    /// the size control is the lever there).
+    /// The user's chosen editor size, resolved through the one shared type scale so the
+    /// editor, the preview and its code blocks all move together. `Theme` handles the
+    /// platform difference (macOS has no Dynamic Type; the size control is the lever there).
     private var effectiveFontSize: CGFloat {
-        #if os(iOS)
-        CGFloat(fontSize) * dynamicTypeSize.monoScale
-        #else
-        CGFloat(fontSize)
-        #endif
+        Theme.Typography.size(.code, preference: CGFloat(fontSize), typeSize: dynamicTypeSize)
     }
 
     var body: some View {

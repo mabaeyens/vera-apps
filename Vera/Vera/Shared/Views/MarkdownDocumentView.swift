@@ -205,6 +205,8 @@ struct PlainDocumentView: View {
     // dependent of the scroll fraction and can't re-trigger geometry evaluation mid-frame.
     var onScrollFractionChange: (CGFloat) -> Void = { _ in }
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         ScrollView {
             Group {
@@ -212,7 +214,11 @@ struct PlainDocumentView: View {
                     HighlightedCodeView(code: rawText, language: language, baseFontSize: fontSize)
                 } else {
                     Text(rawText)
-                        .font(.system(size: fontSize))
+                        // Raw `.font(.system(size:))` gets no Dynamic Type for free, so
+                        // this was the one surface that ignored Larger Text entirely.
+                        .font(.system(size: Theme.Typography.size(
+                            .body, preference: fontSize, typeSize: dynamicTypeSize
+                        )))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -249,12 +255,14 @@ struct HighlightedCodeView: View {
     // each is now its own row/Text, not one Text for the whole file.
     private static let maxUnwrappedLineLength = 2000
 
-    // Combines the user's font-size preference (the A/A toolbar buttons) with the
-    // system Dynamic Type accessibility multiplier — this view previously ignored the
-    // former entirely, computing its size only from a fixed constant, so increasing
-    // text size did nothing for any syntax-highlighted code (fenced blocks, and any
-    // code-language file viewed read-only, not just .swift/.tsx).
-    private var fontSize: CGFloat { baseFontSize * dynamicTypeSize.monoScale }
+    // The user's font-size preference (the A/A toolbar buttons) resolved through the one
+    // shared type scale, so a code block reads at exactly the size the editor uses for the
+    // same text. This used to apply Vera's own `monoScale` while the surrounding prose
+    // used Apple's ramp inside MarkdownUI, which is why code blocks and body text drifted
+    // apart as Dynamic Type grew.
+    private var fontSize: CGFloat {
+        Theme.Typography.size(.code, preference: baseFontSize, typeSize: dynamicTypeSize)
+    }
 
     /// Identity for the highlight task. Deliberately holds `code` itself rather than
     /// `code.hashValue`: hashing always walks the whole document, and this id is compared
@@ -463,29 +471,37 @@ struct DocTableBlock: View {
     let rows: [[String]]
     var fontSize: CGFloat = CGFloat(Defaults.FontSize.default)
 
-    // Cell text uses .footnote-equivalent sizing, scaled to the user's font-size
-    // preference — this view previously used a hardcoded `.footnote` text style,
-    // completely ignoring the A/A toolbar buttons.
-    private var cellFontSize: CGFloat { fontSize * 0.8 }
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    /// Computed once in `init`, not per body evaluation. It scans every cell of the table
-    /// and used to be a computed property read twice inside the row-render loop, so a wide
-    /// table re-scanned itself on every redraw.
-    private let colWidths: [CGFloat]
+    // Table cells read at the same size as the prose around them. They used to carry a
+    // hardcoded `* 0.8`, left over from emulating a `.footnote` text style, *and* no
+    // Dynamic Type at all — so tables were the smallest text on screen at every
+    // accessibility size, pinned at 14.4pt while the editor reached ~55.8pt.
+    private var cellFontSize: CGFloat {
+        Theme.Typography.size(.table, preference: fontSize, typeSize: dynamicTypeSize)
+    }
+
+    /// Longest cell per column, in characters. The expensive part is scanning every cell,
+    /// and that is font-independent, so it happens once in `init` rather than per body
+    /// evaluation — `colWidths` below then only walks the columns. (It used to be a
+    /// computed property scanning the whole table, read twice per row render.)
+    private let colMaxChars: [Int]
+
+    private var colWidths: [CGFloat] {
+        // Per-character width heuristic, scaled proportionally to cellFontSize so columns
+        // stay wide enough to fit the text (not just the text itself) as font size changes.
+        let charWidth = cellFontSize * 0.73
+        return colMaxChars.map { CGFloat($0) * charWidth + 24.0 }
+    }
 
     init(headers: [String], rows: [[String]], fontSize: CGFloat = CGFloat(Defaults.FontSize.default)) {
         self.headers = headers
         self.rows = rows
         self.fontSize = fontSize
 
-        let cellFontSize = fontSize * 0.8
         let allRows = [headers] + rows.map { Self.padded($0, to: headers.count) }
-        // Per-character width heuristic, scaled proportionally to cellFontSize so columns
-        // stay wide enough to fit the text (not just the text itself) as font size changes.
-        let charWidth = cellFontSize * 0.73
-        self.colWidths = (0..<headers.count).map { col in
-            let maxLen = allRows.map { row in row[col].count }.max() ?? 1
-            return CGFloat(maxLen) * charWidth + 24.0
+        self.colMaxChars = (0..<headers.count).map { col in
+            allRows.map { row in row[col].count }.max() ?? 1
         }
     }
 

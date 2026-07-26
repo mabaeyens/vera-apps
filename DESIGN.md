@@ -59,6 +59,13 @@ is the monospace, not a custom display face. Tokens/notes live in `Theme.Typogra
   the editor's body size, on **both** platforms. It is reference furniture, not content, so
   it reads one step quieter than the code it numbers. Never hardcode a gutter point size:
   macOS was pinned at 11pt for months and silently ignored the size control.
+- **One Dynamic Type ramp** — Apple's `.body` ramp, and only that one. Sizes come from
+  `Theme.Typography.size(_:preference:typeSize:)`; no view multiplies a font size by a
+  literal. MarkdownUI scales its own base internally (`ScaledMetric`), so it is the one
+  caller that gets `unscaledSize(_:preference:)` — handing it an already-scaled value
+  scales twice. Vera previously carried a hand-written `monoScale` approximation, which
+  left three ramps running at once (its own in the editor and code blocks, Apple's inside
+  MarkdownUI, none in tables) and drove editor and preview apart as text size grew.
 - **Reading view** — system text with comfortable line spacing for prose.
 
 ## Components
