@@ -7,7 +7,12 @@ enum EditorMode { case viewing, editing }
 @MainActor
 final class EditorViewModel {
     var mode: EditorMode = .viewing
-    var rawText: String = ""
+    var rawText: String = "" {
+        didSet {
+            cachedWordCount = nil
+            cachedCharacterCount = nil
+        }
+    }
     var isLoading = false
 
     /// True while waiting for an iCloud item to come down. Kept separate from `isLoading`
@@ -110,12 +115,25 @@ final class EditorViewModel {
         return format?.highlightLanguage ?? FileKind.classify(path: source.path).readOnlyLanguage
     }
 
+    /// Both counters walk the entire document, and the toolbar reads them on every
+    /// re-render while editing, so they're cached and recomputed only when `rawText`
+    /// actually changes. `@ObservationIgnored` keeps the cache itself out of the
+    /// observation graph — it's derived state, not something a view should track.
+    @ObservationIgnored private var cachedWordCount: Int?
+    @ObservationIgnored private var cachedCharacterCount: Int?
+
     var wordCount: Int {
-        rawText.split { $0.isWhitespace || $0.isNewline }.count
+        if let cachedWordCount { return cachedWordCount }
+        let value = rawText.split { $0.isWhitespace || $0.isNewline }.count
+        cachedWordCount = value
+        return value
     }
 
     var characterCount: Int {
-        rawText.count
+        if let cachedCharacterCount { return cachedCharacterCount }
+        let value = rawText.count
+        cachedCharacterCount = value
+        return value
     }
 
     /// nil when there's no text, so the UI can omit reading time for empty docs.

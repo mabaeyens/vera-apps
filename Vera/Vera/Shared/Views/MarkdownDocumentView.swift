@@ -3,13 +3,13 @@ import MarkdownUI
 
 // MARK: - Document segment model
 
-private enum DocSegment {
+private enum DocSegment: Sendable {
     case prose(String)
     case codeBlock(language: String?, content: String)
     case table(headers: [String], rows: [[String]])
 }
 
-private func parseDocSegments(_ raw: String) -> [DocSegment] {
+private nonisolated func parseDocSegments(_ raw: String) -> [DocSegment] {
     guard let regex = try? NSRegularExpression(
         pattern: #"```([^\n]*)\n([\s\S]*?)```"#
     ) else { return splitDocTables(raw) }
@@ -38,7 +38,7 @@ private func parseDocSegments(_ raw: String) -> [DocSegment] {
     return segments.isEmpty ? [.prose(raw)] : segments
 }
 
-private func splitDocTables(_ text: String) -> [DocSegment] {
+private nonisolated func splitDocTables(_ text: String) -> [DocSegment] {
     let lines = text.components(separatedBy: "\n")
     var result: [DocSegment] = []
     var buffer: [String] = []
@@ -75,11 +75,11 @@ private func splitDocTables(_ text: String) -> [DocSegment] {
     return result.isEmpty ? [.prose(text)] : result
 }
 
-private func isDocTableRow(_ line: String) -> Bool {
+private nonisolated func isDocTableRow(_ line: String) -> Bool {
     line.trimmingCharacters(in: .whitespaces).contains("|")
 }
 
-private func isDocTableSeparator(_ line: String) -> Bool {
+private nonisolated func isDocTableSeparator(_ line: String) -> Bool {
     let t = line.trimmingCharacters(in: .whitespaces)
     guard t.contains("|"), t.contains("-") else { return false }
     let stripped = t
@@ -90,7 +90,7 @@ private func isDocTableSeparator(_ line: String) -> Bool {
     return stripped.isEmpty
 }
 
-private func docTableRowCells(_ line: String) -> [String] {
+private nonisolated func docTableRowCells(_ line: String) -> [String] {
     var cells = line.trimmingCharacters(in: .whitespaces).components(separatedBy: "|")
     if cells.first?.trimmingCharacters(in: .whitespaces).isEmpty == true { cells.removeFirst() }
     if cells.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { cells.removeLast() }
@@ -158,7 +158,18 @@ struct MarkdownDocumentView: View {
         } action: { _, new in
             onScrollFractionChange(Swift.max(0, Swift.min(1, new)))
         }
-        .task(id: rawText) { segments = parseDocSegments(rawText) }
+        // `parseDocSegments` runs a whole-document regex plus a line-by-line table scan.
+        // It has no `await`, so inside a plain `.task` it inherited this view's MainActor
+        // isolation and ran the entire pass on the main thread at every file open. The
+        // detached task moves it off; the result is a plain value type coming back.
+        .task(id: rawText) {
+            let text = rawText
+            let parsed = await Task.detached(priority: .userInitiated) {
+                parseDocSegments(text)
+            }.value
+            guard !Task.isCancelled else { return }
+            segments = parsed
+        }
     }
 
     @ViewBuilder
@@ -245,25 +256,74 @@ struct HighlightedCodeView: View {
     // code-language file viewed read-only, not just .swift/.tsx).
     private var fontSize: CGFloat { baseFontSize * dynamicTypeSize.monoScale }
 
+    /// Identity for the highlight task. Deliberately holds `code` itself rather than
+    /// `code.hashValue`: hashing always walks the whole document, and this id is compared
+    /// on every view update, whereas comparing a String against itself hits the
+    /// identical-storage fast path. `fontSize` already folds in Dynamic Type, so
+    /// `dynamicTypeSize` doesn't need to appear here.
+    private struct HighlightKey: Equatable {
+        let code: String
+        let language: String?
+        let isDark: Bool
+        let fontSize: CGFloat
+    }
+
+    /// Past this the engine returns plain text rather than risking an uninterruptible
+    /// highlight pass. Say so instead of leaving the user wondering where the colour went.
+    private var isTooLargeToHighlight: Bool {
+        language != nil && code.utf8.count > HighlightrEngine.maxHighlightBytes
+    }
+
     var body: some View {
-        // Split once per body evaluation (not per row) so scrolling a huge file doesn't
-        // re-run this O(n) split on every visible row's re-evaluation.
-        let lines = code.split(separator: "\n", omittingEmptySubsequences: false)
+        // One pass produces both the lines and the widest line, instead of a split
+        // followed by separate map/filter/max passes. This runs per body evaluation, and
+        // body re-evaluates on scroll (the parent writes scroll geometry into the view
+        // model), so it is genuinely hot.
+        let split = Self.splitCode(code)
         Group {
-            if wrapEnabled {
-                lineRows(lines)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    lineRows(lines)
+            VStack(alignment: .leading, spacing: 0) {
+                if isTooLargeToHighlight {
+                    Label(
+                        "Syntax highlighting is off for this file — it's over \(HighlightrEngine.maxHighlightBytes / 1_000_000) MB.",
+                        systemImage: "info.circle"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, Theme.Space.m)
+                    .padding(.vertical, Theme.Space.s)
+                }
+                if wrapEnabled {
+                    lineRows(split)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        lineRows(split)
+                    }
                 }
             }
         }
-        .task(id: [code.hashValue, language.hashValue, colorScheme.hashValue, dynamicTypeSize.hashValue, fontSize.hashValue]) {
+        .task(id: HighlightKey(
+            code: code,
+            language: language,
+            isDark: colorScheme == .dark,
+            fontSize: fontSize
+        )) {
             highlightedLines = await computeHighlightedLines()
         }
     }
 
-    private func lineRows(_ lines: [Substring]) -> some View {
+    /// Lines plus the longest non-pathological line length, in a single traversal.
+    private static func splitCode(_ code: String) -> (lines: [Substring], maxChars: Int) {
+        let lines = code.split(separator: "\n", omittingEmptySubsequences: false)
+        var maxChars = 0
+        for line in lines {
+            let count = line.count
+            if count <= maxUnwrappedLineLength && count > maxChars { maxChars = count }
+        }
+        return (lines, maxChars)
+    }
+
+    private func lineRows(_ split: (lines: [Substring], maxChars: Int)) -> some View {
+        let lines = split.lines
         let gutterDigits = max(2, String(lines.count).count)
         let gutterWidth = CGFloat(gutterDigits) * fontSize * 0.62 + 6
         // SF Mono is fixed-width, so one upfront max-length pass gives an exact row width
@@ -273,7 +333,7 @@ struct HighlightedCodeView: View {
         // non-convergence hang inside the horizontal ScrollView (see IPAD_FONT_SIZE_HANG.md).
         // Excludes pathological long lines (forced to wrap below) so one minified line can't
         // blow up the shared width for every other row.
-        let maxLineWidth = CGFloat(lines.map(\.count).filter { $0 <= Self.maxUnwrappedLineLength }.max() ?? 0) * fontSize * 0.62
+        let maxLineWidth = CGFloat(split.maxChars) * fontSize * 0.62
         return LazyVStack(alignment: .leading, spacing: 0) {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, plainLine in
                 HStack(alignment: .top, spacing: 8) {
@@ -304,30 +364,15 @@ struct HighlightedCodeView: View {
 
     private func computeHighlightedLines() async -> [AttributedString]? {
         guard let lang = language.flatMap({ FileKind.languageMap[$0.lowercased()] }) else { return nil }
-        guard let attr = await HighlightrEngine.shared.highlight(
+        // Splitting happens inside the actor now — awaiting `highlight` and splitting here
+        // resumed on the MainActor, putting a full-document character walk with one
+        // allocation per line back on the main thread right after taking it off.
+        return await HighlightrEngine.shared.highlightLines(
             code: code,
             language: lang,
             theme: colorScheme == .dark ? "atom-one-dark" : "atom-one-light",
             fontSize: fontSize
-        ) else { return nil }
-        return Self.splitLines(of: attr)
-    }
-
-    /// Split a highlighted `AttributedString` on "\n" boundaries into per-line
-    /// `AttributedString`s, preserving each character's attributes.
-    private static func splitLines(of attr: AttributedString) -> [AttributedString] {
-        var lines: [AttributedString] = []
-        var start = attr.startIndex
-        var idx = attr.startIndex
-        while idx < attr.endIndex {
-            if attr.characters[idx] == "\n" {
-                lines.append(AttributedString(attr[start..<idx]))
-                start = attr.index(afterCharacter: idx)
-            }
-            idx = attr.index(afterCharacter: idx)
-        }
-        lines.append(AttributedString(attr[start..<attr.endIndex]))
-        return lines
+        )
     }
 }
 
@@ -423,12 +468,22 @@ struct DocTableBlock: View {
     // completely ignoring the A/A toolbar buttons.
     private var cellFontSize: CGFloat { fontSize * 0.8 }
 
-    private var colWidths: [CGFloat] {
-        let allRows = [headers] + rows.map { padded($0) }
+    /// Computed once in `init`, not per body evaluation. It scans every cell of the table
+    /// and used to be a computed property read twice inside the row-render loop, so a wide
+    /// table re-scanned itself on every redraw.
+    private let colWidths: [CGFloat]
+
+    init(headers: [String], rows: [[String]], fontSize: CGFloat = CGFloat(Defaults.FontSize.default)) {
+        self.headers = headers
+        self.rows = rows
+        self.fontSize = fontSize
+
+        let cellFontSize = fontSize * 0.8
+        let allRows = [headers] + rows.map { Self.padded($0, to: headers.count) }
         // Per-character width heuristic, scaled proportionally to cellFontSize so columns
         // stay wide enough to fit the text (not just the text itself) as font size changes.
         let charWidth = cellFontSize * 0.73
-        return (0..<headers.count).map { col in
+        self.colWidths = (0..<headers.count).map { col in
             let maxLen = allRows.map { row in row[col].count }.max() ?? 1
             return CGFloat(maxLen) * charWidth + 24.0
         }
@@ -483,9 +538,14 @@ struct DocTableBlock: View {
     }
 
     private func padded(_ row: [String]) -> [String] {
+        Self.padded(row, to: headers.count)
+    }
+
+    /// Static so `init` can use it while computing `colWidths`, before `self` is whole.
+    private static func padded(_ row: [String], to count: Int) -> [String] {
         var r = row
-        while r.count < headers.count { r.append("") }
-        return Array(r.prefix(headers.count))
+        while r.count < count { r.append("") }
+        return Array(r.prefix(count))
     }
 
     private func attrCell(_ cell: String) -> AttributedString {

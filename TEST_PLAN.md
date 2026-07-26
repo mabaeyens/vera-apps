@@ -55,6 +55,26 @@ badge. Evicting a file with `brctl evict <path>` is the quickest way to set this
 - [ ] **All 3**: open a file that is *not* valid UTF-8 → shows "Couldn't Open File" rather than an empty editor. **Important:** confirm the original file is unchanged on disk afterwards, since an empty editor plus autosave would previously have overwritten it
 - [ ] **All 3**: regression — a normal local file still opens instantly with no flash of either new state
 
+### Preview main-thread work moved off (2026-07-26)
+
+Markdown segment parsing now runs on a detached task, per-line splitting of highlighted
+code happens inside `HighlightrEngine` instead of after the `await` (which resumed on the
+main actor), `HighlightedCodeView` does one pass instead of three plus a full-document
+hash per body evaluation, word/character counts are memoised, and table column widths are
+computed once in `init`. Syntax highlighting is now capped at 1 MB.
+
+Mostly regression checks: the visible behaviour should be unchanged except where noted.
+
+- [ ] **All 3**: open a large Markdown file with fenced code blocks and tables → renders correctly, code is highlighted, tables lay out as before
+- [ ] **All 3**: scroll a long syntax-highlighted file fast → smooth, and the highlighting does not flicker or disappear
+- [ ] **All 3**: switch light/dark while a code file is open in Preview → re-highlights correctly in the new theme
+- [ ] **All 3**: change text size (A/A) in Preview on a code file → resizes, stays highlighted
+- [ ] **All 3**: a Markdown file whose tables and code blocks are unchanged still shows the **same column widths** as before (colWidths moved into `init`; a regression here would show as wrong/clipped columns)
+- [ ] **All 3**: word and character counts in the editing toolbar update as you type and are **correct** (they are cached now, so a stale count is the failure mode to watch for) — including after undo, paste, and Auto-fix
+- [ ] **All 3**: open a file **over 1 MB** with a code extension → opens promptly, shows plain monospaced text plus an "over 1 MB" note, and does **not** hang
+- [ ] **All 3**: open a file just under 1 MB → still fully highlighted
+- [ ] **iPad**: re-run the `RepoStatusCard.tsx` preview A/A checks — several of these changes are in the code path `IPAD_FONT_SIZE_HANG.md` implicates, so this is the highest-value check in this block
+
 Per the iPad-is-a-distinct-target correction: iPhone/iPad/Mac are checked as 3 separate
 targets below wherever a feature has a real per-device code-path difference — don't lump
 "iOS" together for anything touching edit-mode toolbars or layout timing.
