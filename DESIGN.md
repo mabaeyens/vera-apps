@@ -72,18 +72,27 @@ is the monospace, not a custom display face. Tokens/notes live in `Theme.Typogra
 
 - **Toolbars** — grouped into ≤3 clusters; icon-only buttons carry `.help` (macOS) and
   `.accessibilityLabel`. Overflow `···` holds only secondary actions, and is the **same
-  on every platform** — Icon Guide, About and the tab-bar toggle live there on iOS and
-  macOS alike.
+  on every platform** — Icon Guide and About live there on iOS and macOS alike.
 - **Focus Mode** — strips chrome for distraction-free writing: hides the formatting bar
-  and linter everywhere, and on macOS also hides the tab bar and collapses the sidebar.
+  and linter everywhere, and on macOS also collapses the sidebar.
+- **Open documents live in the sidebar, and nowhere else.** There is no tab bar. The
+  sidebar's "Open Files" section is the single surface: tap to activate, an
+  always-visible close control, and a context menu with Close / Close Others (plus Reveal
+  in Finder on macOS). Presenting the same list twice is what let the two drift apart —
+  the tab bar was gated on `!focusMode` on macOS but not on iOS, and its close
+  affordances differed per platform.
 - **Sidebar rows** — clear file vs folder via icon hierarchy: folders carry the
   accent-tinted `folder.fill`, Markdown files the **Markdown mark** (dcurtis, template-
   tinted), GitHub repos the accent `</>`. The local folder and each GitHub repo collapse
   via the **same leading-chevron `DisclosureGroup` row** (not a trailing section header),
   so the two trees read identically. The file open in the active tab is highlighted
   (accent icon + medium weight) so the sidebar and the editor stay connected; the Open
-  Files section uses an accent dot for the active tab. **No hover-only affordances on any
-  platform** — deletion is via swipe (iOS) or right-click (macOS), never a hover trash.
+  Files section uses an accent dot for the active tab, and a second indicator for save
+  state — a quiet dot while a local file's autosave is in flight, an accent dot for
+  uncommitted GitHub changes, a warning glyph if a save failed. **No hover-only
+  affordances on any platform** — deletion is via swipe (iOS) or right-click (macOS),
+  never a hover trash, and the Open Files close button is always visible rather than
+  appearing on hover as it once did on macOS.
 - **Empty states** — `ContentUnavailableView` with an icon, one line, and at most one
   prominent action (e.g. "Open Folder…").
 

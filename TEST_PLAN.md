@@ -15,109 +15,92 @@ compile-error fix, and three related iPad-only issues found during that retest (
 hang while editing code, the line-number gutter not appearing until scrolled, and a
 second font-size-in-preview hang/CPU spin).
 
-### Line-number gutter performance + base font size 15 (2026-07-26)
+---
 
-The gutter used to derive each line number by copying the whole document prefix and
-splitting it, once per visible line, inside `draw(_:)`. Measured at 140 ms per frame while
-scrolling a 5000-line file (roughly 7 fps); now 0.0006 ms per frame, with a 1.3 ms index
-rebuild per text change. The new line index was fuzz-checked against the old algorithm over
-69,555 cases (including CRLF, unicode, emoji, empty and newline-only documents) with zero
-divergence, so line numbers should be identical, not merely plausible.
+## 2026-07-26 rework — check on device
 
-Also in this change: base font size is now 15 everywhere (`Theme.Typography.codeSize` and
-`Defaults.FontSize.default` agree, matching DESIGN.md; was 15 vs 18), and the macOS gutter
-now tracks the font-size control at all, which it never did before.
+Six commits, build-verified only. Nothing below has run on hardware.
+Check on **iPhone, iPad and Mac** — they are three targets, not "iOS + macOS".
 
-- [ ] **Mac / iPhone / iPad**: open a large code file (5000+ lines) with line numbers on, scroll fast to the bottom → smooth, no stutter, numbers keep up with the text
-- [ ] **All 3**: line numbers are *correct* at the very bottom of a large file (not just present) — cross-check the last line number against the file's real line count
-- [ ] **All 3**: type in the middle of a large file, including pressing Return and deleting a line → numbers renumber immediately and stay correct
-- [ ] **All 3**: paste a large block, and undo it → numbers stay correct
-- [ ] **All 3**: a file with a very long soft-wrapped line → wrapped continuation rows get **no** number, only real line starts do
-- [ ] **Mac**: tap the A/A font-size control while editing → the **gutter digits resize too** (this is new; previously the macOS gutter was pinned at 11pt and ignored the control)
-- [ ] **Mac**: size up to the maximum (32) on a file with 4- and 5-digit line numbers → digits do not clip, gutter widens
-- [ ] **All 3**: toggle line numbers off and on → gutter reappears correctly
-- [ ] **All 3**: fresh install (or reset) → default text size is now 15, and editor and preview look the same size as each other
-- [ ] **iPad**: re-run the `RepoStatusCard.tsx` A/A checks below — this change touches the same file as the open hang in `IPAD_FONT_SIZE_HANG.md`
+### A. Data loss (do these first)
 
-### iCloud downloads are explained and cancellable (2026-07-26)
+Autosave paths moved when editors started outliving views. If any of these fail, stop.
 
-Opening a file not yet downloaded from iCloud used to show a bare spinner for up to 15
-seconds and then leave the document blank with no explanation. It also only polled, without
-ever requesting the download unless the file had been tapped in the sidebar.
+- [ ] Type in a file, immediately switch tabs (inside the 500 ms debounce), switch back → edit present, and on disk
+- [ ] Type, immediately **close the tab** → edit on disk
+- [ ] Type, immediately **background the app** → edit on disk
+- [ ] Open 9+ files, return to the first → reloads correctly
+- [ ] Same, but with an unsaved edit in the oldest → **edit still there** (eviction must refuse to drop unsaved work)
+- [ ] GitHub file with an uncommitted edit, open 8+ others, return → edit intact, still marked uncommitted
+- [ ] Open a non-UTF8 file → "Couldn't Open File", and the original is **unchanged on disk**
 
-Needs a device with "Optimise Mac Storage" / iCloud offloading so files show the cloud
-badge. Evicting a file with `brctl evict <path>` is the quickest way to set this up.
+### B. Speed and stability
 
-- [ ] **All 3**: open an evicted (cloud-badge) text file → shows "Downloading from iCloud" with the file name, not a bare spinner; the file opens on its own once it arrives
-- [ ] **All 3**: open an evicted file with Wi-Fi off → after the wait, shows an explanation and a **Try Again** button; tapping it retries
-- [ ] **All 3**: tap **Cancel** during the download → returns to an explanatory state immediately, does not hang
-- [ ] **All 3**: same three checks for an evicted **image** file (`ImageViewerView` has its own copy of this path)
-- [ ] **All 3**: open a file that is *not* valid UTF-8 → shows "Couldn't Open File" rather than an empty editor. **Important:** confirm the original file is unchanged on disk afterwards, since an empty editor plus autosave would previously have overwritten it
-- [ ] **All 3**: regression — a normal local file still opens instantly with no flash of either new state
+- [ ] Switch between open files → instant, no spinner, no flash
+- [ ] Switch away and back → scroll position and Edit/Preview mode both survive
+- [ ] Scroll a 5000-line file fast with line numbers on → smooth
+- [ ] Line numbers **correct** at the bottom of a large file (not just present)
+- [ ] Type / Return / delete a line mid-file → renumbers correctly
+- [ ] Long soft-wrapped line → continuation rows get no number
+- [ ] Open a file **over 1 MB** → opens promptly, plain text, "over 1 MB" note, no hang
 
-### Preview main-thread work moved off (2026-07-26)
+### C. Typography
 
-Markdown segment parsing now runs on a detached task, per-line splitting of highlighted
-code happens inside `HighlightrEngine` instead of after the `await` (which resumed on the
-main actor), `HighlightedCodeView` does one pass instead of three plus a full-document
-hash per body evaluation, word/character counts are memoised, and table column widths are
-computed once in `init`. Syntax highlighting is now capped at 1 MB.
+- [ ] Toggle Edit / Done on a file with prose + table + code block → **no size jump** in any of the three
+- [ ] Tables are now the **same size as prose**, not smaller (most visible intended change)
+- [ ] iPhone/iPad at max Larger Text → prose, tables, code and editor grow **together**; prose not wildly larger than code (that would be double-scaling)
+- [ ] Plain `.txt` responds to Larger Text (it previously ignored it)
+- [ ] **Mac**: A/A moves editor, preview, tables, code **and the gutter** (gutter is new; it was pinned at 11 pt)
+- [ ] **Mac**: gutter is now ~52 pt wide, was 36 pt — deliberate, but check it doesn't look heavy
+- [ ] Fresh install → default text size 15
 
-Mostly regression checks: the visible behaviour should be unchanged except where noted.
+### D. iCloud
 
-- [ ] **All 3**: open a large Markdown file with fenced code blocks and tables → renders correctly, code is highlighted, tables lay out as before
-- [ ] **All 3**: scroll a long syntax-highlighted file fast → smooth, and the highlighting does not flicker or disappear
-- [ ] **All 3**: switch light/dark while a code file is open in Preview → re-highlights correctly in the new theme
-- [ ] **All 3**: change text size (A/A) in Preview on a code file → resizes, stays highlighted
-- [ ] **All 3**: a Markdown file whose tables and code blocks are unchanged still shows the **same column widths** as before (colWidths moved into `init`; a regression here would show as wrong/clipped columns)
-- [ ] **All 3**: word and character counts in the editing toolbar update as you type and are **correct** (they are cached now, so a stale count is the failure mode to watch for) — including after undo, paste, and Auto-fix
-- [ ] **All 3**: open a file **over 1 MB** with a code extension → opens promptly, shows plain monospaced text plus an "over 1 MB" note, and does **not** hang
-- [ ] **All 3**: open a file just under 1 MB → still fully highlighted
-- [ ] **iPad**: re-run the `RepoStatusCard.tsx` preview A/A checks — several of these changes are in the code path `IPAD_FONT_SIZE_HANG.md` implicates, so this is the highest-value check in this block
+Needs an evicted file: `brctl evict <path>`.
 
-### One typography scale, one Dynamic Type ramp (2026-07-26)
+- [ ] Open an evicted file → "Downloading from iCloud", not a bare spinner; opens when it arrives
+- [ ] Same with Wi-Fi off → explanation + **Try Again** button that works
+- [ ] Tap **Cancel** mid-download → returns to an explanatory state (may lag ~1 s, known)
+- [ ] Repeat for an evicted **image**
+- [ ] Switch tabs *during* a download, come back → retries cleanly, no stale error
 
-Vera's hand-written `monoScale` is gone. Every surface now resolves its size through
-`Theme.Typography` on Apple's `.body` ramp, which is the ramp MarkdownUI was already using
-internally. Tables lost a hardcoded `* 0.8` and gained Dynamic Type.
+### E. iPad — highest value
 
-The failure mode to watch for is **double scaling**: MarkdownUI applies `ScaledMetric`
-itself and is deliberately the only caller handed an *unscaled* size. If prose balloons at
-large accessibility sizes while code stays sane, that is the bug.
+Four of the six commits touch the code `IPAD_FONT_SIZE_HANG.md` implicates.
 
-- [ ] **All 3**: open a Markdown file with prose, a table and a fenced code block. Toggle Edit / Done repeatedly → **no perceptible size change** in any of the three
-- [ ] **iPhone + iPad**: set Larger Text to maximum (`.accessibility5`) in Settings, reopen the same file → prose, table cells, inline code and code blocks all grow **together**, and the editor still matches the preview
-- [ ] **iPhone + iPad**: at `.accessibility5`, confirm prose is not absurdly larger than code — that would be the double-scaling regression
-- [ ] **iPhone + iPad**: walk the middle sizes too (xSmall, large, xxxLarge) → everything tracks proportionally
-- [ ] **All 3**: **table text is now the same size as prose**, not visibly smaller (this is the most visible intended change)
-- [ ] **All 3**: wide table still lays out with sensible column widths and scrolls horizontally where needed (column widths are derived from cached character counts now)
-- [ ] **All 3**: a plain `.txt` file with no syntax highlighting responds to Larger Text (it previously ignored it entirely)
-- [ ] **Mac**: no Dynamic Type on macOS, so only the A/A control should move text; confirm it moves editor, preview, tables, code blocks and gutter together
+- [ ] **iPad**: `RepoStatusCard.tsx` in **Preview**, tap A/A repeatedly → no hang, no CPU spin
+- [ ] **iPad**: same in **Edit** mode
+- [ ] If it still hangs, that doc is still accurate and `CHANGELOG.md:12` is still wrong
 
-### Open documents stay loaded (2026-07-26)
+### G. Sidebar is now the only place open documents live
 
-`EditorViewModel` now lives on the tab instead of inside `DocumentView`, so switching tabs
-no longer destroys the editor and re-reads the file. **This touches autosave, so the
-data-loss checks below matter more than the speed ones.**
+The tab bar is deleted. **Judgement call for you:** on iPhone there's no persistent
+sidebar, so back-to-tree is now the only way to switch documents. Standard iOS, but a real
+reduction — if it feels wrong, say so and I'll put a switcher back on iPhone only.
 
-- [ ] **All 3**: open 3+ files, switch between them repeatedly → **instant**, no spinner, no flash
-- [ ] **All 3**: scroll to the middle of a long file, switch away and back → **same scroll position**
-- [ ] **All 3**: switch a file to Edit mode, switch tabs away and back → **still in Edit mode**
-- [ ] **All 3**: type in file A, immediately switch to file B (inside the 500 ms autosave debounce), switch back → **the edit is there**, and the file on disk contains it
-- [ ] **All 3**: type in a file and immediately **close its tab** → edit is written to disk (`closeTab` flushes before releasing the editor)
-- [ ] **iPhone/iPad**: type in a file and immediately background the app → edit is written (the `onDisappear` flush no longer covers this; the scene-phase flush does)
-- [ ] **Mac**: same, by switching to another app
-- [ ] **All 3**: edit a file **outside Vera** (another editor, or `git checkout`) while its tab is open but inactive, then switch back to that tab → Vera picks up the new content
-- [ ] **All 3**: same, but with **unsaved edits** in Vera → Vera does **not** silently discard your edits
-- [ ] **All 3**: open **more than 8** files, then return to the first one → it reloads correctly (LRU eviction dropped its text)
-- [ ] **All 3**: open more than 8 files with an **unsaved edit** in the oldest, return to it → **the edit is still there** (eviction must refuse to drop unsaved work)
-- [ ] **GitHub**: open a GitHub file, make an uncommitted edit, open 8+ other files, return → uncommitted edit intact, still marked uncommitted
-- [ ] **All 3**: delete an open file from the sidebar → its tab closes cleanly, no crash
-- [ ] **All 3**: memory check — open ~10 large files, confirm memory does not climb without bound
+- [ ] No tab bar anywhere; overflow menu no longer offers Hide/Show Tab Bar
+- [ ] Sidebar "Open Files": tap activates, close button is **always visible** (no hover needed on Mac)
+- [ ] Right-click / long-press a row → Close, Close Others, and Reveal in Finder (Mac)
+- [ ] **Close the last remaining document** → it actually closes and shows the empty state (this silently did nothing before)
+- [ ] Close Others leaves exactly one tab, and the right one stays active
+- [ ] Type in a local file → a quiet dot appears briefly while saving, then clears
+- [ ] GitHub file with uncommitted changes → accent dot persists; closing it **warns** first
+- [ ] Closing a local file does **not** warn (it autosaves), and the edit is on disk
+- [ ] **iPhone**: does switching documents still feel workable without the tab bar?
 
-Per the iPad-is-a-distinct-target correction: iPhone/iPad/Mac are checked as 3 separate
-targets below wherever a feature has a real per-device code-path difference — don't lump
-"iOS" together for anything touching edit-mode toolbars or layout timing.
+### F. Regressions
+
+- [ ] Normal local file opens instantly, no flash of any new state
+- [ ] Markdown with tables + code renders correctly; column widths sane; wide table scrolls
+- [ ] Light/dark toggle on a code file re-highlights correctly
+- [ ] Word/character counts correct as you type, and after undo, paste and Auto-fix
+- [ ] Delete an open file from the sidebar → tab closes, no crash
+- [ ] Edit a file outside Vera while its tab is inactive, return to it → Vera picks up the change
+
+---
+
+## Earlier 1.3.1 items (unverified)
+
 
 ### HighlightrEngine actor isolation (compile error, blocked all testing)
 - [ ] Build the project (iOS + macOS) → compiles cleanly, no more "Call to main actor-isolated global function 'applyMonoFont(to:size:)' in a synchronous actor-isolated context"

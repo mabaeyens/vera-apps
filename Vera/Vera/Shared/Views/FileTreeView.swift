@@ -17,9 +17,9 @@ struct FileTreeView: View {
     @State private var repoBrowser = RepoBrowser()
     @State private var expandedRepos: Set<String> = []        // SavedRepo.id
     @State private var expandedRepoFolders: Set<String> = []  // "repoID|nodeID"
-    #if os(macOS)
-    @State private var hoveredTabID: UUID?
-    #endif
+    /// Set when closing a GitHub file that has uncommitted changes, so the user gets a
+    /// chance to keep them. Local files autosave and close without a prompt.
+    @State private var tabPendingClose: FileTreeViewModel.TabEntry?
 
     /// id of the source shown in the active tab — used to highlight the active row.
     private var activeSourceID: String? {
@@ -89,6 +89,19 @@ struct FileTreeView: View {
             Button("Cancel", role: .cancel) { fileToDelete = nil }
         } message: {
             Text("This file will be permanently deleted.")
+        }
+        .confirmationDialog(
+            "Close \"\(tabPendingClose?.name ?? "")\" without committing?",
+            isPresented: Binding(get: { tabPendingClose != nil }, set: { if !$0 { tabPendingClose = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Close Without Committing", role: .destructive) {
+                if let tab = tabPendingClose { vm.closeTab(tab.id) }
+                tabPendingClose = nil
+            }
+            Button("Cancel", role: .cancel) { tabPendingClose = nil }
+        } message: {
+            Text("This file has changes that haven't been committed to GitHub. They'll be lost.")
         }
         .safeAreaInset(edge: .bottom) {
             if !connectivity.isOnline { offlineBanner }
@@ -394,10 +407,13 @@ struct FileTreeView: View {
         )
     }
 
+    /// One implementation for every platform. The sidebar is now the *only* place open
+    /// documents are listed (the tab bar is gone), so the affordances have to be the same
+    /// everywhere: tap to activate, an always-visible close control, and a context menu.
+    /// The close button used to be macOS hover-only, which DESIGN.md explicitly forbids.
     @ViewBuilder
     private func openFileRow(tab: FileTreeViewModel.TabEntry) -> some View {
         let isActive = tab.id == vm.activeTabID
-        #if os(macOS)
         HStack(spacing: 6) {
             Circle()
                 .fill(isActive ? Color.accentColor : Color.clear)
@@ -406,44 +422,80 @@ struct FileTreeView: View {
             Text(tab.name)
                 .lineLimit(1)
                 .truncationMode(.middle)
-            Spacer()
-            if hoveredTabID == tab.id {
-                Button { vm.closeTab(tab.id) } label: {
-                    Image(systemName: "xmark").font(.caption2)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .accessibilityLabel("Close \(tab.name)")
+            Spacer(minLength: 4)
+            dirtyIndicator(for: tab.editor)
+            Button { requestClose(tab) } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    #if os(iOS)
+                    .frame(width: 44, height: 44)
+                    #else
+                    .frame(width: 20, height: 20)
+                    #endif
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Close \(tab.name)")
         }
         .contentShape(Rectangle())
-        .onHover { hoveredTabID = $0 ? tab.id : nil }
         .onTapGesture { vm.activateTab(tab.id) }
-        .accessibilityAddTraits(isActive ? .isSelected : [])
-        #else
-        Button {
-            vm.activateTab(tab.id)
-        } label: {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(isActive ? Color.accentColor : Color.clear)
-                    .frame(width: 6, height: 6)
-                    .accessibilityHidden(true)
-                Text(tab.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer()
+        .contextMenu {
+            Button("Close") { requestClose(tab) }
+            Button("Close Others") { vm.closeOtherTabs(besides: tab.id) }
+            #if os(macOS)
+            if case .file(let url) = tab.source {
+                Divider()
+                Button("Reveal in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
             }
-            .contentShape(Rectangle())
+            #endif
         }
-        .buttonStyle(.plain)
+        #if os(iOS)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) { vm.closeTab(tab.id) } label: {
+            Button(role: .destructive) { requestClose(tab) } label: {
                 Label("Close", systemImage: "xmark")
             }
         }
-        .accessibilityAddTraits(isActive ? .isSelected : [])
         #endif
+        .accessibilityAddTraits(isActive ? .isSelected : [])
+    }
+
+    /// Local files autosave on a 500 ms debounce, so their indicator reflects the in-flight
+    /// write and normally just blinks — that's honest about how the file actually behaves.
+    /// GitHub files don't autosave, so `.uncommitted` persists until committed.
+    @ViewBuilder
+    private func dirtyIndicator(for editor: EditorViewModel) -> some View {
+        switch editor.saveState {
+        case .saved:
+            EmptyView()
+        case .saving:
+            Circle()
+                .fill(Color.secondary)
+                .frame(width: 5, height: 5)
+                .accessibilityLabel("Saving")
+        case .uncommitted, .committing:
+            Circle()
+                .fill(Theme.accent)
+                .frame(width: 6, height: 6)
+                .accessibilityLabel("Uncommitted changes")
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.caption2)
+                .foregroundStyle(.orange)
+                .accessibilityLabel("Couldn't save")
+        }
+    }
+
+    /// Local files just flush and close — prompting would be wrong for an autosaving
+    /// editor. GitHub files have no autosave, so uncommitted work really can be lost.
+    private func requestClose(_ tab: FileTreeViewModel.TabEntry) {
+        if tab.source.isGitHub, tab.editor.isUncommitted {
+            tabPendingClose = tab
+        } else {
+            vm.closeTab(tab.id)
+        }
     }
 
     @ViewBuilder

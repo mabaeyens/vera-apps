@@ -134,8 +134,10 @@ final class FileTreeViewModel {
     // URL convenience wrapper — keeps every existing iCloud call site unchanged.
     func openFileInNewTab(_ url: URL) { openInNewTab(.file(url)) }
 
+    /// Close a tab. The last one included — this used to open with
+    /// `guard tabs.count > 1`, so the close control on the final document silently did
+    /// nothing and the empty state was unreachable except by deleting the file.
     func closeTab(_ id: UUID) {
-        guard tabs.count > 1 else { return }
         guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closed = tabs[idx]
         // The editor is released with the tab, so any edit still inside the autosave
@@ -144,12 +146,31 @@ final class FileTreeViewModel {
         tabs.remove(at: idx)
         activationOrder.removeAll { $0 == id }
         if activeTabID == id {
-            let newIdx = min(idx, tabs.count - 1)
-            activeTabID = tabs[newIdx].id
-            selectedSource = tabs[newIdx].source
-            noteActivation(tabs[newIdx].id)
+            if tabs.isEmpty {
+                activeTabID = nil
+                selectedSource = nil
+            } else {
+                let newIdx = min(idx, tabs.count - 1)
+                activeTabID = tabs[newIdx].id
+                selectedSource = tabs[newIdx].source
+                noteActivation(tabs[newIdx].id)
+            }
         }
         if case .file(let url) = closed.source { releaseAccess(url) }
+    }
+
+    func closeOtherTabs(besides id: UUID) {
+        guard tabs.contains(where: { $0.id == id }) else { return }
+        for tab in tabs where tab.id != id {
+            Task { await tab.editor.flushPendingSave() }
+            if case .file(let url) = tab.source { releaseAccess(url) }
+        }
+        tabs.removeAll { $0.id != id }
+        activationOrder.removeAll { $0 != id }
+        if let remaining = tabs.first {
+            activeTabID = remaining.id
+            selectedSource = remaining.source
+        }
     }
 
     /// Flush every open document's pending autosave — for app background, where the
@@ -470,14 +491,9 @@ final class FileTreeViewModel {
         roots = removingFile(url: url, from: roots)
         // Handle tabs: close the deleted file's tab or clear selection
         if let tabToClose = tabs.first(where: { $0.source == .file(url) }) {
-            if tabs.count == 1 {
-                tabs = []
-                activationOrder = []
-                activeTabID = nil
-                selectedSource = nil
-            } else {
-                closeTab(tabToClose.id)
-            }
+            // `closeTab` handles the last-tab case now, so this no longer needs its own
+            // special case for it.
+            closeTab(tabToClose.id)
         } else if selectedSource == .file(url) {
             selectedSource = nil
         }

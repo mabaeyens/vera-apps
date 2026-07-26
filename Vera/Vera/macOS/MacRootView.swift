@@ -13,7 +13,6 @@ struct MacRootView: View {
     @State private var gitHubInitialRepo: SavedRepo?
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @AppStorage(Defaults.Key.tabBarVisible) private var tabBarVisible: Bool = true
     @AppStorage(Defaults.Key.focusMode) private var focusMode: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -25,9 +24,6 @@ struct MacRootView: View {
                 .navigationTitle("Files")
         } detail: {
             VStack(spacing: 0) {
-                if vm.tabs.count >= 1 && tabBarVisible && !focusMode {
-                    TabBarView()
-                }
                 if let source = vm.selectedSource, let editor = vm.editor(for: source) {
                     DocumentOrImageView(source: source, editor: editor)
                         .id(source)
@@ -106,15 +102,6 @@ struct MacRootView: View {
             // Secondary items live in a single overflow menu, matching iOS.
             ToolbarItem(placement: .automatic) {
                 Menu {
-                    if vm.tabs.count >= 1 {
-                        Button { tabBarVisible.toggle() } label: {
-                            Label(
-                                tabBarVisible ? "Hide Tab Bar" : "Show Tab Bar",
-                                systemImage: tabBarVisible ? "chevron.compact.up" : "chevron.compact.down"
-                            )
-                        }
-                        Divider()
-                    }
                     Button { showIconHelp = true } label: {
                         Label("Icon Guide", systemImage: "questionmark.circle")
                     }

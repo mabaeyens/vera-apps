@@ -10,7 +10,6 @@ enum Defaults {
         static let editorFontSize       = "editorFontSize"
         static let linterEnabled        = "linterEnabled"
         static let focusMode            = "focusMode"
-        static let tabBarVisible        = "tabBarVisible"
         static let hasSeenOnboarding    = "hasSeenOnboarding"
         static let pinnedFiles          = "pinnedFiles"
         static let focusModePlainTextFiles = "focusModePlainTextFiles"

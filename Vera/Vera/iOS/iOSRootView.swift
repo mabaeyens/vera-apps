@@ -18,7 +18,6 @@ struct iOSRootView: View {
     @State private var showFolderPicker = false
     @State private var showGitHub = false
     @State private var gitHubInitialRepo: SavedRepo?
-    @AppStorage(Defaults.Key.tabBarVisible) private var tabBarVisible: Bool = true
 
     var body: some View {
         @Bindable var vm = vm
@@ -35,7 +34,6 @@ struct iOSRootView: View {
                         .toolbar { sharedToolbar }
                         .navigationDestination(item: $vm.selectedSource) { source in
                             VStack(spacing: 0) {
-                                if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
                                 if let editor = vm.editor(for: source) {
                                     DocumentOrImageView(source: source, editor: editor).id(source)
                                 }
@@ -51,7 +49,6 @@ struct iOSRootView: View {
                         .toolbar { sharedToolbar }
                 } detail: {
                     VStack(spacing: 0) {
-                        if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
                         if let source = vm.selectedSource, let editor = vm.editor(for: source) {
                             DocumentOrImageView(source: source, editor: editor).id(source)
                         } else {
@@ -169,15 +166,6 @@ struct iOSRootView: View {
                     Label("Open from GitHub…", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
                 Divider()
-                if vm.tabs.count >= 1 {
-                    Button { tabBarVisible.toggle() } label: {
-                        Label(
-                            tabBarVisible ? "Hide Tab Bar" : "Show Tab Bar",
-                            systemImage: tabBarVisible ? "chevron.compact.up" : "chevron.compact.down"
-                        )
-                    }
-                    Divider()
-                }
                 Button { showIconHelp = true } label: {
                     Label("Icon Guide", systemImage: "questionmark.circle")
                 }
