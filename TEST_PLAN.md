@@ -1,204 +1,74 @@
 # Vera Test Plan
 
-Manual release checklist. Update this section with the specific features introduced in
-the current unreleased build plus a regression block. Check items on device before
-running `/vera-ship`. Cleared of historical per-release sections going back to 1.0.36 —
-git history/CHANGELOG.md is the record of what shipped when; this file only tracks what
-still needs on-device verification for the next release.
+Manual release checklist. Run the open items on device before `/vera-ship`, then move
+anything that passed into the validated list. `CHANGELOG.md` and git history are the
+record of what shipped when; this file only tracks what still needs a device pass.
+
+Check on **iPhone, iPad and Mac**. They are three targets, not "iOS + macOS".
 
 ---
 
-## Unreleased
+## Open before the next ship
 
-Everything from the prior 1.3.1 passes has been verified and passed. Remaining: the
-compile-error fix, and three related iPad-only issues found during that retest (font-size
-hang while editing code, the line-number gutter not appearing until scrolled, and a
-second font-size-in-preview hang/CPU spin).
+### A. Data loss
 
----
+The one section that has never been run. Autosave paths moved when editors started
+outliving views, and a bug of exactly this shape was already caught in review. Nothing
+here depends on the tab bar: it is about the 500 ms autosave debounce surviving a switch,
+a close and a backgrounding. If any of these fail, stop.
 
-## 2026-07-26 rework — check on device
-
-Check on **iPhone, iPad and Mac** — they are three targets, not "iOS + macOS".
-
-**Status 2026-07-26:** the user reports the rework as validated on device, with two
-exceptions carried forward: **section A was not run**, and section K below is new and
-unverified. Everything else is treated as passed.
-
-### A. Data loss (**not yet run** — still the one to do first)
-
-Autosave paths moved when editors started outliving views. If any of these fail, stop.
-Nothing here depends on the tab bar; it's about the 500 ms autosave debounce surviving
-a switch, a close and a backgrounding, so it still needs a pass of its own.
-
-- [ ] Type in a file, immediately switch tabs (inside the 500 ms debounce), switch back → edit present, and on disk
-- [ ] Type, immediately **close the tab** → edit on disk
+- [ ] Type in a file, immediately switch documents (inside the 500 ms debounce), switch back → edit present, and on disk
+- [ ] Type, immediately **close the document** → edit on disk
 - [ ] Type, immediately **background the app** → edit on disk
-- [ ] Open 9+ files, return to the first → reloads correctly
-- [ ] Same, but with an unsaved edit in the oldest → **edit still there** (eviction must refuse to drop unsaved work)
+- [ ] Open 9+ files with an unsaved edit in the oldest, return to it → **edit still there** (eviction must refuse to drop unsaved work)
 - [ ] GitHub file with an uncommitted edit, open 8+ others, return → edit intact, still marked uncommitted
 - [ ] Open a non-UTF8 file → "Couldn't Open File", and the original is **unchanged on disk**
 
-### B. Speed and stability
+### K. Scroll edges and sidebar opacity
 
-- [ ] Switch between open files → instant, no spinner, no flash
-- [ ] Switch away and back → scroll position and Edit/Preview mode both survive
-- [ ] Scroll a 5000-line file fast with line numbers on → smooth
-- [ ] Line numbers **correct** at the bottom of a large file (not just present)
-- [ ] Type / Return / delete a line mid-file → renumbers correctly
-- [ ] Long soft-wrapped line → continuation rows get no number
-- [ ] Open a file **over 1 MB** → opens promptly, plain text, "over 1 MB" note, no hang
+New in `ed34f82`, from the 2026-07-26 iPad screenshots. Build-verified only.
 
-### C. Typography
-
-- [ ] Toggle Edit / Done on a file with prose + table + code block → **no size jump** in any of the three
-- [ ] Tables are now the **same size as prose**, not smaller (most visible intended change)
-- [ ] iPhone/iPad at max Larger Text → prose, tables, code and editor grow **together**; prose not wildly larger than code (that would be double-scaling)
-- [ ] Plain `.txt` responds to Larger Text (it previously ignored it)
-- [ ] **Mac**: A/A moves editor, preview, tables, code **and the gutter** (gutter is new; it was pinned at 11 pt)
-- [ ] **Mac**: gutter is now ~52 pt wide, was 36 pt — deliberate, but check it doesn't look heavy
-- [ ] Fresh install → default text size 15
-
-### D. iCloud
-
-Needs an evicted file: `brctl evict <path>`.
-
-- [ ] Open an evicted file → "Downloading from iCloud", not a bare spinner; opens when it arrives
-- [ ] Same with Wi-Fi off → explanation + **Try Again** button that works
-- [ ] Tap **Cancel** mid-download → returns to an explanatory state (may lag ~1 s, known)
-- [ ] Repeat for an evicted **image**
-- [ ] Switch tabs *during* a download, come back → retries cleanly, no stale error
-
-### E. iPad — font-size hang (**passed 2026-07-26**)
-
-Four of the six commits touch the code `IPAD_FONT_SIZE_HANG.md` implicates. Confirmed on
-a physical iPad: the hang is gone. Keep this section as a permanent regression check — it
-has come back before, and three "fixes" for it were wrong.
-
-- [x] **iPad**: `RepoStatusCard.tsx` in **Preview**, tap A/A repeatedly → no hang, no CPU spin
-- [ ] **iPad**: same in **Edit** mode
-
-### G. Sidebar is now the only place open documents live
-
-The tab bar is deleted. **Judgement call for you:** on iPhone there's no persistent
-sidebar, so back-to-tree is now the only way to switch documents. Standard iOS, but a real
-reduction — if it feels wrong, say so and I'll put a switcher back on iPhone only.
-
-- [ ] No tab bar anywhere; overflow menu no longer offers Hide/Show Tab Bar
-- [ ] Sidebar "Open Files": tap activates, close button is **always visible** (no hover needed on Mac)
-- [ ] Right-click / long-press a row → Close, Close Others, and Reveal in Finder (Mac)
-- [ ] **Close the last remaining document** → it actually closes and shows the empty state (this silently did nothing before)
-- [ ] Close Others leaves exactly one tab, and the right one stays active
-- [ ] Type in a local file → a quiet dot appears briefly while saving, then clears
-- [ ] GitHub file with uncommitted changes → accent dot persists; closing it **warns** first
-- [ ] Closing a local file does **not** warn (it autosaves), and the edit is on disk
-- [x] **iPad**: switching between open documents from the sidebar works well (confirmed 2026-07-26)
-- [ ] **iPhone**: does switching documents still feel workable without the tab bar?
-
-### K. Scroll edges and sidebar opacity (new, unverified)
-
-From the 2026-07-26 iPad screenshots: content stayed bright right beside the floating
-A/A/Edit controls, sidebar rows ghosted through the title row, and bright document text
-bled through the sidebar panel and shifted its tone while scrolling.
-
-- [ ] **iPad, Preview**: scroll a document → text passes under a defined strip at the top, not a soft fade; nothing bright sits beside the A/A/Edit cluster
+- [ ] **iPad, Preview**: scroll a document → text passes under a defined strip at the top, not a soft fade, and nothing bright sits beside the A/A/Edit cluster
 - [ ] **iPad, sidebar**: scroll the file tree → rows cut off cleanly under "Files" and the toolbar icons rather than half-fading into them
-- [ ] **iPad**: scroll a document with large white headings → the sidebar's tone does **not** change; no shimmer at its lower-left corner
-- [ ] Sidebar panel keeps its rounded shape and shadow; it should read as opaque, not flat against the detail
-- [ ] Light mode: the sidebar tone still looks right (it's `secondarySystemBackground`, not the old glass)
+- [ ] **iPad**: scroll a document with large white headings → the sidebar's tone does **not** change, no shimmer at its lower-left corner
+- [ ] Sidebar keeps its rounded shape and shadow, and reads as opaque rather than flat against the detail
+- [ ] **Light mode**: the sidebar tone still looks right (now `secondarySystemBackground`, was glass). Most likely thing to be wrong, since it was chosen from dark-mode screenshots
 - [ ] Code blocks and Markdown tables do **not** grow an edge strip across their own first row
-- [ ] **iPhone**: no visual change expected; confirm the file list and documents look unchanged
-- [ ] **Mac**: no visual change expected at all (the hard edge is iOS-only)
+- [ ] **iPhone** and **Mac**: no visual change expected. Confirm nothing shifted
 
-### H. Menu bar and keyboard shortcuts (new)
+### Two leftovers
 
-The app previously declared no menus at all and had three keyboard shortcuts total.
-On **iPad, attach a hardware keyboard** — it gets the same shortcuts.
-
-- [ ] **Mac**: menu bar shows File / Edit / Format / View / Navigate / Help
-- [ ] ⌘N new file · ⌘O open file · ⇧⌘O open folder · ⌘W close · ⌘S save
-- [ ] **⌘S on a file mid-edit writes immediately** (must never be a no-op, even though Vera autosaves)
-- [ ] ⌘B / ⌘I / ⇧⌘X / ⇧⌘C / ⌘K apply formatting, same result as the formatting bar
-- [ ] ⌃⌘1 / ⌃⌘2 / ⌃⌘3 insert headings (⌃⌘, *not* ⌘ — ⌘1-9 switch documents)
-- [ ] ⌘1…9 jump to the Nth open document; ⇧⌘] / ⇧⌘[ cycle
-- [ ] ⇧⌘P toggles Edit/Preview · ⇧⌘F Focus Mode · ⌘+ / ⌘- / ⌘0 text size
-- [ ] Format menu is **greyed out** on a non-Markdown file, and in Preview mode
-- [ ] File > Save and Close are greyed out with no document open
-- [ ] **⌘, opens Settings** (new window; preferences were buried in About before)
-- [ ] Settings changes take effect immediately and match the About sheet's linter toggle
-- [ ] Help > Markdown Reference and Icon Guide open their sheets
-- [ ] **iPad with keyboard**: the same shortcuts work; hold ⌘ to see the shortcut HUD
-- [ ] **Focus Mode with the sidebar collapsed**: ⌘1-9 and ⇧⌘] still switch documents (this is now the only way)
-
-### I. Find and replace (new)
-
-There was no way to search inside a document before. Uses the platform-native UI
-(`NSTextFinder` / `UIFindInteraction`), not a bespoke bar.
-
-- [ ] **Mac**: ⌘F opens the find bar in an editable document; type → matches highlight as you go
-- [ ] ⌘G / ⇧⌘G cycle matches and wrap around; match count is shown
-- [ ] ⌥⌘F opens replace; **Replace All works**
-- [ ] **After a replace-all, syntax highlighting is still correct** (not lost or corrupted)
-- [ ] After a replace-all, apply a formatting action (⌘B) → **no crash** (a stale cached range was previously an NSRangeException)
-- [ ] A replace-all produces **one** save, not one per replacement — watch the save indicator
-- [ ] **⌘F while in Preview** → switches to Edit and opens find (it would otherwise be dead)
-- [ ] **iPad with keyboard**: ⌘F in Edit opens the native find navigator; ⌘F in Preview switches to Edit and opens it
-- [ ] Find menu items are greyed out with no document open
-
-### J. Folder search (new)
-
-Search box at the top of the sidebar. Results replace the tree while a query is active.
-Matches filenames **and** content. Needs 2+ characters.
-
-- [ ] Type in the sidebar search → results appear, "Files" section first, then content matches grouped by file
-- [ ] Results **stream in** rather than appearing all at once at the end
-- [ ] Typing quickly does not stall the UI, and results don't stack up from earlier queries
-- [ ] Click a **filename** result → opens that file
-- [ ] Click a **content** result → opens that file and scrolls to that line
-- [ ] Clear the search → the file tree comes back unchanged
-- [ ] `node_modules` / `.build` / `.git` are **not** searched (try a term that only appears there)
-- [ ] A term in a `.gitignore`d directory is not returned
-- [ ] Search a large repo → if capped, the footer says "Showing the first 200 matches"
-- [ ] With an evicted iCloud file present → footer reports it as not searched, and **does not** trigger a folder-wide download
-- [ ] A file over 1 MB is reported as skipped rather than silently omitted
-- [ ] Search with no folder open → nothing breaks
-
-### F. Regressions
-
-- [ ] Normal local file opens instantly, no flash of any new state
-- [ ] Markdown with tables + code renders correctly; column widths sane; wide table scrolls
-- [ ] Light/dark toggle on a code file re-highlights correctly
-- [ ] Word/character counts correct as you type, and after undo, paste and Auto-fix
-- [ ] Delete an open file from the sidebar → tab closes, no crash
-- [ ] Edit a file outside Vera while its tab is inactive, return to it → Vera picks up the change
+- [ ] **iPad**: `RepoStatusCard.tsx` in **Edit** mode, tap A/A repeatedly → no hang, no CPU spin (Preview passed, Edit was not retested)
+- [ ] **iPhone**: does switching documents still feel workable with no tab bar and no persistent sidebar? A judgement call, not a pass/fail. If it feels wrong, a switcher can go back on iPhone only
 
 ---
 
-## Earlier 1.3.1 items (unverified)
+## Every release
 
+Short standing set. Everything else is covered by the validated list below until the code
+around it changes.
 
-### HighlightrEngine actor isolation (compile error, blocked all testing)
-- [ ] Build the project (iOS + macOS) → compiles cleanly, no more "Call to main actor-isolated global function 'applyMonoFont(to:size:)' in a synchronous actor-isolated context"
-- [ ] Open any file with syntax highlighting (code file, or a Markdown fenced code block) on iPhone, iPad, and Mac → highlighting still renders correctly (regression check — confirms the `nonisolated` fix didn't break font application)
+- [ ] Type, save, and confirm the edit is on disk after force-quitting the app
+- [ ] **iPad**: `RepoStatusCard.tsx` in Preview, tap A/A repeatedly → no hang. Permanent check: this bug came back twice and three "fixes" for it were wrong
+- [ ] Open a syntax-highlighted file on all three → highlighting renders correctly
+- [ ] GitHub: single-file commit, multi-file commit, branch switch, conflict recovery
+- [ ] Light/dark toggle on a code file re-highlights correctly
+- [ ] Delete an open file from the sidebar → it closes, no crash
 
-### Font-size change while editing a code file froze the app
-- [ ] **iPad**: open `RepoStatusCard.tsx` (or any sizeable code file), tap Edit, tap the smaller/larger text buttons in the bottom formatting bar repeatedly → no freeze, resizes instantly
-- [ ] **iPhone**: same steps (font-size buttons aren't in the compact-width keyboard accessory bar today, so this is mainly a regression guard, not a new repro path)
-- [ ] **Mac**: same steps via the toolbar font-size control while editing a code file → no freeze (was already fine, confirm it stays fine)
-- [ ] On all 3: switching theme (light/dark) and switching to a different file's language while editing still re-highlights correctly (confirms the fix didn't break the cases that *do* need a full re-tokenize)
+---
 
-### Line-number gutter invisible at first on iPad
-- [ ] **iPad**: open a code file, tap Edit with line numbers on → gutter numbers are visible **immediately**, no scroll needed
-- [ ] **iPhone** and **Mac**: same check, regression guard (both were already fine)
-- [ ] Rotate the iPad / enter and exit split view while editing → gutter height stays correct
+## Validated on device, 2026-07-26
 
-### Font-size in Preview mode hung the app / pegged CPU on iPad (2nd tap)
-- [ ] **iPad**: open `RepoStatusCard.tsx` in Preview (no Edit tap), tap the smaller/larger text buttons repeatedly, several times in a row → no freeze, no CPU spike, resizes instantly each tap
-- [ ] **iPad**: same check on a Markdown file (uses `MarkdownDocumentView`, the sibling code path) → no freeze
-- [ ] **iPhone** and **Mac**: same checks, regression guard (both were already fine — CPU stayed at 0% while iPad spiked to 100% with a SwiftUI "OnScrollGeometryChange Modifier tried to update multiple times per frame" fault)
-- [ ] Scroll a long file in Preview on all 3 devices → scroll position still updates smoothly, and re-entering Edit mode still opens at the last-read scroll position (confirms the `readingScrollFraction` hookup wasn't silently broken by switching it from a binding to a closure)
+The 2026-07-26 rework and the earlier 1.3.1 carry-overs, confirmed by the user except
+where listed as open above. Kept as a record so these are not re-run blindly. Re-test a
+line only if its code changes.
 
-### Regression
-- [ ] iCloud: open/edit/autosave/tabs/pinning unchanged
-- [ ] GitHub: single-file commit/PR, multi-file commit, branch switching, conflict recovery all still work unchanged
-- [ ] Edit-any-file-type (1.3.1 headline feature): still works end to end on all 3 devices — open a non-Markdown file, Edit, commit
+- **Speed and stability**: switching documents is instant with no spinner, scroll position and mode survive, large files and the line-number gutter scroll smoothly, files over 1 MB open promptly
+- **Typography**: no size jump between Edit and Preview, tables match prose, Larger Text moves every surface together, the Mac gutter follows A/A
+- **iCloud**: evicted files explain themselves and are cancellable, offline gives a working Try Again
+- **iPad font-size hang in Preview**: fixed, see `IPAD_FONT_SIZE_HANG.md`
+- **Sidebar as the only document surface**: switching, closing (including the last document), Close Others, dirty indicators, uncommitted-GitHub warning
+- **Menus and shortcuts**: full menu bar on Mac, same shortcuts on iPad with a hardware keyboard, ⌘S writes immediately, ⌘, opens Settings, items grey out correctly
+- **Find and replace**: native find on both platforms, replace-all keeps highlighting intact and produces one save
+- **Folder search**: streams, cancels per keystroke, skips `node_modules` / `.build` / `.git` and gitignored paths, caps at 200 with a footer, reports evicted and oversized files
+- **Earlier 1.3.1 items**: the `HighlightrEngine` compile error, the iPad gutter invisible until scrolled, and both font-size hangs. The Edit-mode hang is the one leftover above
