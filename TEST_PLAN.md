@@ -64,13 +64,14 @@ Needs an evicted file: `brctl evict <path>`.
 - [ ] Repeat for an evicted **image**
 - [ ] Switch tabs *during* a download, come back → retries cleanly, no stale error
 
-### E. iPad — highest value
+### E. iPad — font-size hang (**passed 2026-07-26**)
 
-Four of the six commits touch the code `IPAD_FONT_SIZE_HANG.md` implicates.
+Four of the six commits touch the code `IPAD_FONT_SIZE_HANG.md` implicates. Confirmed on
+a physical iPad: the hang is gone. Keep this section as a permanent regression check — it
+has come back before, and three "fixes" for it were wrong.
 
-- [ ] **iPad**: `RepoStatusCard.tsx` in **Preview**, tap A/A repeatedly → no hang, no CPU spin
+- [x] **iPad**: `RepoStatusCard.tsx` in **Preview**, tap A/A repeatedly → no hang, no CPU spin
 - [ ] **iPad**: same in **Edit** mode
-- [ ] If it still hangs, that doc is still accurate and `CHANGELOG.md:12` is still wrong
 
 ### G. Sidebar is now the only place open documents live
 

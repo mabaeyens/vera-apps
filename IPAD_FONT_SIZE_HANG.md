@@ -1,18 +1,51 @@
-# iPad font-size hang — current status (unresolved)
+# iPad font-size hang — RESOLVED (confirmed on device 2026-07-26)
 
-**Symptom (latest report):** on iPad, opening `RepoStatusCard.tsx` and tapping the
-larger/smaller text (A/A) button hangs the app on the **first** tap now — 100% CPU,
-RAM climbing without bound. Confirmed OK on iPhone and Mac (0% CPU) with the same
-build. This is a live regression as of the most recent fix (`1cff6dc`) — it did not
-resolve the problem and may have made it worse (previously it took a second tap; now
-the first tap hangs).
+**Status: fixed.** The user ran the canonical repro on a physical iPad after the
+2026-07-26 performance and typography work and confirmed the hang is gone. This is the
+first time this bug has been closed on **device evidence** rather than a clean build,
+which is the only kind of evidence that ever counted for it.
 
-**Do not trust prior "fixed" claims in git history for this bug** — this is the
-**third** attempted fix for what may be two or three distinct but related bugs. Each
-prior attempt was verified by build success only, never confirmed on-device before
-being reported fixed, and each one turned out to be wrong or incomplete.
+**Historical symptom:** on iPad, opening `RepoStatusCard.tsx` in Preview mode and tapping
+the larger/smaller text (A/A) button hung the app — 100% CPU, RAM climbing without bound.
+iPhone and Mac were fine (0% CPU) on the identical binary.
+
+## What fixed it
+
+No single commit was written as a fix for this bug, so the exact cause is not isolated.
+The hang was present before the 2026-07-26 rework and absent after it. The candidates,
+all of which sit directly on the A/A-in-Preview path:
+
+- **`c0ff244`** — the strongest candidate. Three changes land on this exact path:
+  `HighlightedCodeView`'s `.task(id:)` key moved from an array of `hashValue`s to a
+  typed `HighlightKey`, so an A/A tap no longer risks hash collisions or spurious
+  re-fires; markdown parsing and line splitting moved off the main actor via
+  `Task.detached`; and `HighlightrEngine` gained a **1 MB cap** (`maxHighlightBytes`)
+  plus `highlightLines(...)` that splits *inside* the actor rather than handing the
+  main actor a large array.
+- **`1239fdb`** — one typography scale. An A/A tap now changes one resolved size that
+  every surface reads, instead of several surfaces each recomputing from their own ramp
+  and re-firing independently.
+- **`efcf684`** — the gutter rewrite. Previously O(document) per line per frame; on a
+  large file that alone cost ~140 ms/frame and would have compounded any re-render storm.
+
+The unbounded RAM growth is most consistent with the missing size cap plus repeated
+re-highlighting, which is what `c0ff244` addresses on both counts.
+
+## Lesson worth keeping
+
+Four attempts. The three that failed (`2747ba5`, `bf021c5`, `1cff6dc`) were each declared
+fixed on a clean build and each was wrong; `1cff6dc` made it worse. The one that worked
+was never aimed at this bug at all — it came from fixing the general performance problems
+underneath it. **Build success is not evidence for this bug class.** Everything below this
+line is the historical investigation, kept because the analysis is still the best map of
+this code path.
 
 ---
+
+## Historical investigation (as written while the bug was open)
+
+Everything from here down was accurate at `1cff6dc` and is preserved for the code-path
+analysis. The status claims in it are superseded by the header above.
 
 ## Timeline of attempts (all in this repo, `main` branch)
 

@@ -11,20 +11,12 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 - 2026-07-06 — Made `mabaeyens/vera-apps` public (repo history audited clean, no secrets in 153 commits).
 - 2026-07-06 — Released v1.2.0: TestFlight build submitted for external review, notarized macOS DMG published on the GitHub release.
 - 2026-07-10 — v1.2.0 live on TestFlight and running well on iPhone Miguel; the earlier "developer disk image could not be mounted" `/vera-validate` failure was a local Xcode tooling hiccup, not a real device/build issue.
+- 2026-07-26 — **iPad font-size hang resolved** ([IPAD_FONT_SIZE_HANG.md](IPAD_FONT_SIZE_HANG.md)), confirmed on a physical iPad against the canonical repro (`RepoStatusCard.tsx`, Preview mode, tap A/A). It was not fixed by a targeted fix: three of those were tried and all three failed. It went away with the 2026-07-26 performance and typography work, most likely `c0ff244` (1 MB highlight cap, typed `.task(id:)` key, parsing off the main actor). Settles the contradiction tracked here earlier: `CHANGELOG.md`'s v1.3.1 claim to have fixed it was **wrong** — the hang survived that release. The real fix is in the unreleased 2026-07-26 work, so the next release notes should say so rather than repeating v1.3.1's claim.
 - 2026-07-10 — Manually walked the full Release 1.2.0 checklist (repo search, conflict recovery, branch switching, branch picker, multi-file commits, Device Flow sign-in) on-device; the 2026-07-06 code-review fixes hold up in practice, not just in code review.
 
 ## Open bugs
 
-- **iPad font-size hang — unresolved** ([IPAD_FONT_SIZE_HANG.md](IPAD_FONT_SIZE_HANG.md)).
-  Tracked here from 2026-07-26; it was previously in neither the backlog nor the
-  changelog's known issues. Note the contradiction to settle: `CHANGELOG.md` claims v1.3.1
-  "fixed several iPad-only editor issues: font-size changes freezing the app", while that
-  doc says the hang is open and that the last attempt made it worse. One of the two is
-  wrong, and both shipped. The doc's own recommended next step — Instruments (Time
-  Profiler + Allocations) on a **physical** iPad — has still never been run. Do not mark
-  this fixed on a clean build; three prior attempts were verified that way and all were
-  wrong. The 2026-07-26 performance work touched this code path and may have helped, but
-  that is unverified.
+(none)
 
 ---
 
