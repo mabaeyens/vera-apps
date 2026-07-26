@@ -103,6 +103,61 @@ final class FileTreeViewModel {
     /// Tab ids, most recently activated first.
     private var activationOrder: [UUID] = []
 
+    // MARK: - Folder search
+
+    var searchQuery = ""
+    private(set) var searchHits: [SearchHit] = []
+    private(set) var isSearching = false
+    private(set) var searchTruncated = false
+    private(set) var searchSkips: [SearchSkip] = []
+    private var searchTask: Task<Void, Never>?
+
+    var isSearchActive: Bool { !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// Restart the walk for a new query. Cancels the previous one, so typing quickly
+    /// never stacks up searches.
+    func runSearch() {
+        searchTask?.cancel()
+        let query = searchQuery.trimmingCharacters(in: .whitespaces)
+        searchHits = []
+        searchTruncated = false
+        searchSkips = []
+
+        guard query.count >= 2, let root = rootURL else {
+            isSearching = false
+            return
+        }
+        isSearching = true
+        searchTask = Task { [weak self] in
+            // Small debounce so a fast typist doesn't start a walk per keystroke.
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled, let self else { return }
+            for await event in FolderSearch.run(root: root, query: query) {
+                if Task.isCancelled { return }
+                switch event {
+                case .hit(let hit):
+                    self.searchHits.append(hit)
+                case .skipped(let skip):
+                    if !self.searchSkips.contains(skip) { self.searchSkips.append(skip) }
+                case .truncated:
+                    self.searchTruncated = true
+                case .finished:
+                    self.isSearching = false
+                }
+            }
+        }
+    }
+
+    func clearSearch() {
+        searchTask?.cancel()
+        searchTask = nil
+        searchQuery = ""
+        searchHits = []
+        searchTruncated = false
+        searchSkips = []
+        isSearching = false
+    }
+
     func editor(for source: DocumentSource) -> EditorViewModel? {
         tabs.first { $0.source == source }?.editor
     }

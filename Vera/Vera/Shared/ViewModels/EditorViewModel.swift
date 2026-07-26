@@ -43,6 +43,20 @@ final class EditorViewModel {
     /// Opens the native find UI. Registered by the editor while it's mounted, so it being
     /// nil is also how the Find menu knows there's nothing to search.
     var presentFind: (() -> Void)? = nil
+
+    /// Set when a folder-search result is opened, so the document can scroll to that line
+    /// once its text is actually in memory. Resolved into `anchorFraction`, which is the
+    /// scroll mechanism the editor already has, rather than adding a second one.
+    var pendingScrollToLine: Int?
+
+    /// Turn a pending line target into a scroll position. No-op if there's nothing pending
+    /// or the text isn't loaded yet.
+    func resolvePendingScroll() {
+        guard let line = pendingScrollToLine, !rawText.isEmpty else { return }
+        let total = max(1, rawText.split(separator: "\n", omittingEmptySubsequences: false).count)
+        anchorFraction = min(1, max(0, CGFloat(line - 1) / CGFloat(total)))
+        pendingScrollToLine = nil
+    }
     var atlasRequested = false
     var lintResults: [LintWarning] = []
 

@@ -64,6 +64,22 @@ struct FileTreeView: View {
                         description: Text("No Markdown, text, JSON, or YAML files found in this folder.")
                     )
                 }
+            } else if vm.isSearchActive {
+                // Results stand in for the tree while a query is active, so there's one
+                // sidebar rather than a tree plus a separate results panel.
+                SearchResultsView(
+                    hits: vm.searchHits,
+                    isSearching: vm.isSearching,
+                    truncated: vm.searchTruncated,
+                    skips: vm.searchSkips,
+                    query: vm.searchQuery,
+                    onOpen: { hit in
+                        vm.openFileInNewTab(hit.url)
+                        if hit.lineNumber > 0 {
+                            vm.editor(for: .file(hit.url))?.pendingScrollToLine = hit.lineNumber
+                        }
+                    }
+                )
             } else {
                 List(selection: $selectedID) {
                     if !savedRepos.isEmpty { gitHubSection }
@@ -75,6 +91,12 @@ struct FileTreeView: View {
                 #endif
             }
         }
+        .searchable(
+            text: Binding(get: { vm.searchQuery }, set: { vm.searchQuery = $0 }),
+            placement: .sidebar,
+            prompt: "Search this folder"
+        )
+        .onChange(of: vm.searchQuery) { _, _ in vm.runSearch() }
         .confirmationDialog(
             "Delete \"\(fileToDelete?.name ?? "")\"?",
             isPresented: Binding(get: { fileToDelete != nil }, set: { if !$0 { fileToDelete = nil } }),

@@ -123,6 +123,24 @@ There was no way to search inside a document before. Uses the platform-native UI
 - [ ] **iPad with keyboard**: ⌘F in Edit opens the native find navigator; ⌘F in Preview switches to Edit and opens it
 - [ ] Find menu items are greyed out with no document open
 
+### J. Folder search (new)
+
+Search box at the top of the sidebar. Results replace the tree while a query is active.
+Matches filenames **and** content. Needs 2+ characters.
+
+- [ ] Type in the sidebar search → results appear, "Files" section first, then content matches grouped by file
+- [ ] Results **stream in** rather than appearing all at once at the end
+- [ ] Typing quickly does not stall the UI, and results don't stack up from earlier queries
+- [ ] Click a **filename** result → opens that file
+- [ ] Click a **content** result → opens that file and scrolls to that line
+- [ ] Clear the search → the file tree comes back unchanged
+- [ ] `node_modules` / `.build` / `.git` are **not** searched (try a term that only appears there)
+- [ ] A term in a `.gitignore`d directory is not returned
+- [ ] Search a large repo → if capped, the footer says "Showing the first 200 matches"
+- [ ] With an evicted iCloud file present → footer reports it as not searched, and **does not** trigger a folder-wide download
+- [ ] A file over 1 MB is reported as skipped rather than silently omitted
+- [ ] Search with no folder open → nothing breaks
+
 ### F. Regressions
 
 - [ ] Normal local file opens instantly, no flash of any new state

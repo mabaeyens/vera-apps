@@ -85,6 +85,12 @@ struct DocumentView: View {
             // The editor survives tab switches now, so external edits are no longer picked
             // up by the accidental re-read that used to happen on every switch.
             await viewModel.reloadIfChangedOnDisk()
+            // Opened from a folder-search result: jump to the matching line. The scroll
+            // anchor only drives the editor, so switch out of Preview to honour it.
+            if viewModel.pendingScrollToLine != nil {
+                if viewModel.canEdit { viewModel.mode = .editing }
+                viewModel.resolvePendingScroll()
+            }
             if case .gitHub(let ref) = source {
                 lastSeen = RepoSeenStore.lastSeen(owner: ref.owner, repo: ref.repo, path: ref.path)
                 latest = await viewModel.latestCommit()
