@@ -38,3 +38,6 @@ AuthKey_*
 *.env
 .env
 *.secret
+
+# Local working guidance, not committed
+CLAUDE.md
