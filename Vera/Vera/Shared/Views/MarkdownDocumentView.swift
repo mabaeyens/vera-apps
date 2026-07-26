@@ -6,7 +6,20 @@ import MarkdownUI
 private enum DocSegment: Sendable {
     case prose(String)
     case codeBlock(language: String?, content: String)
-    case table(headers: [String], rows: [[String]])
+    /// `colMaxChars` (longest cell per column) is carried here rather than derived in the
+    /// view: scanning every cell is O(cells) and font-independent, and this parse is both
+    /// off the main actor and cached per document. Computing it in `DocTableBlock` instead
+    /// would re-scan on every body evaluation, since a `View` struct's `init` runs each
+    /// time its parent's body does — and this parent's body re-runs on scroll.
+    case table(headers: [String], rows: [[String]], colMaxChars: [Int])
+}
+
+/// Pad or trim a table row to the header count. File-scope so the parse can use it without
+/// reaching into `DocTableBlock`.
+private nonisolated func docTablePadded(_ row: [String], to count: Int) -> [String] {
+    var r = row
+    while r.count < count { r.append("") }
+    return Array(r.prefix(count))
 }
 
 private nonisolated func parseDocSegments(_ raw: String) -> [DocSegment] {
@@ -61,7 +74,11 @@ private nonisolated func splitDocTables(_ text: String) -> [DocSegment] {
                 i += 1
             }
             if !headers.isEmpty {
-                result.append(.table(headers: headers, rows: rows))
+                let allRows = [headers] + rows.map { docTablePadded($0, to: headers.count) }
+                let colMaxChars = (0..<headers.count).map { col in
+                    allRows.map { $0[col].count }.max() ?? 1
+                }
+                result.append(.table(headers: headers, rows: rows, colMaxChars: colMaxChars))
             }
         } else {
             buffer.append(lines[i])
@@ -183,8 +200,8 @@ struct MarkdownDocumentView: View {
         case .codeBlock(let lang, let code):
             CopyableCodeBlock(language: lang, content: code, fontSize: fontSize)
                 .padding(.vertical, 6)
-        case .table(let headers, let rows):
-            DocTableBlock(headers: headers, rows: rows, fontSize: fontSize)
+        case .table(let headers, let rows, let colMaxChars):
+            DocTableBlock(headers: headers, rows: rows, fontSize: fontSize, colMaxChars: colMaxChars)
                 .padding(.vertical, 6)
         }
     }
@@ -481,28 +498,17 @@ struct DocTableBlock: View {
         Theme.Typography.size(.table, preference: fontSize, typeSize: dynamicTypeSize)
     }
 
-    /// Longest cell per column, in characters. The expensive part is scanning every cell,
-    /// and that is font-independent, so it happens once in `init` rather than per body
-    /// evaluation — `colWidths` below then only walks the columns. (It used to be a
-    /// computed property scanning the whole table, read twice per row render.)
-    private let colMaxChars: [Int]
+    /// Longest cell per column, computed during the cached, off-main parse (see
+    /// `DocSegment.table`) rather than here — a `View` struct's `init` runs on every parent
+    /// body evaluation, so computing it here would re-scan the whole table on every scroll
+    /// tick. This view only walks the columns.
+    let colMaxChars: [Int]
 
     private var colWidths: [CGFloat] {
         // Per-character width heuristic, scaled proportionally to cellFontSize so columns
         // stay wide enough to fit the text (not just the text itself) as font size changes.
         let charWidth = cellFontSize * 0.73
         return colMaxChars.map { CGFloat($0) * charWidth + 24.0 }
-    }
-
-    init(headers: [String], rows: [[String]], fontSize: CGFloat = CGFloat(Defaults.FontSize.default)) {
-        self.headers = headers
-        self.rows = rows
-        self.fontSize = fontSize
-
-        let allRows = [headers] + rows.map { Self.padded($0, to: headers.count) }
-        self.colMaxChars = (0..<headers.count).map { col in
-            allRows.map { row in row[col].count }.max() ?? 1
-        }
     }
 
     var body: some View {
@@ -554,14 +560,7 @@ struct DocTableBlock: View {
     }
 
     private func padded(_ row: [String]) -> [String] {
-        Self.padded(row, to: headers.count)
-    }
-
-    /// Static so `init` can use it while computing `colWidths`, before `self` is whole.
-    private static func padded(_ row: [String], to count: Int) -> [String] {
-        var r = row
-        while r.count < count { r.append("") }
-        return Array(r.prefix(count))
+        docTablePadded(row, to: headers.count)
     }
 
     private func attrCell(_ cell: String) -> AttributedString {

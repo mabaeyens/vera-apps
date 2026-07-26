@@ -210,7 +210,13 @@ final class EditorViewModel {
         cloudDownloadCancelled = false
         defer {
             isLoading = false
-            isLoaded = true
+            // A *cancelled* load must not count as loaded. `.task` is cancelled whenever
+            // the view goes away, so switching tabs while a file is still opening would
+            // otherwise leave `isLoaded == true` over empty text, and `loadIfNeeded` would
+            // refuse to retry on return — the tab would sit permanently blank. A load that
+            // genuinely *failed* does count as settled: it shows its error and a Try Again
+            // action, rather than re-running a 60s iCloud wait on every tab switch.
+            isLoaded = !Task.isCancelled
         }
         switch source {
         case .file(let url): await loadFile(url)
@@ -264,6 +270,10 @@ final class EditorViewModel {
                 return
             }
         }
+
+        // Navigating away is not a failure. Leave the state untouched so returning to the
+        // tab retries cleanly, rather than showing an error the user never caused.
+        guard !Task.isCancelled else { return }
 
         rawText = ""
         loadFailure = cloudDownloadCancelled
