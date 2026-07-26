@@ -22,7 +22,19 @@ a close and a backgrounding. If any of these fail, stop.
 - [ ] Type, immediately **background the app** → edit on disk
 - [ ] Open 9+ files with an unsaved edit in the oldest, return to it → **edit still there** (eviction must refuse to drop unsaved work)
 - [ ] GitHub file with an uncommitted edit, open 8+ others, return → edit intact, still marked uncommitted
-- [ ] Open a non-UTF8 file → "Couldn't Open File", and the original is **unchanged on disk**
+- [ ] Open `screenshots-tmp/latin1-not-utf8.md` → "Couldn't Open File", and the bytes are **unchanged on disk**
+
+`latin1-not-utf8.md` is a committed fixture for that last check: a Markdown file in
+ISO-8859-1, so Vera treats it as text, tries to decode it as UTF-8, and fails at the first
+accented character. Verify it survived with:
+
+```bash
+shasum -a 256 screenshots-tmp/latin1-not-utf8.md
+# 3a6accb69f03ec62d88412f44092735f9c056403d983bee059e693c99a0b5ded
+```
+
+Rebuild it byte-for-byte with `python3 screenshots-tmp/make-latin1-fixture.py` if it is
+ever damaged. Do not "fix" the encoding: being undecodable is the whole point.
 
 ### K. Scroll edges and sidebar opacity
 
