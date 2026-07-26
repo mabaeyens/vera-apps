@@ -13,6 +13,10 @@ struct HighlightingTextView: UIViewRepresentable {
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
     let registerStrip: (@escaping () -> Void) -> Void
+    /// Lets the Find menu command open the native find UI on a text view it holds no
+    /// reference to — the same registration pattern as the formatting closures above.
+    /// Only the iOS side uses it; macOS drives `NSTextFinder` through the responder chain.
+    var registerFind: ((@escaping () -> Void) -> Void)? = nil
     var scrollFraction: CGFloat?
     var clearAnchor: () -> Void
     var onAtlasRequested: () -> Void = {}
@@ -56,6 +60,13 @@ struct HighlightingTextView: UIViewRepresentable {
         textView.autocapitalizationType = .none
         textView.smartQuotesType = .no
         textView.smartDashesType = .no
+        // Native find-and-replace: gives ⌘F / ⌘G / replace, match counts and wrap-around
+        // from UIKit rather than a bespoke find bar. Also what makes ⌘F work with a
+        // hardware keyboard on iPad, via the responder chain.
+        textView.isFindInteractionEnabled = true
+        registerFind? { [weak textView] in
+            textView?.findInteraction?.presentFindNavigator(showingReplace: false)
+        }
         textView.text = text
         let leftInset: CGFloat = 16 + (showLineNumbers ? LineNumberGutterView.width : 0)
         textView.textContainerInset = UIEdgeInsets(top: 12, left: leftInset, bottom: 12, right: 16)
@@ -462,6 +473,10 @@ struct HighlightingTextView: NSViewRepresentable {
     let registerInsert: (@escaping (String) -> Void) -> Void
     let registerWrap: (@escaping (String, String) -> Void) -> Void
     let registerStrip: (@escaping () -> Void) -> Void
+    /// Lets the Find menu command open the native find UI on a text view it holds no
+    /// reference to — the same registration pattern as the formatting closures above.
+    /// Only the iOS side uses it; macOS drives `NSTextFinder` through the responder chain.
+    var registerFind: ((@escaping () -> Void) -> Void)? = nil
     var scrollFraction: CGFloat?
     var clearAnchor: () -> Void
     var onAtlasRequested: () -> Void = {}
@@ -507,6 +522,10 @@ struct HighlightingTextView: NSViewRepresentable {
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticSpellingCorrectionEnabled = false
+        // Native find bar (NSTextFinder), driven from the Edit menu through the responder
+        // chain. Incremental searching highlights matches as you type.
+        textView.usesFindBar = true
+        textView.isIncrementalSearchingEnabled = true
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]

@@ -1,4 +1,15 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+
+/// Send a find action to whatever text view is first responder.
+@MainActor
+private func sendFinderAction(_ action: NSTextFinder.Action) {
+    let sender = NSMenuItem()
+    sender.tag = action.rawValue
+    NSApp.sendAction(#selector(NSTextView.performTextFinderAction(_:)), to: nil, from: sender)
+}
+#endif
 
 /// Vera's menu bar and keyboard shortcuts.
 ///
@@ -70,6 +81,23 @@ struct VeraCommands: Commands {
             }
             .keyboardShortcut("w", modifiers: .command)
             .disabled(vm.activeTabID == nil)
+        }
+
+        // MARK: Edit — find
+
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            Group {
+                Button("Find…") { find(.showFindInterface) }
+                    .keyboardShortcut("f", modifiers: .command)
+                Button("Find Next") { find(.nextMatch) }
+                    .keyboardShortcut("g", modifiers: .command)
+                Button("Find Previous") { find(.previousMatch) }
+                    .keyboardShortcut("g", modifiers: [.command, .shift])
+                Button("Find and Replace…") { find(.showReplaceInterface) }
+                    .keyboardShortcut("f", modifiers: [.command, .option])
+            }
+            .disabled(activeEditor?.canEdit != true)
         }
 
         // MARK: Format
@@ -179,6 +207,41 @@ struct VeraCommands: Commands {
         }
         #endif
     }
+
+    #if os(macOS)
+    /// Drive the native find bar through the responder chain.
+    ///
+    /// `NSTextView.performTextFinderAction(_:)` reads the action off the sender's `tag`,
+    /// so a bare `NSMenuItem` carrying the tag is the standard way to invoke it from
+    /// somewhere that isn't an actual menu item.
+    private func find(_ action: NSTextFinder.Action) {
+        // Preview has no text view to search. Every file Vera can open in the editor is
+        // editable (only images aren't, and those never reach here), so switch to Edit
+        // rather than leaving ⌘F dead — then run the action once the view is up.
+        if let editor = activeEditor, editor.mode == .viewing, editor.canEdit {
+            editor.mode = .editing
+            DispatchQueue.main.async { sendFinderAction(action) }
+            return
+        }
+        sendFinderAction(action)
+    }
+    #else
+    /// On iOS the text view's own `UIFindInteraction` already owns ⌘F while it's first
+    /// responder. This covers the case it can't: Preview, where there's no text view at
+    /// all, so ⌘F would otherwise do nothing. Switch to Edit, then open find once the
+    /// editor has mounted and registered itself.
+    private func find(_ action: FindAction) {
+        guard let editor = activeEditor, editor.canEdit else { return }
+        if editor.mode == .viewing {
+            editor.mode = .editing
+            DispatchQueue.main.async { editor.presentFind?() }
+        } else {
+            editor.presentFind?()
+        }
+    }
+
+    enum FindAction { case showFindInterface, nextMatch, previousMatch, showReplaceInterface }
+    #endif
 
     private func cycleDocument(by offset: Int) {
         guard !vm.tabs.isEmpty,

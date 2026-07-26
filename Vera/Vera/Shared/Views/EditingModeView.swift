@@ -34,6 +34,7 @@ struct EditingModeView: View {
                 registerInsert: { viewModel.insertAtCursor = $0 },
                 registerWrap: { viewModel.wrapSelection = $0 },
                 registerStrip: { viewModel.stripSelection = $0 },
+                registerFind: { viewModel.presentFind = $0 },
                 scrollFraction: viewModel.anchorFraction,
                 clearAnchor: { viewModel.anchorFraction = nil },
                 onAtlasRequested: onAtlasRequested,

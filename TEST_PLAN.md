@@ -108,6 +108,21 @@ On **iPad, attach a hardware keyboard** — it gets the same shortcuts.
 - [ ] **iPad with keyboard**: the same shortcuts work; hold ⌘ to see the shortcut HUD
 - [ ] **Focus Mode with the sidebar collapsed**: ⌘1-9 and ⇧⌘] still switch documents (this is now the only way)
 
+### I. Find and replace (new)
+
+There was no way to search inside a document before. Uses the platform-native UI
+(`NSTextFinder` / `UIFindInteraction`), not a bespoke bar.
+
+- [ ] **Mac**: ⌘F opens the find bar in an editable document; type → matches highlight as you go
+- [ ] ⌘G / ⇧⌘G cycle matches and wrap around; match count is shown
+- [ ] ⌥⌘F opens replace; **Replace All works**
+- [ ] **After a replace-all, syntax highlighting is still correct** (not lost or corrupted)
+- [ ] After a replace-all, apply a formatting action (⌘B) → **no crash** (a stale cached range was previously an NSRangeException)
+- [ ] A replace-all produces **one** save, not one per replacement — watch the save indicator
+- [ ] **⌘F while in Preview** → switches to Edit and opens find (it would otherwise be dead)
+- [ ] **iPad with keyboard**: ⌘F in Edit opens the native find navigator; ⌘F in Preview switches to Edit and opens it
+- [ ] Find menu items are greyed out with no document open
+
 ### F. Regressions
 
 - [ ] Normal local file opens instantly, no flash of any new state

@@ -40,6 +40,9 @@ final class EditorViewModel {
     var insertAtCursor: ((String) -> Void)? = nil
     var wrapSelection: ((String, String) -> Void)? = nil
     var stripSelection: (() -> Void)? = nil
+    /// Opens the native find UI. Registered by the editor while it's mounted, so it being
+    /// nil is also how the Find menu knows there's nothing to search.
+    var presentFind: (() -> Void)? = nil
     var atlasRequested = false
     var lintResults: [LintWarning] = []
 
