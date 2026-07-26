@@ -39,6 +39,22 @@ now tracks the font-size control at all, which it never did before.
 - [ ] **All 3**: fresh install (or reset) → default text size is now 15, and editor and preview look the same size as each other
 - [ ] **iPad**: re-run the `RepoStatusCard.tsx` A/A checks below — this change touches the same file as the open hang in `IPAD_FONT_SIZE_HANG.md`
 
+### iCloud downloads are explained and cancellable (2026-07-26)
+
+Opening a file not yet downloaded from iCloud used to show a bare spinner for up to 15
+seconds and then leave the document blank with no explanation. It also only polled, without
+ever requesting the download unless the file had been tapped in the sidebar.
+
+Needs a device with "Optimise Mac Storage" / iCloud offloading so files show the cloud
+badge. Evicting a file with `brctl evict <path>` is the quickest way to set this up.
+
+- [ ] **All 3**: open an evicted (cloud-badge) text file → shows "Downloading from iCloud" with the file name, not a bare spinner; the file opens on its own once it arrives
+- [ ] **All 3**: open an evicted file with Wi-Fi off → after the wait, shows an explanation and a **Try Again** button; tapping it retries
+- [ ] **All 3**: tap **Cancel** during the download → returns to an explanatory state immediately, does not hang
+- [ ] **All 3**: same three checks for an evicted **image** file (`ImageViewerView` has its own copy of this path)
+- [ ] **All 3**: open a file that is *not* valid UTF-8 → shows "Couldn't Open File" rather than an empty editor. **Important:** confirm the original file is unchanged on disk afterwards, since an empty editor plus autosave would previously have overwritten it
+- [ ] **All 3**: regression — a normal local file still opens instantly with no flash of either new state
+
 Per the iPad-is-a-distinct-target correction: iPhone/iPad/Mac are checked as 3 separate
 targets below wherever a feature has a real per-device code-path difference — don't lump
 "iOS" together for anything touching edit-mode toolbars or layout timing.

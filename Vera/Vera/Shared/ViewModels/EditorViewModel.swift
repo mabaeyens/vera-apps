@@ -9,6 +9,26 @@ final class EditorViewModel {
     var mode: EditorMode = .viewing
     var rawText: String = ""
     var isLoading = false
+
+    /// True while waiting for an iCloud item to come down. Kept separate from `isLoading`
+    /// so the UI can explain the wait and offer a way out, instead of showing a bare
+    /// spinner for up to a minute with no indication of what it's waiting for.
+    var isDownloadingFromCloud = false
+
+    /// Set when a load ended without usable text and the user should be told why.
+    var loadFailure: String?
+
+    private var cloudDownloadCancelled = false
+
+    /// How long to wait for iCloud, in one-second polls. Generous because the wait is now
+    /// visible and cancellable — the old 15s cap failed silently on a slow connection.
+    private static let cloudDownloadAttempts = 60
+
+    /// Stop waiting for iCloud and show the file as unavailable rather than keeping the
+    /// user in front of a spinner.
+    func cancelCloudDownload() {
+        cloudDownloadCancelled = true
+    }
     var saveState: SaveState = .saved
     var anchorFraction: CGFloat? = nil
     var readingScrollFraction: CGFloat = 0
@@ -136,6 +156,8 @@ final class EditorViewModel {
 
     func load() async {
         isLoading = true
+        loadFailure = nil
+        cloudDownloadCancelled = false
         defer { isLoading = false }
         switch source {
         case .file(let url): await loadFile(url)
@@ -157,19 +179,41 @@ final class EditorViewModel {
                 .ubiquitousItemDownloadingStatus
             guard status == .notDownloaded else {
                 rawText = ""
+                loadFailure = "\(url.lastPathComponent) couldn't be read as text."
                 return
             }
-            for _ in 0..<15 {
-                try? await Task.sleep(for: .seconds(1))
-                let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
-                    .ubiquitousItemDownloadingStatus
-                if status == .current || status == .downloaded {
-                    rawText = (try? await DocumentStore.read(url)) ?? ""
-                    return
-                }
-            }
-            rawText = ""
+            await waitForCloudDownload(of: url)
         }
+    }
+
+    /// Wait for a not-yet-downloaded iCloud item, surfacing the wait rather than hiding it
+    /// behind a spinner. Polls once a second and gives up (or stops when the user cancels)
+    /// with an explanation instead of silently leaving the document blank.
+    private func waitForCloudDownload(of url: URL) async {
+        isDownloadingFromCloud = true
+        defer { isDownloadingFromCloud = false }
+
+        // Previously this only *polled*, so it could wait out the whole timeout on a
+        // download nothing had actually requested — the sidebar's `download(_:)` is the
+        // only other caller, and it only fires when the file is tapped there. Ask for it.
+        try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+
+        for _ in 0..<Self.cloudDownloadAttempts {
+            if Task.isCancelled || cloudDownloadCancelled { break }
+            try? await Task.sleep(for: .seconds(1))
+            if Task.isCancelled || cloudDownloadCancelled { break }
+            let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
+                .ubiquitousItemDownloadingStatus
+            if status == .current || status == .downloaded {
+                rawText = (try? await DocumentStore.read(url)) ?? ""
+                return
+            }
+        }
+
+        rawText = ""
+        loadFailure = cloudDownloadCancelled
+            ? "\(url.lastPathComponent) is still in iCloud and wasn't downloaded."
+            : "\(url.lastPathComponent) is taking a long time to download from iCloud. Check your connection, then try again."
     }
 
     private func loadGitHub(_ ref: GitHubFileRef) async {

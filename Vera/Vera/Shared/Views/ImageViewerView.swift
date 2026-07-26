@@ -15,6 +15,14 @@ struct ImageViewerView: View {
     @State private var imageData: Data?
     @State private var loadFailed = false
     @State private var tooLarge = false
+    /// Mirrors `EditorViewModel`'s iCloud handling: surface the wait and let the user out
+    /// of it, rather than showing a bare spinner while polling.
+    @State private var isDownloadingFromCloud = false
+    @State private var downloadCancelled = false
+
+    /// One-second polls. Generous because the wait is visible and cancellable; the old
+    /// 15s cap gave up silently on a slow connection.
+    private static let cloudDownloadAttempts = 60
 
     var body: some View {
         Group {
@@ -26,6 +34,14 @@ struct ImageViewerView: View {
                     systemImage: "photo.badge.exclamationmark",
                     description: Text("\"\(source.displayName)\" is over GitHub's 1 MB preview limit.")
                 )
+            } else if isDownloadingFromCloud {
+                ContentUnavailableView {
+                    Label("Downloading from iCloud", systemImage: "icloud.and.arrow.down")
+                } description: {
+                    Text("\"\(source.displayName)\" isn't on this device yet.")
+                } actions: {
+                    Button("Cancel") { downloadCancelled = true }
+                }
             } else if loadFailed {
                 ContentUnavailableView(
                     "Can't Load Image",
@@ -52,8 +68,14 @@ struct ImageViewerView: View {
                 let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
                     .ubiquitousItemDownloadingStatus
                 if status == .notDownloaded {
-                    for _ in 0..<15 {
+                    isDownloadingFromCloud = true
+                    // Polling alone waited out the timeout on a download nothing had
+                    // actually requested unless the file was tapped in the sidebar.
+                    try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+                    for _ in 0..<Self.cloudDownloadAttempts {
+                        if Task.isCancelled || downloadCancelled { break }
                         try? await Task.sleep(for: .seconds(1))
+                        if Task.isCancelled || downloadCancelled { break }
                         let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
                             .ubiquitousItemDownloadingStatus
                         if status == .current || status == .downloaded {
@@ -61,6 +83,7 @@ struct ImageViewerView: View {
                             break
                         }
                     }
+                    isDownloadingFromCloud = false
                 }
             }
         case .gitHub(let ref):

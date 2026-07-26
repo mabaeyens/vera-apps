@@ -43,7 +43,23 @@ struct DocumentView: View {
 
     var body: some View {
         Group {
-            if viewModel.isLoading {
+            if viewModel.isDownloadingFromCloud {
+                ContentUnavailableView {
+                    Label("Downloading from iCloud", systemImage: "icloud.and.arrow.down")
+                } description: {
+                    Text("\(source.displayName) isn't on this device yet.")
+                } actions: {
+                    Button("Cancel") { viewModel.cancelCloudDownload() }
+                }
+            } else if let failure = viewModel.loadFailure, viewModel.rawText.isEmpty {
+                ContentUnavailableView {
+                    Label("Couldn't Open File", systemImage: "exclamationmark.triangle")
+                } description: {
+                    Text(failure)
+                } actions: {
+                    Button("Try Again") { Task { await viewModel.load() } }
+                }
+            } else if viewModel.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
