@@ -4,6 +4,12 @@ extension Notification.Name {
     static let veraOpenFile   = Notification.Name("com.mab.vera.openFile")
     static let veraOpenPicker = Notification.Name("com.mab.vera.openPicker")
     static let veraOpenGitHub = Notification.Name("com.mab.vera.openGitHub")
+    // Menu commands live outside the view tree, so sheet-driven actions reach the root
+    // views the same way the toolbar already does — through the app's notification bus.
+    static let veraNewFile    = Notification.Name("com.mab.vera.newFile")
+    static let veraIconGuide  = Notification.Name("com.mab.vera.iconGuide")
+    static let veraAbout      = Notification.Name("com.mab.vera.about")
+    static let veraCheatSheet = Notification.Name("com.mab.vera.cheatSheet")
 }
 
 #if os(macOS)
@@ -69,6 +75,13 @@ struct VeraApp: App {
         // All external file opens are handled by AppDelegate/onOpenURL in the existing
         // window — this prevents macOS from spawning a duplicate scene.
         .handlesExternalEvents(matching: Set<String>())
+        #endif
+        .commands { VeraCommands(vm: fileTreeVM) }
+
+        #if os(macOS)
+        Settings {
+            SettingsView()
+        }
         #endif
     }
 }

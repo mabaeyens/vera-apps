@@ -133,6 +133,11 @@ struct DocumentView: View {
             .frame(width: 380, height: 560)
             #endif
         }
+        // The Help > Markdown Reference menu item; the toolbar button below sets the same
+        // state directly.
+        .onReceive(NotificationCenter.default.publisher(for: .veraCheatSheet)) { _ in
+            showCheatSheet = true
+        }
         .sheet(isPresented: $showCheatSheet) {
             CheatSheetView()
                 #if os(macOS)

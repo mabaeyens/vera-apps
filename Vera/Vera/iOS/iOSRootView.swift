@@ -104,6 +104,11 @@ struct iOSRootView: View {
             gitHubInitialRepo = note.object as? SavedRepo
             showGitHub = true
         }
+        // Reached from hardware-keyboard shortcuts on iPad, which go through the same
+        // command definitions as the macOS menu bar.
+        .onReceive(NotificationCenter.default.publisher(for: .veraNewFile)) { _ in showNewFile = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraIconGuide)) { _ in showIconHelp = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraAbout)) { _ in showAbout = true }
         .sheet(isPresented: $showGitHub) {
             GitHubBrowserView(initialRepo: gitHubInitialRepo)
         }

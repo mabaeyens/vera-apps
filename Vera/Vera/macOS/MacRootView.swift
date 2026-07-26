@@ -43,6 +43,11 @@ struct MacRootView: View {
             gitHubInitialRepo = note.object as? SavedRepo
             showGitHub = true
         }
+        // Menu commands live outside the view tree, so they reach these sheets the same
+        // way the toolbar does.
+        .onReceive(NotificationCenter.default.publisher(for: .veraNewFile)) { _ in showNewFile = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraIconGuide)) { _ in showIconHelp = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraAbout)) { _ in showAbout = true }
         .sheet(isPresented: $showGitHub) {
             GitHubBrowserView(initialRepo: gitHubInitialRepo)
                 .frame(width: 520, height: 600)

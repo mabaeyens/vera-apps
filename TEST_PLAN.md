@@ -88,6 +88,26 @@ reduction — if it feels wrong, say so and I'll put a switcher back on iPhone o
 - [ ] Closing a local file does **not** warn (it autosaves), and the edit is on disk
 - [ ] **iPhone**: does switching documents still feel workable without the tab bar?
 
+### H. Menu bar and keyboard shortcuts (new)
+
+The app previously declared no menus at all and had three keyboard shortcuts total.
+On **iPad, attach a hardware keyboard** — it gets the same shortcuts.
+
+- [ ] **Mac**: menu bar shows File / Edit / Format / View / Navigate / Help
+- [ ] ⌘N new file · ⌘O open file · ⇧⌘O open folder · ⌘W close · ⌘S save
+- [ ] **⌘S on a file mid-edit writes immediately** (must never be a no-op, even though Vera autosaves)
+- [ ] ⌘B / ⌘I / ⇧⌘X / ⇧⌘C / ⌘K apply formatting, same result as the formatting bar
+- [ ] ⌃⌘1 / ⌃⌘2 / ⌃⌘3 insert headings (⌃⌘, *not* ⌘ — ⌘1-9 switch documents)
+- [ ] ⌘1…9 jump to the Nth open document; ⇧⌘] / ⇧⌘[ cycle
+- [ ] ⇧⌘P toggles Edit/Preview · ⇧⌘F Focus Mode · ⌘+ / ⌘- / ⌘0 text size
+- [ ] Format menu is **greyed out** on a non-Markdown file, and in Preview mode
+- [ ] File > Save and Close are greyed out with no document open
+- [ ] **⌘, opens Settings** (new window; preferences were buried in About before)
+- [ ] Settings changes take effect immediately and match the About sheet's linter toggle
+- [ ] Help > Markdown Reference and Icon Guide open their sheets
+- [ ] **iPad with keyboard**: the same shortcuts work; hold ⌘ to see the shortcut HUD
+- [ ] **Focus Mode with the sidebar collapsed**: ⌘1-9 and ⇧⌘] still switch documents (this is now the only way)
+
 ### F. Regressions
 
 - [ ] Normal local file opens instantly, no flash of any new state

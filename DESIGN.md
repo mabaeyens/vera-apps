@@ -95,6 +95,13 @@ is the monospace, not a custom display face. Tokens/notes live in `Theme.Typogra
   appearing on hover as it once did on macOS.
 - **Empty states** — `ContentUnavailableView` with an icon, one line, and at most one
   prominent action (e.g. "Open Folder…").
+- **Menus** — `Shared/Commands/VeraCommands.swift` is the single definition of the menu
+  bar and every keyboard shortcut, shared by macOS and by iPad's hardware keyboard. It
+  never reimplements an action: text edits go through the same `wrapSelection` /
+  `insertAtCursor` closures the formatting bar uses, and sheet-driven items post the same
+  notifications the toolbar posts. Adding a menu item that duplicates an action's logic is
+  how the formatting actions ended up existing three times, which is why iPad had none.
+  Preferences live in the `Settings` scene (⌘,), not in About.
 
 ## Roadmap hooks
 
