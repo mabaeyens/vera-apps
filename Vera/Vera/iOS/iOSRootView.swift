@@ -36,7 +36,9 @@ struct iOSRootView: View {
                         .navigationDestination(item: $vm.selectedSource) { source in
                             VStack(spacing: 0) {
                                 if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
-                                DocumentOrImageView(source: source).id(source)
+                                if let editor = vm.editor(for: source) {
+                                    DocumentOrImageView(source: source, editor: editor).id(source)
+                                }
                             }
                         }
                 }
@@ -50,8 +52,8 @@ struct iOSRootView: View {
                 } detail: {
                     VStack(spacing: 0) {
                         if vm.tabs.count >= 1 && tabBarVisible { TabBarView() }
-                        if let source = vm.selectedSource {
-                            DocumentOrImageView(source: source).id(source)
+                        if let source = vm.selectedSource, let editor = vm.editor(for: source) {
+                            DocumentOrImageView(source: source, editor: editor).id(source)
                         } else {
                             ContentUnavailableView("Select a file", systemImage: "doc.text")
                         }
@@ -135,6 +137,11 @@ struct iOSRootView: View {
                     vm.resetState()
                 }
                 Task { await vm.load() }
+            } else {
+                // Editors now outlive the views that show them, so the per-view
+                // `onDisappear` flush no longer covers backgrounding. Write out every
+                // open document still inside its autosave debounce.
+                Task { await vm.flushAllPendingSaves() }
             }
         }
     }

@@ -28,8 +28,8 @@ struct MacRootView: View {
                 if vm.tabs.count >= 1 && tabBarVisible && !focusMode {
                     TabBarView()
                 }
-                if let source = vm.selectedSource {
-                    DocumentOrImageView(source: source)
+                if let source = vm.selectedSource, let editor = vm.editor(for: source) {
+                    DocumentOrImageView(source: source, editor: editor)
                         .id(source)
                 } else {
                     ContentUnavailableView("Select a file", systemImage: "doc.text")
@@ -149,7 +149,14 @@ struct MacRootView: View {
                 .frame(width: 440, height: 620)
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await vm.load() } }
+            if phase == .active {
+                Task { await vm.load() }
+            } else {
+                // Editors now outlive the views that show them, so the per-view
+                // `onDisappear` flush no longer covers backgrounding. Write out every
+                // open document still inside its autosave debounce.
+                Task { await vm.flushAllPendingSaves() }
+            }
         }
     }
 

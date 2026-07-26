@@ -76,39 +76,44 @@ final class FileTreeViewModel {
 
     // MARK: - Tab management
 
+    /// An open document. Owns its `EditorViewModel` for as long as the tab lives, so
+    /// switching tabs no longer destroys the editor and re-reads the file from disk —
+    /// which is what made switching flash a spinner and lose scroll position and mode.
     struct TabEntry: Identifiable {
         let id: UUID
         var source: DocumentSource
+        let editor: EditorViewModel
         var name: String { source.displayName }
 
         init(source: DocumentSource) {
             self.id = UUID()
             self.source = source
+            self.editor = EditorViewModel(source: source)
         }
     }
 
     var tabs: [TabEntry] = []
     var activeTabID: UUID? = nil
 
-    func openInActiveTab(_ source: DocumentSource) {
-        guard !source.isBinary else { return }
-        if let existing = tabs.first(where: { $0.source == source }) {
-            activeTabID = existing.id
-            selectedSource = source
-            return
+    /// How many documents keep their text in memory. Beyond this, the least recently
+    /// activated tabs are unloaded (tab, scroll position and mode survive; only the text
+    /// is dropped) and re-read on return. Documents with unsaved work are never evicted.
+    private static let residentTextLimit = 8
+
+    /// Tab ids, most recently activated first.
+    private var activationOrder: [UUID] = []
+
+    func editor(for source: DocumentSource) -> EditorViewModel? {
+        tabs.first { $0.source == source }?.editor
+    }
+
+    private func noteActivation(_ id: UUID) {
+        activationOrder.removeAll { $0 == id }
+        activationOrder.insert(id, at: 0)
+        guard activationOrder.count > Self.residentTextLimit else { return }
+        for staleID in activationOrder.dropFirst(Self.residentTextLimit) {
+            tabs.first { $0.id == staleID }?.editor.unloadText()
         }
-        if tabs.isEmpty {
-            let entry = TabEntry(source: source)
-            tabs = [entry]
-            activeTabID = entry.id
-        } else if let idx = tabs.firstIndex(where: { $0.id == activeTabID }) {
-            tabs[idx].source = source
-        } else {
-            let entry = TabEntry(source: source)
-            tabs.append(entry)
-            activeTabID = entry.id
-        }
-        selectedSource = source
     }
 
     func openInNewTab(_ source: DocumentSource) {
@@ -116,29 +121,43 @@ final class FileTreeViewModel {
         if let existing = tabs.first(where: { $0.source == source }) {
             activeTabID = existing.id
             selectedSource = source
+            noteActivation(existing.id)
             return
         }
         let entry = TabEntry(source: source)
         tabs.append(entry)
         activeTabID = entry.id
         selectedSource = source
+        noteActivation(entry.id)
     }
 
-    // URL convenience wrappers — keep every existing iCloud call site unchanged.
-    func openFileInActiveTab(_ url: URL) { openInActiveTab(.file(url)) }
+    // URL convenience wrapper — keeps every existing iCloud call site unchanged.
     func openFileInNewTab(_ url: URL) { openInNewTab(.file(url)) }
 
     func closeTab(_ id: UUID) {
         guard tabs.count > 1 else { return }
         guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
-        let closed = tabs[idx].source
+        let closed = tabs[idx]
+        // The editor is released with the tab, so any edit still inside the autosave
+        // debounce has to be written now or it's gone.
+        Task { await closed.editor.flushPendingSave() }
         tabs.remove(at: idx)
+        activationOrder.removeAll { $0 == id }
         if activeTabID == id {
             let newIdx = min(idx, tabs.count - 1)
             activeTabID = tabs[newIdx].id
             selectedSource = tabs[newIdx].source
+            noteActivation(tabs[newIdx].id)
         }
-        if case .file(let url) = closed { releaseAccess(url) }
+        if case .file(let url) = closed.source { releaseAccess(url) }
+    }
+
+    /// Flush every open document's pending autosave — for app background, where the
+    /// per-view `onDisappear` flush never fires.
+    func flushAllPendingSaves() async {
+        for tab in tabs {
+            await tab.editor.flushPendingSave()
+        }
     }
 
     // MARK: - Unified file-open coordinator
@@ -211,6 +230,7 @@ final class FileTreeViewModel {
         guard let entry = tabs.first(where: { $0.id == id }) else { return }
         activeTabID = entry.id
         selectedSource = entry.source
+        noteActivation(entry.id)
     }
 
     // MARK: - State
@@ -316,6 +336,7 @@ final class FileTreeViewModel {
         loadedFolders = [:]
         standaloneFiles = []
         tabs = []
+        activationOrder = []
         activeTabID = nil
         rootURL = nil
         downloadingURLs = []
@@ -451,6 +472,7 @@ final class FileTreeViewModel {
         if let tabToClose = tabs.first(where: { $0.source == .file(url) }) {
             if tabs.count == 1 {
                 tabs = []
+                activationOrder = []
                 activeTabID = nil
                 selectedSource = nil
             } else {

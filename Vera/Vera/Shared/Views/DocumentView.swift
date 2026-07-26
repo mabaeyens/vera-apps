@@ -9,7 +9,11 @@ private struct PendingCommit: Identifiable {
 
 struct DocumentView: View {
     let source: DocumentSource
-    @State private var viewModel: EditorViewModel
+    /// Owned by the tab (`FileTreeViewModel.TabEntry`), not by this view. The detail
+    /// column is still keyed by source, so this view is rebuilt on every tab switch and
+    /// its own `@State` resets correctly — but the document itself survives, which is
+    /// what stops the switch re-reading from disk and flashing a spinner.
+    let viewModel: EditorViewModel
     @State private var showAtlas = false
     @State private var showCheatSheet = false
     @State private var showIconHelp = false
@@ -26,13 +30,9 @@ struct DocumentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(GitHubDraftStore.self) private var draftStore
 
-    init(source: DocumentSource) {
+    init(source: DocumentSource, viewModel: EditorViewModel) {
         self.source = source
-        self._viewModel = State(initialValue: EditorViewModel(source: source))
-    }
-
-    init(url: URL) {
-        self.init(source: .file(url))
+        self.viewModel = viewModel
     }
 
     /// The file changed since the user last opened it (GitHub only).
@@ -79,7 +79,12 @@ struct DocumentView: View {
         .navigationTitle("")
         .toolbar { toolbarItems }
         .task {
-            await viewModel.load()
+            // `loadIfNeeded`, not `load`: this view is rebuilt on every tab switch, and
+            // re-reading an already-loaded document is exactly what made switching slow.
+            await viewModel.loadIfNeeded()
+            // The editor survives tab switches now, so external edits are no longer picked
+            // up by the accidental re-read that used to happen on every switch.
+            await viewModel.reloadIfChangedOnDisk()
             if case .gitHub(let ref) = source {
                 lastSeen = RepoSeenStore.lastSeen(owner: ref.owner, repo: ref.repo, path: ref.path)
                 latest = await viewModel.latestCommit()

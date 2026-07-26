@@ -94,6 +94,27 @@ large accessibility sizes while code stays sane, that is the bug.
 - [ ] **All 3**: a plain `.txt` file with no syntax highlighting responds to Larger Text (it previously ignored it entirely)
 - [ ] **Mac**: no Dynamic Type on macOS, so only the A/A control should move text; confirm it moves editor, preview, tables, code blocks and gutter together
 
+### Open documents stay loaded (2026-07-26)
+
+`EditorViewModel` now lives on the tab instead of inside `DocumentView`, so switching tabs
+no longer destroys the editor and re-reads the file. **This touches autosave, so the
+data-loss checks below matter more than the speed ones.**
+
+- [ ] **All 3**: open 3+ files, switch between them repeatedly → **instant**, no spinner, no flash
+- [ ] **All 3**: scroll to the middle of a long file, switch away and back → **same scroll position**
+- [ ] **All 3**: switch a file to Edit mode, switch tabs away and back → **still in Edit mode**
+- [ ] **All 3**: type in file A, immediately switch to file B (inside the 500 ms autosave debounce), switch back → **the edit is there**, and the file on disk contains it
+- [ ] **All 3**: type in a file and immediately **close its tab** → edit is written to disk (`closeTab` flushes before releasing the editor)
+- [ ] **iPhone/iPad**: type in a file and immediately background the app → edit is written (the `onDisappear` flush no longer covers this; the scene-phase flush does)
+- [ ] **Mac**: same, by switching to another app
+- [ ] **All 3**: edit a file **outside Vera** (another editor, or `git checkout`) while its tab is open but inactive, then switch back to that tab → Vera picks up the new content
+- [ ] **All 3**: same, but with **unsaved edits** in Vera → Vera does **not** silently discard your edits
+- [ ] **All 3**: open **more than 8** files, then return to the first one → it reloads correctly (LRU eviction dropped its text)
+- [ ] **All 3**: open more than 8 files with an **unsaved edit** in the oldest, return to it → **the edit is still there** (eviction must refuse to drop unsaved work)
+- [ ] **GitHub**: open a GitHub file, make an uncommitted edit, open 8+ other files, return → uncommitted edit intact, still marked uncommitted
+- [ ] **All 3**: delete an open file from the sidebar → its tab closes cleanly, no crash
+- [ ] **All 3**: memory check — open ~10 large files, confirm memory does not climb without bound
+
 Per the iPad-is-a-distinct-target correction: iPhone/iPad/Mac are checked as 3 separate
 targets below wherever a feature has a real per-device code-path difference — don't lump
 "iOS" together for anything touching edit-mode toolbars or layout timing.

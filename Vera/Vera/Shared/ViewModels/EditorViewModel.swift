@@ -172,11 +172,46 @@ final class EditorViewModel {
         self.init(source: .file(url))
     }
 
+    /// Whether this document's text is currently in memory.
+    ///
+    /// An open document keeps its view model for as long as the tab is open, so the view
+    /// being rebuilt (which happens on every tab switch, since the detail column is keyed
+    /// by source) must not re-read the file. `loadIfNeeded` is what the view calls;
+    /// `load()` stays available for an explicit retry.
+    private(set) var isLoaded = false
+
+    /// Work that would be lost if the text were dropped from memory.
+    var hasUnsavedWork: Bool {
+        switch saveState {
+        case .saved: false
+        case .saving, .error, .uncommitted, .committing: true
+        }
+    }
+
+    func loadIfNeeded() async {
+        guard !isLoaded else { return }
+        await load()
+    }
+
+    /// Drop the text of a document the user hasn't returned to in a while, so keeping
+    /// every open tab resident can't grow without bound. The tab, its scroll position and
+    /// its mode all survive; only the text goes, and `loadIfNeeded` brings it back.
+    /// Never evicts anything with unsaved or uncommitted work.
+    func unloadText() {
+        guard isLoaded, !hasUnsavedWork else { return }
+        rawText = ""
+        lintResults = []
+        isLoaded = false
+    }
+
     func load() async {
         isLoading = true
         loadFailure = nil
         cloudDownloadCancelled = false
-        defer { isLoading = false }
+        defer {
+            isLoading = false
+            isLoaded = true
+        }
         switch source {
         case .file(let url): await loadFile(url)
         case .gitHub(let ref): await loadGitHub(ref)
@@ -188,6 +223,7 @@ final class EditorViewModel {
     private func loadFile(_ url: URL) async {
         do {
             rawText = try await DocumentStore.read(url)
+            recordModificationDate(of: url)
         } catch {
             // Only retry if this is genuinely an iCloud item still downloading — a file
             // that's already local (or not an iCloud item at all) failed to decode as
@@ -224,6 +260,7 @@ final class EditorViewModel {
                 .ubiquitousItemDownloadingStatus
             if status == .current || status == .downloaded {
                 rawText = (try? await DocumentStore.read(url)) ?? ""
+                recordModificationDate(of: url)
                 return
             }
         }
@@ -472,8 +509,37 @@ final class EditorViewModel {
         do {
             try await DocumentStore.write(url, content: rawText)
             saveState = .saved
+            // Our own write moved the mtime; record it so returning to this tab doesn't
+            // mistake it for someone else's edit and reload.
+            recordModificationDate(of: url)
         } catch {
             saveState = .error(error.localizedDescription)
         }
+    }
+
+    // MARK: - External change detection
+
+    /// mtime of the file as of the last read or write.
+    private var loadedModificationDate: Date?
+
+    private func recordModificationDate(of url: URL) {
+        loadedModificationDate = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+            .contentModificationDate
+    }
+
+    /// Re-read if the file changed underneath us.
+    ///
+    /// The editor now survives tab switches, so it no longer picks up external edits (from
+    /// another app, a git checkout, iCloud sync) as a side effect of re-reading every
+    /// time. Called when a tab is shown again. Never overwrites unsaved work — if the user
+    /// has pending edits, theirs win and the conflict machinery handles it on save.
+    func reloadIfChangedOnDisk() async {
+        guard case .file(let url) = source, isLoaded, !hasUnsavedWork else { return }
+        guard let previous = loadedModificationDate,
+              let current = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+                  .contentModificationDate,
+              current > previous
+        else { return }
+        await load()
     }
 }
