@@ -3,6 +3,7 @@ import SwiftUI
 struct ViewingModeView: View {
     @Bindable var viewModel: EditorViewModel
     @AppStorage(Defaults.Key.editorFontSize) private var fontSize = Defaults.FontSize.default
+    @Environment(FileTreeViewModel.self) private var tree
 
     var body: some View {
         switch viewModel.format {
@@ -11,7 +12,10 @@ struct ViewingModeView: View {
                 rawText: viewModel.rawText,
                 fontSize: CGFloat(fontSize),
                 onScrollFractionChange: { viewModel.readingScrollFraction = $0 },
-                imageBaseURL: viewModel.previewBaseURL
+                imageBaseURL: viewModel.previewBaseURL,
+                pendingAnchor: viewModel.pendingAnchor,
+                onAnchorHandled: { viewModel.pendingAnchor = nil },
+                onNavigate: { link in tree.openLink(link, from: viewModel.source) }
             )
         case .text, .json, .yaml:
             PlainDocumentView(

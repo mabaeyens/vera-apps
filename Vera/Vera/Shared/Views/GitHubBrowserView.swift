@@ -332,6 +332,26 @@ struct GitHubBrowserView: View {
                         draftStore.deregisterPaths(
                             Set(files.map(\.path)), owner: model.owner, repo: model.repo, branch: model.branch
                         )
+                        // A direct commit changed the target branch's content and blob SHAs.
+                        // Drop the stale cache, and bring any open editor for those files
+                        // back in line: before, they stayed "uncommitted" with the old SHA,
+                        // so a second commit hit a false 409. A PR commit leaves the target
+                        // branch untouched, so there is nothing to refresh.
+                        if !openPR {
+                            let paths = Set(files.map(\.path))
+                            for path in paths {
+                                GitHubFileCache.invalidate(GitHubFileRef(
+                                    owner: model.owner, repo: model.repo, path: path, branch: targetBranch
+                                ))
+                            }
+                            for tab in vm.tabs {
+                                if case .gitHub(let ref) = tab.source,
+                                   ref.owner == model.owner, ref.repo == model.repo,
+                                   ref.branch == targetBranch, paths.contains(ref.path) {
+                                    await tab.editor.refreshAfterBatchCommit()
+                                }
+                            }
+                        }
                         return url
                     }
                 )

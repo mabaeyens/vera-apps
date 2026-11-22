@@ -27,6 +27,8 @@ struct HighlightingTextView: UIViewRepresentable {
     /// Highlightr language key, or nil for plain unhighlighted text.
     var language: String? = "markdown"
     var showLineNumbers: Bool = true
+    /// Markdown list/quote behavior for Return and Tab. Off for every other file type.
+    var continueLists: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -115,9 +117,11 @@ struct HighlightingTextView: UIViewRepresentable {
             let clear = clearAnchor
             DispatchQueue.main.async { [weak textView] in
                 guard let tv = textView else { return }
-                let total = tv.text.count
+                // UTF-16 length: `NSRange` locations are UTF-16 offsets, so a Character
+                // count drifts on emoji/CJK and lands the scroll on the wrong line.
+                let total = tv.text.utf16.count
                 if total > 0 {
-                    let target = Int(Double(total) * fraction)
+                    let target = Int((Double(total) * fraction).rounded())
                     let clamped = max(0, min(target, total - 1))
                     tv.scrollRangeToVisible(NSRange(location: clamped, length: 0))
                 }
@@ -129,6 +133,25 @@ struct HighlightingTextView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
+        // An outline jump while already editing: the anchor is set after the view exists, so
+        // makeUIView never sees it.
+        if let fraction = scrollFraction {
+            let clear = clearAnchor
+            DispatchQueue.main.async { [weak uiView] in
+                guard let tv = uiView else { return }
+                let total = tv.text.utf16.count
+                if total > 0 {
+                    let target = max(0, min(Int((Double(total) * fraction).rounded()), total - 1))
+                    // Put the line at the top, not just barely on screen.
+                    if let pos = tv.position(from: tv.beginningOfDocument, offset: target) {
+                        let y = tv.caretRect(for: pos).minY - tv.adjustedContentInset.top
+                        let maxY = max(0, tv.contentSize.height - tv.bounds.height + tv.adjustedContentInset.bottom)
+                        tv.setContentOffset(CGPoint(x: 0, y: min(max(0, y), maxY)), animated: false)
+                    }
+                }
+                clear()
+            }
+        }
         // Refresh callbacks so the more-menu closure always calls the current SwiftUI handlers
         context.coordinator.onAtlasRequested = onAtlasRequested
         context.coordinator.onCheatSheetRequested = onCheatSheetRequested
@@ -325,6 +348,34 @@ struct HighlightingTextView: UIViewRepresentable {
             lastKnownRange = textView.selectedTextRange
         }
 
+        /// Return continues a list or quote, and Tab (hardware keyboard) indents it.
+        /// Anything not on a list line falls through to the default behavior.
+        func textView(
+            _ textView: UITextView,
+            shouldChangeTextIn range: NSRange,
+            replacementText text: String
+        ) -> Bool {
+            guard parent.continueLists, textView.markedTextRange == nil else { return true }
+            let edit: ListContinuation.Edit?
+            switch text {
+            case "\n": edit = ListContinuation.returnEdit(in: textView.text, selection: range)
+            case "\t": edit = ListContinuation.indentEdit(in: textView.text, selection: range, outdent: false)
+            default: return true
+            }
+            guard let edit,
+                  let start = textView.position(from: textView.beginningOfDocument, offset: edit.range.location),
+                  let end = textView.position(from: start, offset: edit.range.length),
+                  let textRange = textView.textRange(from: start, to: end)
+            else { return true }
+            // `replace` goes through the undo manager, so one Return is one undo step.
+            textView.replace(textRange, withText: edit.replacement)
+            textView.selectedRange = edit.selection
+            parent.text = textView.text
+            parent.onTextChange()
+            lineNumberGutterView?.invalidateLineIndex()
+            return false
+        }
+
         /// Drop the cached selection after the buffer is replaced externally, for
         /// symmetry with the macOS coordinator. UIKit invalidates `UITextRange` on
         /// its own, but clearing avoids reusing a range tied to the old text.
@@ -487,6 +538,8 @@ struct HighlightingTextView: NSViewRepresentable {
     /// Highlightr language key, or nil for plain unhighlighted text.
     var language: String? = "markdown"
     var showLineNumbers: Bool = true
+    /// Markdown list/quote behavior for Return and Tab. Off for every other file type.
+    var continueLists: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -567,9 +620,9 @@ struct HighlightingTextView: NSViewRepresentable {
             let clear = clearAnchor
             DispatchQueue.main.async { [weak textView] in
                 guard let tv = textView else { return }
-                let total = tv.string.count
+                let total = tv.string.utf16.count
                 if total > 0 {
-                    let target = Int(Double(total) * fraction)
+                    let target = Int((Double(total) * fraction).rounded())
                     let clamped = max(0, min(target, total - 1))
                     tv.scrollRangeToVisible(NSRange(location: clamped, length: 0))
                 }
@@ -582,6 +635,18 @@ struct HighlightingTextView: NSViewRepresentable {
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let textView = nsView.documentView as? NSTextView else { return }
+        if let fraction = scrollFraction {
+            let clear = clearAnchor
+            DispatchQueue.main.async { [weak textView] in
+                guard let tv = textView else { return }
+                let total = tv.string.utf16.count
+                if total > 0 {
+                    let target = max(0, min(Int((Double(total) * fraction).rounded()), total - 1))
+                    tv.scrollRangeToVisible(NSRange(location: target, length: 0))
+                }
+                clear()
+            }
+        }
         if textView.string != text {
             let sel = textView.selectedRanges
             // Go through textStorage directly instead of insertText: this updates the
@@ -693,6 +758,31 @@ struct HighlightingTextView: NSViewRepresentable {
 
         func textViewDidChangeSelection(_ notification: Notification) {
             lastKnownRange = textView?.selectedRange()
+        }
+
+        /// Return continues a list or quote; Tab / Shift-Tab indent and outdent it.
+        /// Returning false leaves every other command, and every non-list line, alone.
+        func textView(_ view: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard parent.continueLists, !view.hasMarkedText() else { return false }
+            let selection = view.selectedRange()
+            let edit: ListContinuation.Edit?
+            switch commandSelector {
+            case #selector(NSResponder.insertNewline(_:)):
+                edit = ListContinuation.returnEdit(in: view.string, selection: selection)
+            case #selector(NSResponder.insertTab(_:)):
+                edit = ListContinuation.indentEdit(in: view.string, selection: selection, outdent: false)
+            case #selector(NSResponder.insertBacktab(_:)):
+                edit = ListContinuation.indentEdit(in: view.string, selection: selection, outdent: true)
+            default:
+                edit = nil
+            }
+            guard let edit else { return false }
+            view.insertText(edit.replacement, replacementRange: edit.range)
+            view.setSelectedRange(edit.selection)
+            parent.text = view.string
+            parent.onTextChange()
+            rulerView?.invalidateLineIndex()
+            return true
         }
 
         /// Drop the cached selection after the text storage is replaced externally —

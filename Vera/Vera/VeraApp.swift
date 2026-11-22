@@ -7,6 +7,7 @@ extension Notification.Name {
     // Menu commands live outside the view tree, so sheet-driven actions reach the root
     // views the same way the toolbar already does — through the app's notification bus.
     static let veraNewFile    = Notification.Name("com.mab.vera.newFile")
+    static let veraQuickOpen  = Notification.Name("com.mab.vera.quickOpen")
     static let veraIconGuide  = Notification.Name("com.mab.vera.iconGuide")
     static let veraAbout      = Notification.Name("com.mab.vera.about")
     static let veraCheatSheet = Notification.Name("com.mab.vera.cheatSheet")

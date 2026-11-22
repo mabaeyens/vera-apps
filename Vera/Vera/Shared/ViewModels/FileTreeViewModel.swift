@@ -7,11 +7,14 @@ enum FileOpenError: LocalizedError, Identifiable {
     case notMarkdown(URL)
     case fileNotFound(URL)
     case accessDenied(URL)
+    case linkNotFound(String)
 
     var id: String { localizedDescription }
 
     var errorDescription: String? {
         switch self {
+        case .linkNotFound(let name):
+            return "Couldn't find \"\(name)\" in this folder."
         case .notMarkdown(let url):
             return "\"\(url.lastPathComponent)\" is not a supported document type."
         case .fileNotFound(let url):
@@ -171,8 +174,19 @@ final class FileTreeViewModel {
         }
     }
 
+    /// Rename support: a replaced tab keeps the old tab's place in the activation order.
+    func replaceTabIdentity(_ old: UUID, with new: UUID) {
+        if let index = activationOrder.firstIndex(of: old) { activationOrder[index] = new }
+    }
+
+    /// Rename support: carry an open security-scoped grant across to the new URL.
+    func moveAccessGrant(from old: URL, to new: URL) {
+        if accessedURLs.remove(old) != nil { accessedURLs.insert(new) }
+    }
+
     func openInNewTab(_ source: DocumentSource) {
         guard !source.isBinary else { return }
+        if case .file(let url) = source { Self.noteRecent(url) }
         if let existing = tabs.first(where: { $0.source == source }) {
             activeTabID = existing.id
             selectedSource = source
@@ -196,8 +210,9 @@ final class FileTreeViewModel {
         guard let idx = tabs.firstIndex(where: { $0.id == id }) else { return }
         let closed = tabs[idx]
         // The editor is released with the tab, so any edit still inside the autosave
-        // debounce has to be written now or it's gone.
-        Task { await closed.editor.flushPendingSave() }
+        // debounce has to be written now or it's gone. Security-scoped access is released
+        // only after that write: releasing first made the sandbox reject the final save.
+        flushThenRelease(closed)
         tabs.remove(at: idx)
         activationOrder.removeAll { $0 == id }
         if activeTabID == id {
@@ -211,21 +226,56 @@ final class FileTreeViewModel {
                 noteActivation(tabs[newIdx].id)
             }
         }
-        if case .file(let url) = closed.source { releaseAccess(url) }
     }
 
+    private func flushThenRelease(_ tab: TabEntry) {
+        Task {
+            await tab.editor.flushPendingSave()
+            if case .file(let url) = tab.source,
+               !tabs.contains(where: { $0.source == .file(url) }) {
+                releaseAccess(url)
+            }
+        }
+    }
+
+    /// Tab the user asked to close that still holds work a close would lose. The tab list
+    /// shows a confirmation for it; every close path goes through `requestClose`.
+    var tabPendingClose: TabEntry?
+
+    /// Close a tab, first retrying any failed save, and ask before discarding work that
+    /// still can't be kept (uncommitted GitHub edits, or a local buffer that won't write).
+    func requestClose(_ id: UUID) {
+        guard let tab = tabs.first(where: { $0.id == id }) else { return }
+        Task {
+            await tab.editor.flushPendingSave()
+            if tab.editor.needsCloseConfirmation {
+                tabPendingClose = tab
+            } else {
+                closeTab(id)
+            }
+        }
+    }
+
+    /// Close every other tab except those holding work a close would lose: those stay
+    /// open rather than being dropped without asking.
     func closeOtherTabs(besides id: UUID) {
         guard tabs.contains(where: { $0.id == id }) else { return }
-        for tab in tabs where tab.id != id {
-            Task { await tab.editor.flushPendingSave() }
-            if case .file(let url) = tab.source { releaseAccess(url) }
+        for tab in tabs where tab.id != id && !tab.editor.needsCloseConfirmation {
+            flushThenRelease(tab)
         }
-        tabs.removeAll { $0.id != id }
-        activationOrder.removeAll { $0 != id }
-        if let remaining = tabs.first {
+        tabs.removeAll { $0.id != id && !$0.editor.needsCloseConfirmation }
+        activationOrder.removeAll { oid in oid != id && !tabs.contains(where: { $0.id == oid }) }
+        if !tabs.contains(where: { $0.id == activeTabID }), let remaining = tabs.first {
             activeTabID = remaining.id
             selectedSource = remaining.source
         }
+    }
+
+    /// Pick up edits made outside the app (git pull, another editor, iCloud) for every
+    /// open document with no unsaved work. Called when the app becomes active, so the
+    /// buffer is current before the next keystroke rather than only on a tab switch.
+    func reloadAllIfChangedOnDisk() async {
+        for tab in tabs { await tab.editor.reloadIfChangedOnDisk() }
     }
 
     /// Flush every open document's pending autosave — for app background, where the
@@ -324,6 +374,15 @@ final class FileTreeViewModel {
     init() {
         let hasSeen = UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
         needsFolderPicker = hasSeen && BookmarkStore.load() == nil
+        #if DEBUG
+        // UI tests can't drive the system folder picker, so they launch with
+        // `-VeraUITestSeed YES` to open a fixture folder the app creates itself.
+        if UITestFixture.isRequested, let root = UITestFixture.seed() {
+            rootURL = root
+            needsFolderPicker = false
+            UITestFixture.scheduleExternalEdit(in: root)
+        }
+        #endif
     }
 
     func load() async {
@@ -535,7 +594,14 @@ final class FileTreeViewModel {
     }
 
     func deleteFile(at url: URL) async throws {
-        try FileManager.default.removeItem(at: url)
+        // Recoverable first: this used to be an unconditional `removeItem`, so a
+        // mis-tapped delete was gone for good. Fall back to a hard delete only where the
+        // volume has no Trash (some iCloud/provider locations).
+        do {
+            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        } catch {
+            try FileManager.default.removeItem(at: url)
+        }
         releaseAccess(url)
         // Remove from standalone files list
         standaloneFiles.removeAll { node in

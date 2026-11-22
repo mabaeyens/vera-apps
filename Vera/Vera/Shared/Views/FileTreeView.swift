@@ -8,6 +8,10 @@ struct FileTreeView: View {
 
     @State private var selectedID: UUID?
     @State private var fileToDelete: (url: URL, name: String)?
+    @State private var deleteError: String?
+    @State private var fileToRename: URL?
+    @State private var renameText = ""
+    @State private var renameError: String?
     @State private var expandedFolders: Set<UUID> = []
     @State private var loadedFolderIDs: Set<UUID> = []
     @State private var didInitialLoad = false
@@ -17,10 +21,6 @@ struct FileTreeView: View {
     @State private var repoBrowser = RepoBrowser()
     @State private var expandedRepos: Set<String> = []        // SavedRepo.id
     @State private var expandedRepoFolders: Set<String> = []  // "repoID|nodeID"
-    /// Set when closing a GitHub file that has uncommitted changes, so the user gets a
-    /// chance to keep them. Local files autosave and close without a prompt.
-    @State private var tabPendingClose: FileTreeViewModel.TabEntry?
-
     /// id of the source shown in the active tab — used to highlight the active row.
     private var activeSourceID: String? {
         vm.tabs.first(where: { $0.id == vm.activeTabID })?.source.id
@@ -108,26 +108,67 @@ struct FileTreeView: View {
         ) {
             Button("Delete", role: .destructive) {
                 if let url = fileToDelete?.url {
-                    Task { try? await vm.deleteFile(at: url) }
+                    Task {
+                        do { try await vm.deleteFile(at: url) }
+                        catch { deleteError = error.localizedDescription }
+                    }
                 }
                 fileToDelete = nil
             }
             Button("Cancel", role: .cancel) { fileToDelete = nil }
         } message: {
-            Text("This file will be permanently deleted.")
+            Text("This file will be moved to the Trash.")
+        }
+        .alert(
+            "Rename file",
+            isPresented: Binding(get: { fileToRename != nil }, set: { if !$0 { fileToRename = nil } })
+        ) {
+            TextField("Name", text: $renameText)
+            Button("Rename") {
+                if let url = fileToRename {
+                    let typed = renameText
+                    Task {
+                        do { try await vm.renameFile(at: url, to: typed) }
+                        catch { renameError = error.localizedDescription }
+                    }
+                }
+                fileToRename = nil
+            }
+            Button("Cancel", role: .cancel) { fileToRename = nil }
+        } message: {
+            Text("Leave off the extension to keep it.")
+        }
+        .alert(
+            "Couldn't rename file",
+            isPresented: Binding(get: { renameError != nil }, set: { if !$0 { renameError = nil } })
+        ) {
+            Button("OK", role: .cancel) { renameError = nil }
+        } message: {
+            Text(renameError ?? "")
+        }
+        .alert(
+            "Couldn't delete file",
+            isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })
+        ) {
+            Button("OK", role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "")
         }
         .confirmationDialog(
-            "Close \"\(tabPendingClose?.name ?? "")\" without committing?",
-            isPresented: Binding(get: { tabPendingClose != nil }, set: { if !$0 { tabPendingClose = nil } }),
+            "Close \"\(vm.tabPendingClose?.name ?? "")\" \(vm.tabPendingClose?.source.isGitHub == true ? "without committing" : "without saving")?",
+            isPresented: Binding(get: { vm.tabPendingClose != nil }, set: { if !$0 { vm.tabPendingClose = nil } }),
             titleVisibility: .visible
         ) {
-            Button("Close Without Committing", role: .destructive) {
-                if let tab = tabPendingClose { vm.closeTab(tab.id) }
-                tabPendingClose = nil
+            Button(vm.tabPendingClose?.source.isGitHub == true ? "Close Without Committing" : "Close Without Saving",
+                   role: .destructive) {
+                if let tab = vm.tabPendingClose { vm.closeTab(tab.id) }
+                vm.tabPendingClose = nil
             }
-            Button("Cancel", role: .cancel) { tabPendingClose = nil }
+            Button("Cancel", role: .cancel) { vm.tabPendingClose = nil }
         } message: {
-            Text("This file has changes that haven't been committed to GitHub. They'll be lost.")
+            Text(vm.tabPendingClose?.source.isGitHub == true
+                 ? "This file has changes that haven't been committed to GitHub. They'll be lost."
+                 : "Vera couldn't save the latest changes to this file. They'll be lost.")
         }
         .safeAreaInset(edge: .bottom) {
             if !connectivity.isOnline { offlineBanner }
@@ -514,14 +555,10 @@ struct FileTreeView: View {
         }
     }
 
-    /// Local files just flush and close — prompting would be wrong for an autosaving
-    /// editor. GitHub files have no autosave, so uncommitted work really can be lost.
+    /// Local files flush (retrying a failed save) and close without a prompt unless the
+    /// write still fails; GitHub files have no autosave, so uncommitted work prompts.
     private func requestClose(_ tab: FileTreeViewModel.TabEntry) {
-        if tab.source.isGitHub, tab.editor.isUncommitted {
-            tabPendingClose = tab
-        } else {
-            vm.closeTab(tab.id)
-        }
+        vm.requestClose(tab.id)
     }
 
     @ViewBuilder
@@ -541,6 +578,12 @@ struct FileTreeView: View {
             .contextMenu {
                 Button { vm.openFileInNewTab(url) } label: {
                     Label("Open in New Tab", systemImage: "plus.rectangle.on.rectangle")
+                }
+                Button {
+                    renameText = url.lastPathComponent
+                    fileToRename = url
+                } label: {
+                    Label("Rename…", systemImage: "pencil")
                 }
                 Divider()
                 Button(role: .destructive) {
@@ -587,6 +630,12 @@ struct FileTreeView: View {
             .contextMenu {
                 Button { vm.openFileInNewTab(url) } label: {
                     Label("Open in New Tab", systemImage: "plus.rectangle.on.rectangle")
+                }
+                Button {
+                    renameText = url.lastPathComponent
+                    fileToRename = url
+                } label: {
+                    Label("Rename…", systemImage: "pencil")
                 }
                 Divider()
                 Button(role: .destructive) {

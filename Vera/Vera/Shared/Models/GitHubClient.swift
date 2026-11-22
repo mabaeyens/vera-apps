@@ -234,13 +234,17 @@ struct GitHubClient {
     }
 
     /// Percent-encode a value for use in a URL query (slashes are legal in queries).
+    /// `.urlQueryAllowed` leaves `&`, `+`, `=` and `#` bare, which would split or corrupt
+    /// the value (`+` decodes as a space), so those are encoded too.
     private func encode(query value: String) -> String {
-        value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "&+=#")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     }
 
     /// Commit history for a single file, newest first. (Spec C2.)
     func commits(path: String, limit: Int = 20) async throws -> [GitHubCommit] {
-        let data = try await get("/repos/\(owner)/\(repo)/commits?path=\(encode(path: path))&per_page=\(limit)")
+        let data = try await get("/repos/\(owner)/\(repo)/commits?path=\(encode(query: path))&per_page=\(limit)")
         guard let dtos = try? JSONDecoder().decode([CommitDTO].self, from: data) else { throw GitHubError.decoding }
         return dtos.map {
             GitHubCommit(
@@ -341,11 +345,17 @@ struct GitHubClient {
 
     /// All branches in the repo (up to 100), sorted by GitHub's default order.
     func branches() async throws -> [String] {
-        let data = try await get("/repos/\(owner)/\(repo)/branches?per_page=100")
-        guard let dtos = try? JSONDecoder().decode([BranchDTO].self, from: data) else {
-            throw GitHubError.decoding
+        // Paginate: a single page of 100 silently hid every branch beyond it.
+        var names: [String] = []
+        for page in 1...10 {
+            let data = try await get("/repos/\(owner)/\(repo)/branches?per_page=100&page=\(page)")
+            guard let dtos = try? JSONDecoder().decode([BranchDTO].self, from: data) else {
+                throw GitHubError.decoding
+            }
+            names += dtos.map(\.name)
+            if dtos.count < 100 { break }
         }
-        return dtos.map(\.name)
+        return names
     }
 
     // MARK: - Multi-file commits (Feature 4)
@@ -367,18 +377,22 @@ struct GitHubClient {
     }
 
     private struct RecursiveTree: Decodable {
-        struct Node: Decodable { let path: String; let type: String; let sha: String }
+        struct Node: Decodable { let path: String; let type: String; let sha: String; let mode: String? }
         let tree: [Node]
     }
 
-    /// Current blob SHA of every file at `treeSHA`, keyed by path. Used to detect a
-    /// concurrent edit before an atomic multi-file commit overwrites it.
-    private func blobSHAs(atTreeSHA treeSHA: String) async throws -> [String: String] {
+    /// Current blob SHA and file mode of every file at `treeSHA`, keyed by path. The SHA
+    /// is used to detect a concurrent edit before an atomic multi-file commit overwrites
+    /// it; the mode lets the commit keep an existing file's executable bit.
+    private func blobInfo(atTreeSHA treeSHA: String) async throws -> [String: (sha: String, mode: String)] {
         let data = try await get("/repos/\(owner)/\(repo)/git/trees/\(treeSHA)?recursive=1")
         guard let resp = try? JSONDecoder().decode(RecursiveTree.self, from: data) else {
             throw GitHubError.decoding
         }
-        return Dictionary(uniqueKeysWithValues: resp.tree.filter { $0.type == "blob" }.map { ($0.path, $0.sha) })
+        return Dictionary(
+            resp.tree.filter { $0.type == "blob" }.map { ($0.path, ($0.sha, $0.mode ?? "100644")) },
+            uniquingKeysWith: { first, _ in first }
+        )
     }
 
     /// Atomically commit multiple files via the Git Data API.
@@ -399,15 +413,16 @@ struct GitHubClient {
         let baseTreeSHA = try await treeSHA(commitSHA: baseSHA)
         // 2b. Detect concurrent edits: compare each file's current blob SHA against
         // the SHA it was read at. A path missing from the current tree is a new file.
-        let currentSHAs = try await blobSHAs(atTreeSHA: baseTreeSHA)
+        let current = try await blobInfo(atTreeSHA: baseTreeSHA)
         for file in files {
-            if let currentSHA = currentSHAs[file.path], currentSHA != file.blobSHA {
+            if let existing = current[file.path], existing.sha != file.blobSHA {
                 throw GitHubError.conflict
             }
         }
-        // 3. Create new tree
+        // 3. Create new tree. Keep an existing file's mode (e.g. 100755 for a script)
+        // rather than flattening everything to a plain file.
         let treeNodes: [[String: Any]] = files.map { file in
-            ["path": file.path, "mode": "100644", "type": "blob", "content": file.text]
+            ["path": file.path, "mode": current[file.path]?.mode ?? "100644", "type": "blob", "content": file.text]
         }
         let treeData = try await send(
             "POST", "/repos/\(owner)/\(repo)/git/trees",

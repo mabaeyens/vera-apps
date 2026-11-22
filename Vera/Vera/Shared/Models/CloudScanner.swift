@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 enum CloudScanner {
     // Shallow scan: returns every direct file (any type — FileKind.classify decides how
@@ -35,7 +36,9 @@ enum CloudScanner {
                 ))
             } else {
                 files.append(Dated(
-                    node: .file(id: UUID(), name: itemURL.lastPathComponent, url: itemURL, downloadState: downloadState(for: itemURL)),
+                    // Stable per path, like folders: a fresh UUID per scan made every
+                    // refresh look like a brand-new row to the sidebar list.
+                    node: .file(id: stableID(for: itemURL), name: itemURL.lastPathComponent, url: itemURL, downloadState: downloadState(for: itemURL)),
                     date: modDate
                 ))
             }
@@ -45,15 +48,13 @@ enum CloudScanner {
         return files.sorted(by: byDateDesc).map(\.node) + folders.sorted(by: byDateDesc).map(\.node)
     }
 
-    // Generates a deterministic UUID from a folder URL so expand/collapse state
-    // is preserved across tree reloads.
+    // Generates a deterministic UUID from a URL so expand/collapse state is preserved
+    // across tree reloads, and rows keep their identity. The first 16 bytes of a SHA-256:
+    // the XOR-fold this replaced collided for paths that differ only by swapping
+    // characters 16 apart, and with ids now covering files a collision would show one row twice.
     nonisolated static func stableID(for url: URL) -> UUID {
         let path = url.standardizedFileURL.path
-        var b = [UInt8](repeating: 0, count: 16)
-        for (i, byte) in path.utf8.enumerated() {
-            b[i % 16] ^= byte
-            b[(i + 5) % 16] = b[(i + 5) % 16] &+ byte
-        }
+        var b = Array(SHA256.hash(data: Data(path.utf8)).prefix(16))
         b[6] = (b[6] & 0x0F) | 0x40
         b[8] = (b[8] & 0x3F) | 0x80
         return UUID(uuid: (b[0],b[1],b[2],b[3],b[4],b[5],b[6],b[7],b[8],b[9],b[10],b[11],b[12],b[13],b[14],b[15]))

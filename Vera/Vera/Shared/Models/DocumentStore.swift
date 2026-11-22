@@ -24,8 +24,7 @@ enum DocumentStore {
             if let readError { throw readError }
             guard let content else { throw CocoaError(.fileReadUnknown) }
 
-            if let conflicts = NSFileVersion.unresolvedConflictVersionsOfItem(at: url), !conflicts.isEmpty {
-                conflicts.forEach { $0.isResolved = true }
+            if preserveConflicts(at: url) {
                 try? NSFileVersion.removeOtherVersionsOfItem(at: url)
             }
 
@@ -74,7 +73,51 @@ enum DocumentStore {
             if let coordError { throw coordError }
             if let writeError { throw writeError }
 
-            try? NSFileVersion.removeOtherVersionsOfItem(at: url)
+            if preserveConflicts(at: url) {
+                try? NSFileVersion.removeOtherVersionsOfItem(at: url)
+            }
         }.value
+    }
+
+    /// Copy every unresolved iCloud conflict version next to the file as
+    /// `<name> (conflict <device> <date>).<ext>` and mark it resolved. Returns true when
+    /// it is safe to discard the other versions: there were no conflicts, or every one
+    /// was saved. If a copy fails (for example a sandboxed single file with no write
+    /// access to its folder) the conflicts are left in place rather than deleted, which
+    /// is what used to happen silently.
+    private static func preserveConflicts(at url: URL) -> Bool {
+        guard let conflicts = NSFileVersion.unresolvedConflictVersionsOfItem(at: url),
+              !conflicts.isEmpty else { return true }
+
+        let fm = FileManager.default
+        let dir = url.deletingLastPathComponent()
+        let base = url.deletingPathExtension().lastPathComponent
+        let ext = url.pathExtension
+        let stamp = DateFormatter()
+        stamp.dateFormat = "yyyy-MM-dd HHmm"
+
+        var allSaved = true
+        for version in conflicts {
+            let device = (version.localizedNameOfSavingComputer ?? "other device")
+                .replacingOccurrences(of: "/", with: "-")
+                .replacingOccurrences(of: ":", with: "-")
+            let when = version.modificationDate.map(stamp.string(from:)) ?? "unknown date"
+            let stem = "\(base) (conflict \(device) \(when))"
+
+            var destination = dir.appendingPathComponent(ext.isEmpty ? stem : "\(stem).\(ext)")
+            var n = 2
+            while fm.fileExists(atPath: destination.path) {
+                let numbered = "\(stem) \(n)"
+                destination = dir.appendingPathComponent(ext.isEmpty ? numbered : "\(numbered).\(ext)")
+                n += 1
+            }
+            do {
+                try fm.copyItem(at: version.url, to: destination)
+                version.isResolved = true
+            } catch {
+                allSaved = false
+            }
+        }
+        return allSaved
     }
 }

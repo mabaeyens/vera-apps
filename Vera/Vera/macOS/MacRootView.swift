@@ -9,6 +9,7 @@ struct MacRootView: View {
     @State private var showAbout = false
     @State private var showIconHelp = false
     @State private var showNewFile = false
+    @State private var showQuickSwitcher = false
     @State private var showGitHub = false
     @State private var gitHubInitialRepo: SavedRepo?
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
@@ -46,8 +47,13 @@ struct MacRootView: View {
         // Menu commands live outside the view tree, so they reach these sheets the same
         // way the toolbar does.
         .onReceive(NotificationCenter.default.publisher(for: .veraNewFile)) { _ in showNewFile = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraQuickOpen)) { _ in showQuickSwitcher = true }
         .onReceive(NotificationCenter.default.publisher(for: .veraIconGuide)) { _ in showIconHelp = true }
         .onReceive(NotificationCenter.default.publisher(for: .veraAbout)) { _ in showAbout = true }
+        .sheet(isPresented: $showQuickSwitcher) {
+            QuickSwitcherView()
+                .environment(vm)
+        }
         .sheet(isPresented: $showGitHub) {
             GitHubBrowserView(initialRepo: gitHubInitialRepo)
                 .frame(width: 520, height: 600)
@@ -74,6 +80,14 @@ struct MacRootView: View {
             Text(error.localizedDescription)
         }
         .toolbar {
+            ToolbarItem(placement: .automatic) {
+                Button { showQuickSwitcher = true } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .help("Go to file… (⌘P)")
+                .accessibilityLabel("Go to file")
+                .disabled(vm.rootURL == nil)
+            }
             ToolbarItem(placement: .automatic) {
                 Button { showNewFile = true } label: {
                     Image(systemName: "square.and.pencil")
@@ -142,7 +156,10 @@ struct MacRootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                Task { await vm.load() }
+                Task {
+                    await vm.load()
+                    await vm.reloadAllIfChangedOnDisk()
+                }
             } else {
                 // Editors now outlive the views that show them, so the per-view
                 // `onDisappear` flush no longer covers backgrounding. Write out every

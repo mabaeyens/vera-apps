@@ -7,12 +7,7 @@ enum EditorMode { case viewing, editing }
 @MainActor
 final class EditorViewModel {
     var mode: EditorMode = .viewing
-    var rawText: String = "" {
-        didSet {
-            cachedWordCount = nil
-            cachedCharacterCount = nil
-        }
-    }
+    var rawText: String = ""
     var isLoading = false
 
     /// True while waiting for an iCloud item to come down. Kept separate from `isLoading`
@@ -49,14 +44,42 @@ final class EditorViewModel {
     /// scroll mechanism the editor already has, rather than adding a second one.
     var pendingScrollToLine: Int?
 
+    /// Heading fragment to scroll the preview to once it has rendered: set when a link
+    /// like `other.md#section` or `[[Note#Section]]` opens this document.
+    var pendingAnchor: String?
+
     /// Turn a pending line target into a scroll position. No-op if there's nothing pending
     /// or the text isn't loaded yet.
     func resolvePendingScroll() {
         guard let line = pendingScrollToLine, !rawText.isEmpty else { return }
-        let total = max(1, rawText.split(separator: "\n", omittingEmptySubsequences: false).count)
-        anchorFraction = min(1, max(0, CGFloat(line - 1) / CGFloat(total)))
+        // The editor scrolls to `fraction × utf16 length`, so the fraction has to be the
+        // UTF-16 offset of the line's start over the UTF-16 length. A line-count fraction
+        // (what this used to be) lands far from the match whenever line lengths vary.
+        let total = max(1, rawText.utf16.count)
+        var offset = 0
+        var newlines = 0
+        if line > 1 {
+            for unit in rawText.utf16 {
+                offset += 1
+                if unit == 10 {
+                    newlines += 1
+                    if newlines == line - 1 { break }
+                }
+            }
+        }
+        anchorFraction = min(1, max(0, CGFloat(offset) / CGFloat(total)))
         pendingScrollToLine = nil
     }
+    /// Scroll to an outline heading: by character offset in the editor, by anchor in the
+    /// preview (each surface already has exactly one scroll mechanism; this picks it).
+    func jump(to item: OutlineItem) {
+        if mode == .editing {
+            anchorFraction = CGFloat(item.offset) / CGFloat(max(1, rawText.utf16.count))
+        } else {
+            pendingAnchor = item.slug
+        }
+    }
+
     var atlasRequested = false
     var lintResults: [LintWarning] = []
 
@@ -129,28 +152,33 @@ final class EditorViewModel {
     /// `FileKind`'s broader language map for every other editable text file.
     func highlightLanguage(focusMode: Bool) -> String? {
         if focusMode && isPlainTextInFocusMode { return nil }
+        // The preview already skips highlighting past 1 MB; the live editor re-highlights
+        // on every edit, so a multi-megabyte log or JSON would stall it. Plain text instead.
+        if rawText.utf8.count > HighlightrEngine.maxHighlightBytes { return nil }
         return format?.highlightLanguage ?? FileKind.classify(path: source.path).readOnlyLanguage
     }
 
-    /// Both counters walk the entire document, and the toolbar reads them on every
-    /// re-render while editing, so they're cached and recomputed only when `rawText`
-    /// actually changes. `@ObservationIgnored` keeps the cache itself out of the
-    /// observation graph — it's derived state, not something a view should track.
-    @ObservationIgnored private var cachedWordCount: Int?
-    @ObservationIgnored private var cachedCharacterCount: Int?
+    /// Both counters walk the entire document. They used to be recomputed synchronously
+    /// on the main actor after every keystroke (the toolbar reads them while editing);
+    /// now they are refreshed by a debounced background task, so typing never pays for
+    /// them. They trail the text by a fraction of a second, which a status label can bear.
+    private(set) var wordCount = 0
+    private(set) var characterCount = 0
+    private var countTask: Task<Void, Never>?
 
-    var wordCount: Int {
-        if let cachedWordCount { return cachedWordCount }
-        let value = rawText.split { $0.isWhitespace || $0.isNewline }.count
-        cachedWordCount = value
-        return value
-    }
-
-    var characterCount: Int {
-        if let cachedCharacterCount { return cachedCharacterCount }
-        let value = rawText.count
-        cachedCharacterCount = value
-        return value
+    private func scheduleCounts() {
+        countTask?.cancel()
+        let snapshot = rawText
+        countTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            let counts = await Task.detached {
+                (snapshot.split { $0.isWhitespace || $0.isNewline }.count, snapshot.count)
+            }.value
+            guard !Task.isCancelled, let self else { return }
+            self.wordCount = counts.0
+            self.characterCount = counts.1
+        }
     }
 
     /// nil when there's no text, so the UI can omit reading time for empty docs.
@@ -239,7 +267,7 @@ final class EditorViewModel {
         case .file(let url): await loadFile(url)
         case .gitHub(let ref): await loadGitHub(ref)
         }
-        if rawText.isEmpty && canEdit { mode = .editing }
+        if rawText.isEmpty && canEdit && loadFailure == nil { mode = .editing }
         scheduleLint()
     }
 
@@ -282,8 +310,15 @@ final class EditorViewModel {
             let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey])
                 .ubiquitousItemDownloadingStatus
             if status == .current || status == .downloaded {
-                rawText = (try? await DocumentStore.read(url)) ?? ""
-                recordModificationDate(of: url)
+                // A failed read must not fall through to an empty, editable buffer:
+                // autosave would then overwrite the real file with nothing.
+                do {
+                    rawText = try await DocumentStore.read(url)
+                    recordModificationDate(of: url)
+                } catch {
+                    rawText = ""
+                    loadFailure = "\(url.lastPathComponent) couldn't be read as text."
+                }
                 return
             }
         }
@@ -447,6 +482,17 @@ final class EditorViewModel {
         }
     }
 
+    /// A multi-file commit wrote this editor's text to the branch it tracks. Take the new
+    /// blob SHA and mark it committed; the multi-file path has no per-editor result.
+    func refreshAfterBatchCommit() async {
+        guard case .gitHub(let ref) = source, let client = gitHubClient() else { return }
+        GitHubFileCache.invalidate(ref)
+        if let version = try? await client.fileVersion(path: ref.path, ref: ref.branch) {
+            blobSHA = version.sha
+        }
+        saveState = .saved
+    }
+
     /// Fetch all branch names for the repo; used to populate the commit sheet's branch picker.
     func fetchBranches() async -> [String] {
         guard let client = gitHubClient() else { return [] }
@@ -496,12 +542,31 @@ final class EditorViewModel {
     /// editor view disappears (tab switch / navigation) so the last keystrokes — still
     /// inside the 500 ms debounce window — are never silently dropped.
     func flushPendingSave() async {
-        guard case .file = source, case .saving = saveState else { return }
+        guard case .file = source else { return }
+        switch saveState {
+        // `.error` is retried too: before, a failed write was never attempted again, so
+        // ⌘S was a no-op and closing the tab silently discarded the buffer. A disk
+        // conflict is left for the user to resolve explicitly.
+        case .saving: break
+        case .error where !diskConflict: break
+        default: return
+        }
         saveTask?.cancel()
         await flush()
     }
 
+    /// Closing this document would lose work: uncommitted GitHub edits, or a local buffer
+    /// that could not be written.
+    var needsCloseConfirmation: Bool {
+        switch (source, saveState) {
+        case (.gitHub, .uncommitted): true
+        case (.file, .error): true
+        default: false
+        }
+    }
+
     private func scheduleLint() {
+        scheduleCounts()
         let enabled = UserDefaults.standard.object(forKey: Defaults.Key.linterEnabled) == nil
             ? true : UserDefaults.standard.bool(forKey: Defaults.Key.linterEnabled)
         guard enabled else {
@@ -531,10 +596,48 @@ final class EditorViewModel {
         }
     }
 
-    private func flush() async {
+    /// True when the file on disk was changed by something else (a `git pull`, another
+    /// editor, iCloud) since this buffer was loaded, and its content differs from ours.
+    /// Autosave must not silently replace that.
+    var diskConflict = false
+
+    /// Resolve a `diskConflict`: keep this buffer and overwrite the file, or drop the
+    /// buffer and take what is on disk.
+    func resolveDiskConflict(overwrite: Bool) async {
+        guard case .file = source else { return }
+        saveTask?.cancel()
+        diskConflict = false
+        if overwrite {
+            await flush(force: true)
+        } else {
+            saveState = .saved
+            await load()
+        }
+    }
+
+    /// The on-disk text, if the file changed since we last read or wrote it and that text
+    /// differs from the buffer. nil means it is safe to write.
+    private func externallyChangedText(at url: URL) async -> String? {
+        guard let previous = loadedModificationDate,
+              let current = try? url.resourceValues(forKeys: [.contentModificationDateKey])
+                  .contentModificationDate,
+              current > previous,
+              let disk = try? await DocumentStore.read(url),
+              disk != rawText
+        else { return nil }
+        return disk
+    }
+
+    private func flush(force: Bool = false) async {
         guard case .file(let url) = source else { return }
+        if !force, await externallyChangedText(at: url) != nil {
+            diskConflict = true
+            saveState = .error("Changed on disk")
+            return
+        }
         do {
             try await DocumentStore.write(url, content: rawText)
+            diskConflict = false
             saveState = .saved
             // Our own write moved the mtime; record it so returning to this tab doesn't
             // mistake it for someone else's edit and reload.

@@ -62,6 +62,10 @@ struct VeraCommands: Commands {
                 .keyboardShortcut("o", modifiers: [.command, .shift])
 
             Button("Open from GitHub…") { Self.post(.veraOpenGitHub) }
+
+            Button("Go to File…") { Self.post(.veraQuickOpen) }
+                .keyboardShortcut("p", modifiers: .command)
+                .disabled(vm.rootURL == nil && vm.tabs.isEmpty)
         }
 
         CommandGroup(replacing: .saveItem) {
@@ -77,7 +81,7 @@ struct VeraCommands: Commands {
             Divider()
 
             Button("Close") {
-                if let id = vm.activeTabID { vm.closeTab(id) }
+                if let id = vm.activeTabID { vm.requestClose(id) }
             }
             .keyboardShortcut("w", modifiers: .command)
             .disabled(vm.activeTabID == nil)

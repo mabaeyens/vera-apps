@@ -12,6 +12,7 @@ enum Defaults {
         static let focusMode            = "focusMode"
         static let hasSeenOnboarding    = "hasSeenOnboarding"
         static let pinnedFiles          = "pinnedFiles"
+        static let recentFiles          = "recentFiles"
         static let focusModePlainTextFiles = "focusModePlainTextFiles"
         static let codeWrapEnabled      = "codeWrapEnabled"
         static let lineNumbersEnabled   = "lineNumbersEnabled"

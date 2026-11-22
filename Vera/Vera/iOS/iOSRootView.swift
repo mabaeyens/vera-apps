@@ -9,6 +9,7 @@ struct iOSRootView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
     @State private var showAbout = false
     @State private var showNewFile = false
+    @State private var showQuickSwitcher = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: Defaults.Key.hasSeenOnboarding)
     @State private var showIconHelp = false
     // Local @State mirrors of vm picker flags.
@@ -117,8 +118,13 @@ struct iOSRootView: View {
         // Reached from hardware-keyboard shortcuts on iPad, which go through the same
         // command definitions as the macOS menu bar.
         .onReceive(NotificationCenter.default.publisher(for: .veraNewFile)) { _ in showNewFile = true }
+        .onReceive(NotificationCenter.default.publisher(for: .veraQuickOpen)) { _ in showQuickSwitcher = true }
         .onReceive(NotificationCenter.default.publisher(for: .veraIconGuide)) { _ in showIconHelp = true }
         .onReceive(NotificationCenter.default.publisher(for: .veraAbout)) { _ in showAbout = true }
+        .sheet(isPresented: $showQuickSwitcher) {
+            QuickSwitcherView()
+                .environment(vm)
+        }
         .sheet(isPresented: $showGitHub) {
             GitHubBrowserView(initialRepo: gitHubInitialRepo)
         }
@@ -148,7 +154,10 @@ struct iOSRootView: View {
                     UserDefaults.standard.set(false, forKey: Defaults.Key.pendingReset)
                     vm.resetState()
                 }
-                Task { await vm.load() }
+                Task {
+                    await vm.load()
+                    await vm.reloadAllIfChangedOnDisk()
+                }
             } else {
                 // Editors now outlive the views that show them, so the per-view
                 // `onDisappear` flush no longer covers backgrounding. Write out every
@@ -177,6 +186,10 @@ struct iOSRootView: View {
         // Only genuinely-secondary items stay in the overflow menu.
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                Button { showQuickSwitcher = true } label: {
+                    Label("Go to File…", systemImage: "magnifyingglass")
+                }
+                .disabled(vm.rootURL == nil)
                 Button { gitHubInitialRepo = nil; showGitHub = true } label: {
                     Label("Open from GitHub…", systemImage: "chevron.left.forwardslash.chevron.right")
                 }

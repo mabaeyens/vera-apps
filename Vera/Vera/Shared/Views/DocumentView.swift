@@ -15,6 +15,7 @@ struct DocumentView: View {
     /// what stops the switch re-reading from disk and flashing a spinner.
     let viewModel: EditorViewModel
     @State private var showAtlas = false
+    @State private var showOutline = false
     @State private var showCheatSheet = false
     @State private var showIconHelp = false
     // GitHub source only.
@@ -77,6 +78,12 @@ struct DocumentView: View {
             }
         }
         .navigationTitle("")
+        .sheet(isPresented: $showOutline) {
+            OutlineView(items: Outline.items(in: viewModel.rawText)) { item in
+                viewModel.jump(to: item)
+                showOutline = false
+            }
+        }
         .toolbar { toolbarItems }
         .task {
             // `loadIfNeeded`, not `load`: this view is rebuilt on every tab switch, and
@@ -218,8 +225,10 @@ struct DocumentView: View {
         // macOS: tools in toolbar, font size consolidated into one menu
         // Only images/binaries never get an Edit affordance — every other text file Vera
         // can open is editable, not just the 4 rich `DocumentFormat` cases.
-        if viewModel.canEdit {
-            ToolbarItem(placement: .primaryAction) {
+        // Grouped: a ToolbarContentBuilder body tops out at 10 children, and the Outline
+        // button was the eleventh.
+        ToolbarItemGroup(placement: .primaryAction) {
+            if viewModel.canEdit {
                 switch viewModel.mode {
                 case .viewing:
                     Button("Edit") { viewModel.enterEditMode() }
@@ -227,6 +236,13 @@ struct DocumentView: View {
                     Button("Done") { viewModel.exitEditMode() }
                         .bold()
                 }
+            }
+            if viewModel.format == .markdown {
+                Button { showOutline = true } label: {
+                    Image(systemName: "list.bullet.indent")
+                }
+                .help("Outline")
+                .accessibilityLabel("Outline")
             }
         }
         // GitHub source: commit + "what changed" live next to the editor tools.
@@ -408,7 +424,20 @@ struct DocumentView: View {
             .fixedSize()
             .padding(.horizontal, 4)
         case .error(let msg):
-            Text(msg).font(.caption).foregroundStyle(.red)
+            if viewModel.diskConflict {
+                // Autosave refused to overwrite an outside edit. Both ways out are explicit.
+                HStack(spacing: 8) {
+                    Text("Changed on disk").font(.caption).foregroundStyle(.red)
+                    Button("Reload") { Task { await viewModel.resolveDiskConflict(overwrite: false) } }
+                        .help("Discard this window's edits and load the file from disk")
+                    Button("Overwrite") { Task { await viewModel.resolveDiskConflict(overwrite: true) } }
+                        .help("Replace the file on disk with this window's text")
+                }
+                .font(.caption)
+                .fixedSize()
+            } else {
+                Text(msg).font(.caption).foregroundStyle(.red)
+            }
         case .uncommitted:
             Text("Uncommitted").font(.caption).foregroundStyle(.secondary)
         case .committing:

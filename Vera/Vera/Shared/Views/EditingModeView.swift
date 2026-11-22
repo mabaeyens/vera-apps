@@ -58,7 +58,8 @@ struct EditingModeView: View {
                     #endif
                 },
                 language: viewModel.highlightLanguage(focusMode: focusMode),
-                showLineNumbers: lineNumbersEnabled
+                showLineNumbers: lineNumbersEnabled,
+                continueLists: viewModel.format == .markdown
             )
             // Focus mode hides the linter so writing stays distraction-free.
             if linterEnabled && !focusMode && !viewModel.lintResults.isEmpty {

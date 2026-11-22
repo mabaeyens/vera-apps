@@ -114,6 +114,118 @@ private nonisolated func docTableRowCells(_ line: String) -> [String] {
     return cells.map { $0.trimmingCharacters(in: .whitespaces) }
 }
 
+// MARK: - Chunking, reference links, anchors
+
+/// The parsed document plus a map from heading slug to the segment that starts with it,
+/// so `#fragment` links can scroll.
+private struct ParsedDoc: Sendable {
+    var segments: [DocSegment]
+    var anchors: [String: Int]
+}
+
+/// Prose longer than this is split at the next safe paragraph break, so one long note is
+/// a column of lazily built views instead of a single enormous one.
+private let proseChunkTarget = 4_000
+
+nonisolated func isHeadingLine(_ line: String) -> Bool {
+    let trimmed = line.drop { $0 == " " }
+    guard line.count - trimmed.count <= 3 else { return false }
+    let hashes = trimmed.prefix { $0 == "#" }
+    guard (1...6).contains(hashes.count) else { return false }
+    let after = trimmed.dropFirst(hashes.count)
+    return after.isEmpty || after.first == " "
+}
+
+/// A line that continues the previous block (list item, indented, quote) and so must not
+/// start a new chunk, or the list/quote would be cut in half.
+private nonisolated func continuesBlock(_ line: String) -> Bool {
+    guard let first = line.first else { return false }
+    if first == " " || first == "\t" || first == ">" { return true }
+    if "-*+".contains(first), line.dropFirst().first == " " { return true }
+    let digits = line.prefix { $0.isASCII && $0.isNumber }
+    if !digits.isEmpty, let d = line.dropFirst(digits.count).first, d == "." || d == ")" { return true }
+    return false
+}
+
+/// Split prose at every heading (so each chunk begins at most with one, which is what the
+/// anchor map relies on) and, when a chunk grows past the target, at the next blank line
+/// that is followed by a fresh block.
+private nonisolated func chunkProse(_ text: String) -> [String] {
+    let lines = text.components(separatedBy: "\n")
+    var chunks: [String] = []
+    var current: [String] = []
+    var size = 0
+
+    func flush() {
+        let joined = current.joined(separator: "\n")
+        if !joined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { chunks.append(joined) }
+        current = []
+        size = 0
+    }
+
+    for (index, line) in lines.enumerated() {
+        let startsNewBlock = index > 0 && lines[index - 1].trimmingCharacters(in: .whitespaces).isEmpty
+            && !line.trimmingCharacters(in: .whitespaces).isEmpty && !continuesBlock(line)
+        if !current.isEmpty, isHeadingLine(line) || (size > proseChunkTarget && startsNewBlock) {
+            flush()
+        }
+        current.append(line)
+        size += line.utf8.count + 1
+    }
+    flush()
+    return chunks.isEmpty ? [text] : chunks
+}
+
+/// `[label]: https://...` lines. Each prose chunk is parsed on its own, so a definition at
+/// the bottom of a file would otherwise not resolve `[label]` references higher up.
+private nonisolated func referenceDefinitions(in prose: [String]) -> [String] {
+    var defs: [String] = []
+    for text in prose {
+        for line in text.components(separatedBy: "\n") {
+            let trimmed = line.drop { $0 == " " }
+            guard line.count - trimmed.count <= 3, trimmed.first == "[",
+                  !trimmed.hasPrefix("[^"),
+                  let close = trimmed.firstIndex(of: "]"),
+                  trimmed[trimmed.index(after: close)...].hasPrefix(":") else { continue }
+            let rest = trimmed[trimmed.index(after: close)...].dropFirst().drop { $0 == " " }
+            if !rest.isEmpty { defs.append(String(trimmed)) }
+        }
+    }
+    return defs
+}
+
+private nonisolated func parseDoc(_ raw: String) -> ParsedDoc {
+    let base = parseDocSegments(raw)
+    let defs = referenceDefinitions(in: base.compactMap {
+        if case .prose(let text) = $0 { return text } else { return nil }
+    })
+
+    var segments: [DocSegment] = []
+    var anchors: [String: Int] = [:]
+    var seen: [String: Int] = [:]
+
+    for segment in base {
+        guard case .prose(let text) = segment else { segments.append(segment); continue }
+        for chunk in chunkProse(text) {
+            let index = segments.count
+            for line in chunk.components(separatedBy: "\n") where isHeadingLine(line) {
+                var slug = headingSlug(headingTitle(line))
+                if let count = seen[slug] {
+                    seen[slug] = count + 1
+                    slug += "-\(count)"
+                } else {
+                    seen[slug] = 1
+                }
+                if anchors[slug] == nil { anchors[slug] = index }
+            }
+            var rendered = WikiLinks.rewrite(chunk)
+            if !defs.isEmpty, chunk.contains("[") { rendered += "\n\n" + defs.joined(separator: "\n") }
+            segments.append(.prose(rendered))
+        }
+    }
+    return ParsedDoc(segments: segments.isEmpty ? [.prose(raw)] : segments, anchors: anchors)
+}
+
 // MARK: - MarkdownUI theme for Vera
 
 extension MarkdownUI.Theme {
@@ -152,41 +264,83 @@ struct MarkdownDocumentView: View {
     // A closure writes without reading, so the ancestor never subscribes to the value.
     var onScrollFractionChange: (CGFloat) -> Void = { _ in }
     var imageBaseURL: URL? = nil
+    /// A heading fragment to scroll to once rendered (from `other.md#section`), and the
+    /// callback that clears it. Plain values, for the same reason as the scroll closure.
+    var pendingAnchor: String? = nil
+    var onAnchorHandled: () -> Void = {}
+    /// Called for links Vera navigates itself (relative paths, wikilinks).
+    var onNavigate: (DocLink) -> Void = { _ in }
 
     // Memoized: the document is parsed only when rawText changes, not on every body
     // re-evaluation. body re-runs on every scrollFraction update, and re-running the
     // whole-document regex parse each scroll tick was needless CPU on large files.
     @State private var segments: [DocSegment] = []
+    @State private var anchors: [String: Int] = [:]
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(segments.enumerated()), id: \.offset) { _, seg in
-                    segmentView(seg)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(segments.enumerated()), id: \.offset) { index, seg in
+                        segmentView(seg).id(index)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .veraHardTopEdge()
+            .onScrollGeometryChange(for: CGFloat.self) { geo in
+                let maxOffset = geo.contentSize.height - geo.containerSize.height
+                guard maxOffset > 0 else { return 0 }
+                return geo.contentOffset.y / maxOffset
+            } action: { _, new in
+                onScrollFractionChange(Swift.max(0, Swift.min(1, new)))
+            }
+            .environment(\.openURL, OpenURLAction { url in
+                guard let link = DocLink.classify(url) else { return .systemAction }
+                if case .anchor(let fragment) = link {
+                    scroll(to: fragment, with: proxy)
+                } else {
+                    onNavigate(link)
+                }
+                return .handled
+            })
+            // `parseDoc` runs a whole-document regex plus a line-by-line table scan. It has
+            // no `await`, so inside a plain `.task` it inherited this view's MainActor
+            // isolation and ran the entire pass on the main thread at every file open. The
+            // detached task moves it off; the result is a plain value type coming back.
+            .task(id: rawText) {
+                let text = rawText
+                let parsed = await Task.detached(priority: .userInitiated) {
+                    parseDoc(text)
+                }.value
+                guard !Task.isCancelled else { return }
+                segments = parsed.segments
+                anchors = parsed.anchors
+                consumePendingAnchor(with: proxy)
+            }
+            .onChange(of: pendingAnchor) { _, _ in consumePendingAnchor(with: proxy) }
         }
-        .veraHardTopEdge()
-        .onScrollGeometryChange(for: CGFloat.self) { geo in
-            let maxOffset = geo.contentSize.height - geo.containerSize.height
-            guard maxOffset > 0 else { return 0 }
-            return geo.contentOffset.y / maxOffset
-        } action: { _, new in
-            onScrollFractionChange(Swift.max(0, Swift.min(1, new)))
-        }
-        // `parseDocSegments` runs a whole-document regex plus a line-by-line table scan.
-        // It has no `await`, so inside a plain `.task` it inherited this view's MainActor
-        // isolation and ran the entire pass on the main thread at every file open. The
-        // detached task moves it off; the result is a plain value type coming back.
-        .task(id: rawText) {
-            let text = rawText
-            let parsed = await Task.detached(priority: .userInitiated) {
-                parseDocSegments(text)
-            }.value
-            guard !Task.isCancelled else { return }
-            segments = parsed
+    }
+
+    private func scroll(to fragment: String, with proxy: ScrollViewProxy) {
+        let key = headingSlug(fragment.removingPercentEncoding ?? fragment)
+        guard let index = anchors[key] else { return }
+        withAnimation { proxy.scrollTo(index, anchor: .top) }
+    }
+
+    private func consumePendingAnchor(with proxy: ScrollViewProxy) {
+        guard let fragment = pendingAnchor, !segments.isEmpty else { return }
+        onAnchorHandled()
+        // `segments` was only just assigned, so the lazy stack has not laid out the target
+        // yet and an immediate `scrollTo` lands on nothing (a link into a long document
+        // opened at the top). Wait for layout, then scroll; repeat once, since the first
+        // scroll can itself change the estimated content height.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(80))
+            scroll(to: fragment, with: proxy)
+            try? await Task.sleep(for: .milliseconds(300))
+            scroll(to: fragment, with: proxy)
         }
     }
 

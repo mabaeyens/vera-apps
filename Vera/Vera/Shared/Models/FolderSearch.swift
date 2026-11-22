@@ -36,7 +36,7 @@ enum FolderSearch {
     static let maxFileBytes = HighlightrEngine.maxHighlightBytes
 
     /// Directories never worth walking, whether or not a `.gitignore` mentions them.
-    private static let alwaysSkip: Set<String> = [
+    static let alwaysSkip: Set<String> = [
         ".git", "node_modules", ".build", "DerivedData", ".next", "dist",
         "build", "Pods", ".venv", "venv", "__pycache__", ".swiftpm", ".idea",
     ]
@@ -105,6 +105,17 @@ enum FolderSearch {
                         continue
                     }
                     guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+
+                    // One whole-file scan rules out most files before the per-line pass,
+                    // which would otherwise split the text and test every line of every
+                    // file. The options are deliberately a superset of what the per-line
+                    // check treats as equal (diacritics and width too), so this can skip a
+                    // file only when no line in it could match.
+                    guard text.range(
+                        of: query,
+                        options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
+                        locale: .current
+                    ) != nil else { continue }
 
                     var lineNumber = 0
                     var stop = false
