@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.3.3
+
+**Navigation**
+- Go to File: a fuzzy file switcher, ⌘P on a keyboard and "Go to File…" in the More menu on a phone
+- Outline: a sheet listing a document's headings, with a jump to any of them, in both Preview and Edit
+- Links between Markdown files open the target in the app: relative links, links to a section (`other.md#second-part`) and `[[wikilinks]]`. A link to a section in a long document now scrolls there
+- Rename a file from the sidebar context menu. Open tabs, pinned and recent entries follow the new name, and a rename never overwrites an existing file
+
+**Editing**
+- Bullet, numbered, task and quote lists continue on Return, and an empty item ends the list. Tab and Shift-Tab indent and outdent list lines. Code fences are left alone
+- If a file changes on disk while it is open (a `git pull`, another editor, iCloud), autosave no longer overwrites it. The notice offers Reload or Overwrite
+
+**Reliability and speed**
+- Large documents render in chunks, so opening and scrolling them stays smooth
+- Folder scan and search are cheaper: stable file identities and a faster whole-file check before the per-line pass
+- Several smaller fixes in the GitHub browser and client, document store and tab handling
+
+**Testing**
+- Added a UI test suite that runs on simulators and a physical iPhone, driven by a throwaway fixture folder
+
 ## v1.3.2
 
 **Search**
