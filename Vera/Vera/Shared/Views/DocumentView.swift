@@ -78,6 +78,10 @@ struct DocumentView: View {
             }
         }
         .navigationTitle("")
+        .overlay {
+            if viewModel.diskConflict { diskConflictOverlay }
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.diskConflict)
         .sheet(isPresented: $showOutline) {
             OutlineView(items: Outline.items(in: viewModel.rawText)) { item in
                 viewModel.jump(to: item)
@@ -409,6 +413,39 @@ struct DocumentView: View {
         .foregroundStyle(.secondary)
         .fixedSize()
         .padding(.horizontal, 10)
+    }
+
+    /// Dims the document and says why saving stopped. The toolbar notice is under the
+    /// keyboard while typing, so without this nothing shows that edits aren't being saved.
+    /// The card sits near the top so the keyboard never covers it.
+    private var diskConflictOverlay: some View {
+        ZStack(alignment: .top) {
+            Color.black.opacity(0.4)
+                .ignoresSafeArea()
+            VStack(spacing: 12) {
+                Label("Changed on disk", systemImage: "exclamationmark.triangle.fill")
+                    .font(.headline)
+                Text("This file was changed outside Vera. Your edits are not being saved.")
+                    .font(.subheadline)
+                    .multilineTextAlignment(.center)
+                HStack(spacing: 12) {
+                    Button("Reload") { Task { await viewModel.resolveDiskConflict(overwrite: false) } }
+                        .buttonStyle(.bordered)
+                        .accessibilityHint("Discards your edits and loads the file from disk")
+                    Button("Overwrite") { Task { await viewModel.resolveDiskConflict(overwrite: true) } }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityHint("Replaces the file on disk with your text")
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: 360)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+            .padding(.top, 60)
+            .padding(.horizontal, 20)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("disk-conflict-overlay")
+        .transition(.opacity)
     }
 
     @ViewBuilder

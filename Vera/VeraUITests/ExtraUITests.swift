@@ -79,31 +79,22 @@ final class ExtraUITests: VeraUITestCase {
         // Let the external write happen first, then edit the now-stale buffer.
         while Date().timeIntervalSince(launched) < 17 { sleep(1) }
         tv.typeText("x")
-        let notice = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS[c] 'changed on disk'")).firstMatch
-        // The notice lives in a `.status` toolbar item, which is the bottom bar on iPhone and
-        // hides while the keyboard is up. Record whether it is visible while typing.
-        let whileTyping = notice.waitForExistence(timeout: 6)
-        print("FINDING changed-on-disk notice visible while typing: \(whileTyping)")
-        shot("after-stale-edit-keyboard-up")
-        if !whileTyping {
-            app.buttons["Done"].firstMatch.tap()
-            sleep(2)
-        }
-        let seen = whileTyping || notice.waitForExistence(timeout: 8)
-        shot("after-stale-edit")
-        XCTAssertTrue(seen, "no Changed on disk notice, even after leaving edit mode")
-        shot("changed-on-disk")
+        // The dimmed overlay must show while the keyboard is still up: that is the whole point.
+        let overlay = app.otherElements["disk-conflict-overlay"].firstMatch
+        let notice = app.staticTexts["Changed on disk"].firstMatch
+        let whileTyping = overlay.waitForExistence(timeout: 6) || notice.waitForExistence(timeout: 2)
+        shot("changed-on-disk-while-typing")
+        XCTAssertTrue(whileTyping, "no Changed on disk overlay while typing")
         let reload = app.buttons["Reload"].firstMatch
         XCTAssertTrue(reload.exists, "no Reload button")
         XCTAssertTrue(app.buttons["Overwrite"].firstMatch.exists, "no Overwrite button")
         reload.tap()
         sleep(2)
         shot("after-reload")
-        XCTAssertFalse(app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS[c] 'changed on disk'")).firstMatch.exists, "notice still showing after Reload")
-        // We left edit mode to see the notice, so check the rendered preview.
-        XCTAssertTrue(app.staticTexts["EXTERNAL EDIT"].firstMatch.waitForExistence(timeout: 5),
-                      "Reload did not bring in the external text")
-        XCTAssertFalse(app.staticTexts["Welcomex"].firstMatch.exists, "local edit survived Reload")
+        XCTAssertFalse(app.staticTexts["Changed on disk"].firstMatch.exists, "overlay still showing after Reload")
+        // Still in edit mode, so the reloaded text is in the text view.
+        let value = (textView().value as? String) ?? ""
+        XCTAssertTrue(value.contains("EXTERNAL EDIT"), "Reload did not bring in the external text")
+        XCTAssertFalse(value.contains("Welcomex"), "local edit survived Reload")
     }
 }
