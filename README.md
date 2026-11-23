@@ -11,7 +11,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 ## Download
 
 - **macOS** — grab the latest notarized `.dmg` from the [Releases page](https://github.com/mabaeyens/vera-apps/releases/latest). It's Developer ID-signed and notarized, so it opens without Gatekeeper warnings — no App Store needed.
-- **iOS / iPadOS**: v1.3.3 is in App Review for the App Store; until it clears, it is available through TestFlight.
+- **iOS / iPadOS**: [Vera on the App Store](https://apps.apple.com/app/id6768027447). Free, no account. A public [TestFlight beta](https://testflight.apple.com/join/AyS6RfM8) is also available; the 1.3.3 build is waiting for beta review, so the link may show no build until it clears.
 
 ## Screenshots
 
