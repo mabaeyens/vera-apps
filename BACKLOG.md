@@ -35,6 +35,8 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Pending
 
+- **1.3.4 (build 5) is on TestFlight, tagged `v1.3.4` as a pre-release; no DMG yet.** Check reveal and the breadcrumb on iPhone and iPad first. Then `/vera-release` builds the DMG; keep the pre-release flag so `/releases/latest` stays on 1.3.3. App Store submission waits for the next weekly release. The 1.3.4 record in App Store Connect already has the askmira.es support and marketing URLs.
+- **askmira.es Vera page: beta label for the Mac DMG.** The page keeps `/releases/latest` (stable 1.3.3) until the 1.3.4 DMG is attached. Then tell the web session to switch the button to the v1.3.4 release page with a "beta" label in English and Spanish.
 - **Reveal and breadcrumb gaps:** GitHub files have no tree position, so reveal does nothing for them and the breadcrumb is hidden. Clicking a breadcrumb segment while the sidebar is collapsed does not reopen it. The breadcrumb is hidden on iPhone, where the sidebar is a separate screen behind the back button. None of the new navigation has been tried on an iPhone, iPad or physical device, only on the Mac.
 - **Standalone files get no breadcrumb:** a file opened outside the opened folder could show its parent path as plain text, without links.
 - **Mac toolbar is still dense:** Open from GitHub and Copy All Text moved into the More menu (document-aware, see CHANGELOG). Remaining candidates: wrap lines, and anything else rarely used.
