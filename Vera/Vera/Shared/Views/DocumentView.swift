@@ -357,16 +357,6 @@ struct DocumentView: View {
         }
         if viewModel.mode == .viewing {
             ToolbarItem(placement: .automatic) {
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(viewModel.rawText, forType: .string)
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                }
-                .help("Copy all text")
-                .accessibilityLabel("Copy all text")
-            }
-            ToolbarItem(placement: .automatic) {
                 Button { wrapCode.toggle() } label: {
                     Image(systemName: wrapCode ? "text.alignleft" : "arrow.left.and.right")
                 }

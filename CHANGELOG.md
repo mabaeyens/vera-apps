@@ -9,6 +9,7 @@
 **Mac toolbar**
 - The toolbar is one flat row instead of several floating glass pills
 - Edit and Done have more room around the word
+- Open from GitHub and Copy All Text moved into the More menu. The GitHub entry shows for a GitHub document (or when nothing is open) and hides for a local file; Reveal and Refresh hide for a GitHub document. Copy All Text now works in Edit mode too
 
 **Fixes**
 - The line-number gutter in the Mac editor no longer draws its divider up through the toolbar and breadcrumb

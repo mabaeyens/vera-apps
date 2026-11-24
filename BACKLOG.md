@@ -4,6 +4,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Done
 
+- 2026-11-24: Moved Open from GitHub and Copy All Text into the Mac More menu, document-aware: the GitHub entry hides for local files, and Reveal and Refresh hide for GitHub documents (`MacRootView`). Unreleased.
 - 2026-11-24: Added "reveal active file in sidebar" (toolbar target button, ⇧⌘R on the Mac; `FileTreeView.reveal`, notification `.veraRevealActiveFile`) and a clickable path breadcrumb above the editor on Mac and iPad (`DocumentOrImageView.BreadcrumbBar`), modelled on Obsidian. Commit `6aede54`. Unreleased.
 - 2026-11-24: Mac toolbar is now one flat row (`veraFlatToolbar()` in `Theme.swift`, `sharedBackgroundVisibility(.hidden)` on a `Group` of items) and Edit/Done have padded labels. Commit `1c34038`. Unreleased.
 - 2026-11-24: Fixed the Mac line-number divider running up through the toolbar and breadcrumb. Cause: `NSRulerView` draws outside its bounds since macOS 14 because views no longer clip by default; the fix is `clipsToBounds = true` in `LineNumberRulerView.init`. Do not override `draw(_:)` on the ruler: that makes AppKit skip its macOS 26 ruler path and the ruler's layer then covers the whole window (blank editor, no breadcrumb). Verified in light and dark on the Mac. Commit `1c34038`. Unreleased.
@@ -36,7 +37,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 - **Reveal and breadcrumb gaps:** GitHub files have no tree position, so reveal does nothing for them and the breadcrumb is hidden. Clicking a breadcrumb segment while the sidebar is collapsed does not reopen it. The breadcrumb is hidden on iPhone, where the sidebar is a separate screen behind the back button. None of the new navigation has been tried on an iPhone, iPad or physical device, only on the Mac.
 - **Standalone files get no breadcrumb:** a file opened outside the opened folder could show its parent path as plain text, without links.
-- **Mac toolbar is dense:** 14 or more controls in one row. Candidates for the More menu: refresh, Open from GitHub, copy all text, wrap lines.
+- **Mac toolbar is still dense:** Open from GitHub and Copy All Text moved into the More menu (document-aware, see CHANGELOG). Remaining candidates: wrap lines, and anything else rarely used.
 - **Mac font default vs sidebar:** the 15pt default still reads large next to the 13pt sidebar. Options: lower the macOS default to 14pt, or migrate saved sizes once. Left at 15pt for now.
 
 - **Support and marketing URLs still point at the GitHub page.** Support should be https://askmira.es/vera/support/. App Store Connect locks both fields on a live version, so the change needs a new version record (1.3.4) with a build, set before submitting it. The changed-on-disk overlay is already committed and can ride along.

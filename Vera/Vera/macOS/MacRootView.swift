@@ -17,6 +17,13 @@ struct MacRootView: View {
     @AppStorage(Defaults.Key.focusMode) private var focusMode: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// Source of the document in the active tab (nil when nothing is open).
+    private var activeSource: DocumentSource? {
+        vm.tabs.first(where: { $0.id == vm.activeTabID })?.source
+    }
+
+    private var isGitHubDoc: Bool { activeSource?.isGitHub == true }
+
     var body: some View {
         @Bindable var vm = vm
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -97,6 +104,7 @@ struct MacRootView: View {
                 .accessibilityLabel("New file")
                 .disabled(vm.rootURL == nil)
             }
+            if !isGitHubDoc {
             ToolbarItem(placement: .automatic) {
                 Button {
                     NotificationCenter.default.post(name: .veraRevealActiveFile, object: nil)
@@ -108,6 +116,7 @@ struct MacRootView: View {
                 .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(vm.rootURL == nil)
             }
+            }
             ToolbarItem(placement: .automatic) {
                 Button { openPicker() } label: {
                     Image(systemName: "folder")
@@ -116,13 +125,7 @@ struct MacRootView: View {
                 .accessibilityLabel("Open folder or file")
                 .keyboardShortcut("o", modifiers: .command)
             }
-            ToolbarItem(placement: .automatic) {
-                Button { gitHubInitialRepo = nil; showGitHub = true } label: {
-                    Image(systemName: "chevron.left.forwardslash.chevron.right")
-                }
-                .help("Open from GitHub…")
-                .accessibilityLabel("Open from GitHub")
-            }
+            if !isGitHubDoc {
             ToolbarItem(placement: .automatic) {
                 Button { Task { await vm.load() } } label: {
                     Image(systemName: "arrow.clockwise")
@@ -130,9 +133,26 @@ struct MacRootView: View {
                 .help("Refresh")
                 .accessibilityLabel("Refresh")
             }
+            }
             // Secondary items live in a single overflow menu, matching iOS.
             ToolbarItem(placement: .automatic) {
                 Menu {
+                    // Document-aware: GitHub entry points show for a GitHub document (or when
+                    // nothing is open, so GitHub stays reachable) and hide for a local file.
+                    if activeSource == nil || isGitHubDoc {
+                        Button { gitHubInitialRepo = nil; showGitHub = true } label: {
+                            Label("Open from GitHub…", systemImage: "chevron.left.forwardslash.chevron.right")
+                        }
+                    }
+                    if let source = activeSource, let editor = vm.editor(for: source) {
+                        Button {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(editor.rawText, forType: .string)
+                        } label: {
+                            Label("Copy All Text", systemImage: "doc.on.doc")
+                        }
+                    }
+                    Divider()
                     Button { showIconHelp = true } label: {
                         Label("Icon Guide", systemImage: "questionmark.circle")
                     }
