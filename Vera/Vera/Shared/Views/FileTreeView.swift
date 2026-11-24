@@ -81,11 +81,19 @@ struct FileTreeView: View {
                     }
                 )
             } else {
-                List(selection: $selectedID) {
-                    if !savedRepos.isEmpty { gitHubSection }
-                    iCloudSections
+                ScrollViewReader { proxy in
+                    List(selection: $selectedID) {
+                        if !savedRepos.isEmpty { gitHubSection }
+                        iCloudSections
+                    }
+                    .listStyle(.sidebar)
+                    .onReceive(NotificationCenter.default.publisher(for: .veraRevealActiveFile)) { note in
+                        // No URL = the toolbar button (reveal the open file); a URL comes
+                        // from a breadcrumb segment (a folder, or the file itself).
+                        let target = (note.object as? URL) ?? activeFileURL
+                        Task { await reveal(target, proxy: proxy) }
+                    }
                 }
-                .listStyle(.sidebar)
                 // Rows used to ghost through the title/toolbar row as they scrolled under
                 // it — a half-faded filename sitting at the same weight as the toolbar
                 // icons above it. A hard edge cuts them off cleanly instead.
@@ -450,6 +458,7 @@ struct FileTreeView: View {
                     .onTapGesture { binding.wrappedValue.toggle() }
                     #endif
                 }
+                .id(id)
             )
         case .file:
             return AnyView(fileRow(node))
@@ -593,6 +602,7 @@ struct FileTreeView: View {
                 }
             }
             .tag(id)
+            .id(id)
             #else
             // Button wrapper is required: List(selection:) doesn't fire onChange inside
             // NavigationStack on iPhone — only NavigationSplitView enables that path.
@@ -646,6 +656,7 @@ struct FileTreeView: View {
             }
             .accessibilityAddTraits(isActive ? .isSelected : [])
             .tag(id)
+            .id(id)
             #endif
         }
     }
@@ -660,6 +671,54 @@ struct FileTreeView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background(.bar)
+    }
+
+    /// Obsidian-style "reveal active file": expands every folder between the root and the
+    /// file shown in the editor (loading unloaded levels on the way), selects the row and
+    /// scrolls it to the middle of the sidebar. Files outside the open folder (standalone
+    /// or GitHub) have no tree position, so this is a no-op for them.
+    private func reveal(_ target: URL?, proxy: ScrollViewProxy) async {
+        guard let fileURL = target else { return }
+        let filePath = fileURL.standardizedFileURL.path
+        iCloudFolderExpanded = true
+
+        // Descend one level at a time: each pass finds the first ancestor folder that is
+        // not yet open, opens it and loads its children, until none are left.
+        while let folder = nextAncestorFolder(of: filePath, in: vm.roots) {
+            expandedFolders.insert(folder.id)
+            if !loadedFolderIDs.contains(folder.id) {
+                loadedFolderIDs.insert(folder.id)
+                await vm.loadFolderChildren(id: folder.id, url: folder.url)
+            }
+        }
+
+        // A folder target (breadcrumb) scrolls to the folder row; a file also selects it.
+        let fileID = findID(url: fileURL, in: vm.roots)
+        guard let id = fileID ?? findFolderID(url: fileURL, in: vm.roots) else { return }
+        if fileID != nil { selectedID = id }
+        // Let the List lay out the newly expanded rows before scrolling to one of them.
+        try? await Task.sleep(for: .milliseconds(120))
+        withAnimation { proxy.scrollTo(id, anchor: .center) }
+    }
+
+    /// First folder on the path to `filePath` that is still collapsed (or not yet loaded).
+    private func nextAncestorFolder(of filePath: String, in nodes: [FileNode]) -> (id: UUID, url: URL)? {
+        for node in nodes {
+            guard case .folder(let id, _, let url, let children) = node,
+                  (filePath + "/").hasPrefix(url.standardizedFileURL.path + "/") else { continue }
+            if !expandedFolders.contains(id) || !loadedFolderIDs.contains(id) { return (id, url) }
+            if let deeper = nextAncestorFolder(of: filePath, in: children) { return deeper }
+        }
+        return nil
+    }
+
+    private func findFolderID(url: URL, in nodes: [FileNode]) -> UUID? {
+        for node in nodes {
+            guard case .folder(let id, _, let nodeURL, let children) = node else { continue }
+            if nodeURL.standardizedFileURL == url.standardizedFileURL { return id }
+            if let found = findFolderID(url: url, in: children) { return found }
+        }
+        return nil
     }
 
     private func findNode(id: UUID, in nodes: [FileNode]) -> FileNode? {

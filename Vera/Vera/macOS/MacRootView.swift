@@ -97,6 +97,17 @@ struct MacRootView: View {
                 .disabled(vm.rootURL == nil)
             }
             ToolbarItem(placement: .automatic) {
+                Button {
+                    NotificationCenter.default.post(name: .veraRevealActiveFile, object: nil)
+                } label: {
+                    Image(systemName: "scope")
+                }
+                .help("Reveal active file in sidebar (⇧⌘R)")
+                .accessibilityLabel("Reveal active file in sidebar")
+                .keyboardShortcut("r", modifiers: [.command, .shift])
+                .disabled(vm.rootURL == nil)
+            }
+            ToolbarItem(placement: .automatic) {
                 Button { openPicker() } label: {
                     Image(systemName: "folder")
                 }

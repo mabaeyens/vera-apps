@@ -11,6 +11,7 @@ extension Notification.Name {
     static let veraIconGuide  = Notification.Name("com.mab.vera.iconGuide")
     static let veraAbout      = Notification.Name("com.mab.vera.about")
     static let veraCheatSheet = Notification.Name("com.mab.vera.cheatSheet")
+    static let veraRevealActiveFile = Notification.Name("com.mab.vera.revealActiveFile")
 }
 
 #if os(macOS)

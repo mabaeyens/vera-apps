@@ -171,6 +171,15 @@ struct iOSRootView: View {
     private var sharedToolbar: some ToolbarContent {
         // Primary actions are visible, not buried in the menu.
         ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                NotificationCenter.default.post(name: .veraRevealActiveFile, object: nil)
+            } label: {
+                Image(systemName: "scope")
+            }
+            .accessibilityLabel("Reveal active file in sidebar")
+            .disabled(vm.rootURL == nil)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
             Button { showFolderPicker = true } label: {
                 Image(systemName: "folder")
             }
