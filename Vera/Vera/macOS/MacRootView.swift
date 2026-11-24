@@ -80,6 +80,7 @@ struct MacRootView: View {
             Text(error.localizedDescription)
         }
         .toolbar {
+            Group {
             ToolbarItem(placement: .automatic) {
                 Button { showQuickSwitcher = true } label: {
                     Image(systemName: "magnifyingglass")
@@ -144,6 +145,8 @@ struct MacRootView: View {
                 .help("More options")
                 .accessibilityLabel("More options")
             }
+            }
+            .veraFlatToolbar()
         }
         .sheet(isPresented: $showAbout) {
             AboutView(onReset: { vm.resetState() })

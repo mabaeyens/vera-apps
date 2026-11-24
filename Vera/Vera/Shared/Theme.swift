@@ -151,3 +151,19 @@ extension DynamicTypeSize {
     }
 }
 #endif
+
+// MARK: - Flat toolbar
+
+extension ToolbarContent {
+    /// macOS 26 wraps adjacent toolbar items in separate floating Liquid Glass pills, so
+    /// one row reads as several "islands". Hiding the shared background leaves the items
+    /// as plain icons and labels on one continuous bar, like a classic toolbar.
+    /// No-op on iOS, where the glass grouping is the platform's own convention.
+    func veraFlatToolbar() -> some ToolbarContent {
+        #if os(macOS)
+        sharedBackgroundVisibility(.hidden)
+        #else
+        self
+        #endif
+    }
+}

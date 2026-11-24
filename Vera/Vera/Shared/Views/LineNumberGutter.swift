@@ -163,6 +163,14 @@ final class LineNumberRulerView: NSRulerView {
         ruleThickness = Self.thickness(
             forGlyphSize: Theme.Typography.codeSize * Theme.Typography.gutterScale
         )
+        // Since macOS 14 views don't clip to their bounds by default, and inside the SwiftUI
+        // host AppKit hands the ruler a dirty rect covering the whole window. The ruler then
+        // draws its divider (and, with a `draw(_:)` override, its opaque background) far
+        // outside its frame: up through the breadcrumb and toolbar, and over the text view.
+        // Clipping keeps every pixel of the gutter inside the gutter.
+        // Don't override `draw(_:)` here: it also opts the ruler out of AppKit's own
+        // ruler content view and lets the fill escape across the editor.
+        clipsToBounds = true
     }
 
     required init(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }

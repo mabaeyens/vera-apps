@@ -231,14 +231,19 @@ struct DocumentView: View {
         // can open is editable, not just the 4 rich `DocumentFormat` cases.
         // Grouped: a ToolbarContentBuilder body tops out at 10 children, and the Outline
         // button was the eleventh.
+        Group {
         ToolbarItemGroup(placement: .primaryAction) {
             if viewModel.canEdit {
                 switch viewModel.mode {
                 case .viewing:
-                    Button("Edit") { viewModel.enterEditMode() }
+                    // Padded label: the bare word sat tight against the control edges.
+                    Button { viewModel.enterEditMode() } label: {
+                        Text("Edit").padding(.horizontal, 10)
+                    }
                 case .editing:
-                    Button("Done") { viewModel.exitEditMode() }
-                        .bold()
+                    Button { viewModel.exitEditMode() } label: {
+                        Text("Done").bold().padding(.horizontal, 10)
+                    }
                 }
             }
             if viewModel.format == .markdown {
@@ -391,6 +396,8 @@ struct DocumentView: View {
             .accessibilityLabel("Larger text")
         }
         #endif
+        }
+        .veraFlatToolbar()
         if viewModel.mode == .editing && !focusMode {
             ToolbarItem(placement: .status) {
                 wordCountIndicator
