@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+**Navigation**
+- Reveal in sidebar: a target button in the toolbar (⇧⌘R on the Mac) expands every folder down to the open file, selects it and scrolls it into view
+- Breadcrumb above the editor (Mac and iPad): the open file's path inside the opened folder. Clicking a folder reveals it in the sidebar tree, clicking the file reveals the file. Hidden on iPhone, and for GitHub and standalone files
+
+**Mac toolbar**
+- The toolbar is one flat row instead of several floating glass pills
+- Edit and Done have more room around the word
+
+**Fixes**
+- The line-number gutter in the Mac editor no longer draws its divider up through the toolbar and breadcrumb
+
 ## v1.3.3
 
 **Navigation**
