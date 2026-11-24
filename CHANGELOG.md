@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.3.4
 
 **Navigation**
 - Reveal in sidebar: a target button in the toolbar (⇧⌘R on the Mac) expands every folder down to the open file, selects it and scrolls it into view
@@ -12,6 +12,7 @@
 - Open from GitHub and Copy All Text moved into the More menu. The GitHub entry shows for a GitHub document (or when nothing is open) and hides for a local file; Reveal and Refresh hide for a GitHub document. Copy All Text now works in Edit mode too
 
 **Fixes**
+- The Privacy link in About opens the policy on askmira.es instead of the GitHub file. The App Store support and marketing pages point there too
 - The line-number gutter in the Mac editor no longer draws its divider up through the toolbar and breadcrumb
 
 ## v1.3.3
