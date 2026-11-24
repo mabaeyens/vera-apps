@@ -108,6 +108,7 @@ enum FileKind: Equatable {
         "json": "json",
         "yaml": "yaml", "yml": "yaml",
         "toml": "toml",
+        "ini": "ini", "cfg": "ini", "conf": "ini",
         "md": "markdown", "markdown": "markdown",
         "r": "r",
         "dockerfile": "dockerfile",
