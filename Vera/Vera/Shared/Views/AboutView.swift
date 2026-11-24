@@ -91,7 +91,7 @@ struct AboutView: View {
             Spacer().frame(height: 20)
 
             HStack(spacing: 16) {
-                if let privacyURL = URL(string: "https://github.com/mabaeyens/vera-apps/blob/main/PRIVACY.md") {
+                if let privacyURL = URL(string: "https://askmira.es/vera/privacy/") {
                     Link("Privacy", destination: privacyURL)
                 }
                 Text("·").foregroundStyle(.tertiary)
