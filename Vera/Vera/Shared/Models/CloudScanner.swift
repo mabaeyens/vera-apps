@@ -2,8 +2,7 @@ import Foundation
 import CryptoKit
 
 enum CloudScanner {
-    // Shallow scan: returns every direct file (any type — FileKind.classify decides how
-    // each one opens) + direct subfolders with empty children.
+    // Shallow scan: returns every direct file Vera can open (text, code, images; binaries are skipped) + direct subfolders with empty children.
     // Subfolders are loaded lazily when the user expands them in the sidebar.
     // nonisolated so FileManager work runs on the cooperative thread pool, not the main thread.
     nonisolated static func scan(root: URL) async throws -> [FileNode] {
@@ -37,6 +36,8 @@ enum CloudScanner {
                     date: modDate
                 ))
             } else {
+                // Only list files Vera can open; folders always stay so any place is browsable.
+                if FileKind.classify(path: itemURL.path) == .binary { continue }
                 files.append(Dated(
                     // Stable per path, like folders: a fresh UUID per scan made every
                     // refresh look like a brand-new row to the sidebar list.

@@ -1,4 +1,5 @@
 import Foundation
+import UniformTypeIdentifiers
 
 /// How a file, by extension, should be treated when browsing a folder or repo.
 /// `DocumentFormat` (the 4 live-editable formats) is unchanged and unaffected — this
@@ -67,8 +68,22 @@ enum FileKind: Equatable {
         "dmg", "zip", "gz", "tar", "exe", "app", "ipa", "pkg",
         "ttf", "otf", "woff", "woff2",
         "pdf", "mp3", "mp4", "mov", "wav",
-        "ico", "icns", "a", "o", "dylib"
+        "ico", "icns", "a", "o", "dylib",
+        "pbw", "epub", "mobi", "azw3", "7z", "rar", "bz2", "xz", "tgz", "jar", "apk",
+        "doc", "docx", "xls", "xlsx", "ppt", "pptx", "pages", "numbers", "key",
+        "m4a", "aac", "flac", "ogg", "avi", "mkv", "webm", "m4v",
+        "psd", "tif", "tiff", "raw", "svgz", "sqlite", "db", "bin", "iso", "class", "so", "wasm"
     ]
+
+    /// Catches binary extensions the list above misses, via the system type database.
+    /// Only types the system knows are judged; unknown extensions stay text.
+    private static func isBinaryByType(_ ext: String) -> Bool {
+        guard !ext.isEmpty, let type = UTType(filenameExtension: ext) else { return false }
+        if type.conforms(to: .text) || type.conforms(to: .sourceCode) { return false }
+        let binaryTypes: [UTType] = [.archive, .audiovisualContent, .pdf, .font, .executable,
+                                     .diskImage, .package, .spreadsheet, .presentation, .database]
+        return binaryTypes.contains { type.conforms(to: $0) }
+    }
 
     /// Extension (or loose language name) → Highlightr grammar id. Shared by the
     /// read-only tree viewer (`FileKind`) and the fenced-code-block renderer
@@ -110,7 +125,7 @@ enum FileKind: Equatable {
         let lower = ext.lowercased()
         if let format = DocumentFormat.from(extension: lower) { return .editable(format) }
         if imageExtensions.contains(lower) { return .image }
-        if binaryExtensions.contains(lower) { return .binary }
+        if binaryExtensions.contains(lower) || isBinaryByType(lower) { return .binary }
         return .readOnlyText(language: languageMap[lower])
     }
 
