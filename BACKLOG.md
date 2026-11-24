@@ -4,6 +4,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Done
 
+- 2026-11-24: Shipped 1.3.4 (build 5) to TestFlight, tagged `v1.3.4` as a pre-release with the notarized DMG. The App Store 1.3.4 record has the askmira.es support and marketing URLs; the About Privacy link opens askmira.es. The askmira.es Vera page labels the Mac download "beta" (web commit 2aa8431). Removed old Vera builds: 1.0 archives, 1.3.4 DerivedData apps and `/tmp` artifacts. 1.3.3 stays in `/Applications`.
 - 2026-11-24: Show Hidden Files and Folders setting (`Defaults.Key.showHiddenFiles`, default on in Debug, off in release). `CloudScanner` skips hidden files only when it is off, the Mac Open panel follows it, toggling rescans the sidebar, and dot-named rows are dimmed (`Theme.hiddenItemOpacity`, 0.55). Search and wikilink lookup still skip hidden files. Unreleased.
 - 2026-11-24: Moved Open from GitHub and Copy All Text into the Mac More menu, document-aware: the GitHub entry hides for local files, and Reveal and Refresh hide for GitHub documents (`MacRootView`). Unreleased.
 - 2026-11-24: Added "reveal active file in sidebar" (toolbar target button, ⇧⌘R on the Mac; `FileTreeView.reveal`, notification `.veraRevealActiveFile`) and a clickable path breadcrumb above the editor on Mac and iPad (`DocumentOrImageView.BreadcrumbBar`), modelled on Obsidian. Commit `6aede54`. Unreleased.
@@ -37,7 +38,8 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 ## Pending
 
 - **1.3.4 (build 5) is on TestFlight, tagged `v1.3.4` as a pre-release with the notarized DMG attached.** Check reveal and the breadcrumb on iPhone and iPad. The pre-release flag stays so `/releases/latest` stays on 1.3.3. App Store submission waits for the next weekly release. The 1.3.4 record in App Store Connect already has the askmira.es support and marketing URLs.
-- **askmira.es Vera page: beta label for the Mac DMG.** The 1.3.4 DMG is attached; the web session was asked to switch the button to the v1.3.4 release page with a "beta" label in English and Spanish. Verify once it is pushed.
+- **Hidden files are not released.** `c796533` (Show Hidden Files setting, dimmed rows) is on `main` after 1.3.4 and ships with the next version. Gaps: search and wikilink lookup still skip hidden files, and files inside a hidden folder are not dimmed. Not tried on iPhone or iPad.
+- **Unexplained heat with the Debug build (2026-11-24).** Vera ran hot and the toolbar open-folder button did nothing; quitting fixed it. Not reproduced: 0% CPU idle, after Reveal, Open, Edit and font changes, and an Opus code audit found no loop. If it recurs, run `sample Vera 5 -file /tmp/vera_sample.txt` while hot. Unconfirmed suspects: toolbar rebuild loop in `MacRootView`, and `HighlightingTextView` setting `rulerView?.needsDisplay` on every `updateNSView`.
 - **Reveal and breadcrumb gaps:** GitHub files have no tree position, so reveal does nothing for them and the breadcrumb is hidden. Clicking a breadcrumb segment while the sidebar is collapsed does not reopen it. The breadcrumb is hidden on iPhone, where the sidebar is a separate screen behind the back button. None of the new navigation has been tried on an iPhone, iPad or physical device, only on the Mac.
 - **Standalone files get no breadcrumb:** a file opened outside the opened folder could show its parent path as plain text, without links.
 - **Mac toolbar is still dense:** Open from GitHub and Copy All Text moved into the More menu (document-aware, see CHANGELOG). Remaining candidates: wrap lines, and anything else rarely used.
