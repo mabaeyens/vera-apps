@@ -30,6 +30,14 @@ struct ViewingModeView: View {
             // Highlightr language from the extension so e.g. .py/.entitlements get correct
             // highlighting instead of being misread as Markdown.
             VStack(spacing: 0) {
+                if viewModel.isTablePreview {
+                    Text("Large file: showing the first \(DocumentStore.tablePreviewRows) rows, read-only.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                }
                 PlainDocumentView(
                     rawText: viewModel.rawText,
                     fontSize: CGFloat(fontSize),

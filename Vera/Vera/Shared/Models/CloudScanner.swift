@@ -37,11 +37,12 @@ enum CloudScanner {
                 ))
             } else {
                 // Only list files Vera can open; folders always stay so any place is browsable.
-                if FileKind.classify(path: itemURL.path) == .binary { continue }
+                let state = downloadState(for: itemURL)
+                if !FileAllowlist.isListable(itemURL, downloadState: state) { continue }
                 files.append(Dated(
                     // Stable per path, like folders: a fresh UUID per scan made every
                     // refresh look like a brand-new row to the sidebar list.
-                    node: .file(id: stableID(for: itemURL), name: itemURL.lastPathComponent, url: itemURL, downloadState: downloadState(for: itemURL)),
+                    node: .file(id: stableID(for: itemURL), name: itemURL.lastPathComponent, url: itemURL, downloadState: state),
                     date: modDate
                 ))
             }

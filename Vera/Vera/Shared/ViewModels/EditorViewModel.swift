@@ -106,8 +106,15 @@ final class EditorViewModel {
     /// excluded. `format` still gates format-*specific* behavior (Markdown preview/auto-
     /// fix, JSON/YAML lint), which is unaffected by this being broader.
     var canEdit: Bool {
-        FileKind.classify(path: source.path).isEditable
+        !isTablePreview && FileKind.classify(path: source.path).isEditable
     }
+
+    /// True while a large CSV/TSV is shown as its first rows only. Read-only on purpose:
+    /// autosaving the truncated text would overwrite the real file.
+    private(set) var isTablePreview = false
+
+    /// Encoding the file was read in, reused on save. UTF-8 unless it was UTF-16 or Latin-1.
+    private var fileEncoding: String.Encoding = .utf8
 
     var isUncommitted: Bool {
         if case .uncommitted = saveState { return true }
@@ -272,8 +279,18 @@ final class EditorViewModel {
     }
 
     private func loadFile(_ url: URL) async {
+        if let preview = await DocumentStore.readTablePreview(url) {
+            isTablePreview = true
+            mode = .viewing
+            rawText = preview
+            recordModificationDate(of: url)
+            return
+        }
+        isTablePreview = false
         do {
-            rawText = try await DocumentStore.read(url)
+            let decoded = try await DocumentStore.readDecoded(url)
+            rawText = decoded.text
+            fileEncoding = decoded.encoding
             recordModificationDate(of: url)
         } catch {
             // Only retry if this is genuinely an iCloud item still downloading — a file
@@ -313,7 +330,9 @@ final class EditorViewModel {
                 // A failed read must not fall through to an empty, editable buffer:
                 // autosave would then overwrite the real file with nothing.
                 do {
-                    rawText = try await DocumentStore.read(url)
+                    let decoded = try await DocumentStore.readDecoded(url)
+                    rawText = decoded.text
+                    fileEncoding = decoded.encoding
                     recordModificationDate(of: url)
                 } catch {
                     rawText = ""
@@ -629,14 +648,14 @@ final class EditorViewModel {
     }
 
     private func flush(force: Bool = false) async {
-        guard case .file(let url) = source else { return }
+        guard case .file(let url) = source, !isTablePreview else { return }
         if !force, await externallyChangedText(at: url) != nil {
             diskConflict = true
             saveState = .error("Changed on disk")
             return
         }
         do {
-            try await DocumentStore.write(url, content: rawText)
+            try await DocumentStore.write(url, content: rawText, encoding: fileEncoding)
             diskConflict = false
             saveState = .saved
             // Our own write moved the mtime; record it so returning to this tab doesn't

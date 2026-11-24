@@ -6,15 +6,34 @@ import Foundation
 // Task.detached so the coordinator work happens off the main thread.
 enum DocumentStore {
     static func read(_ url: URL) async throws -> String {
+        try await readDecoded(url).text
+    }
+
+    /// Decode raw bytes: UTF-8 first, then UTF-16 (with BOM), then Latin-1 so a legacy
+    /// config still opens. Anything with NUL bytes that isn't UTF-16 is binary and fails.
+    nonisolated static func decode(_ data: Data) -> (text: String, encoding: String.Encoding)? {
+        if data.starts(with: [0xFF, 0xFE]) || data.starts(with: [0xFE, 0xFF]),
+           let text = String(data: data, encoding: .utf16) { return (text, .utf16) }
+        if let text = String(data: data, encoding: .utf8) { return (text, .utf8) }
+        if data.contains(0) { return nil }
+        if let text = String(data: data, encoding: .isoLatin1) { return (text, .isoLatin1) }
+        return nil
+    }
+
+    /// Like `read`, but also reports the encoding so a save can write the file back the
+    /// way it came (a Latin-1 file must not silently become UTF-8).
+    static func readDecoded(_ url: URL) async throws -> (text: String, encoding: String.Encoding) {
         try await Task.detached(priority: .userInitiated) {
-            var content: String?
+            var content: (text: String, encoding: String.Encoding)?
             var readError: Error?
             var coordError: NSError?
 
             let coordinator = NSFileCoordinator()
             coordinator.coordinate(readingItemAt: url, options: [], error: &coordError) { coordURL in
                 do {
-                    content = try String(contentsOf: coordURL, encoding: .utf8)
+                    let data = try Data(contentsOf: coordURL)
+                    guard let decoded = decode(data) else { throw CocoaError(.fileReadInapplicableStringEncoding) }
+                    content = decoded
                 } catch {
                     readError = error
                 }
@@ -34,6 +53,28 @@ enum DocumentStore {
 
     /// Byte-level read for non-text files (e.g. images). Mirrors `read(_:)` — same
     /// coordinator pattern, off the main thread — but returns raw `Data`.
+    /// Above this size a CSV/TSV opens as a read-only preview instead of loading whole.
+    static let tablePreviewThreshold = 1_000_000
+    static let tablePreviewRows = 100
+
+    /// First `tablePreviewRows` lines of a large CSV/TSV, or nil when the file isn't one or
+    /// is small enough to open normally. Reads only the head of the file.
+    static func readTablePreview(_ url: URL) async -> String? {
+        let ext = url.pathExtension.lowercased()
+        guard ext == "csv" || ext == "tsv" else { return nil }
+        return await Task.detached(priority: .userInitiated) { () -> String? in
+            let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
+            guard size > tablePreviewThreshold,
+                  let handle = try? FileHandle(forReadingFrom: url),
+                  let data = try? handle.read(upToCount: 512_000) else { return nil }
+            try? handle.close()
+            let text = String(decoding: data, as: UTF8.self)
+            let rows = text.split(separator: "\n", maxSplits: tablePreviewRows, omittingEmptySubsequences: false)
+                .prefix(tablePreviewRows)
+            return rows.joined(separator: "\n")
+        }.value
+    }
+
     static func readData(_ url: URL) async throws -> Data {
         try await Task.detached(priority: .userInitiated) {
             var content: Data?
@@ -56,7 +97,7 @@ enum DocumentStore {
         }.value
     }
 
-    static func write(_ url: URL, content: String) async throws {
+    static func write(_ url: URL, content: String, encoding: String.Encoding = .utf8) async throws {
         try await Task.detached(priority: .userInitiated) {
             var writeError: Error?
             var coordError: NSError?
@@ -64,7 +105,9 @@ enum DocumentStore {
             let coordinator = NSFileCoordinator()
             coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { coordURL in
                 do {
-                    try content.write(to: coordURL, atomically: true, encoding: .utf8)
+                    // Latin-1 can't hold every character; widen to UTF-8 rather than fail the save.
+                    let enc = content.canBeConverted(to: encoding) ? encoding : .utf8
+                    try content.write(to: coordURL, atomically: true, encoding: enc)
                 } catch {
                     writeError = error
                 }
