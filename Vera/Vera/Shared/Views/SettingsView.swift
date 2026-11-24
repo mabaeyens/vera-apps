@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage(Defaults.Key.linterEnabled) private var linterEnabled = true
     @AppStorage(Defaults.Key.lineNumbersEnabled) private var lineNumbers = true
     @AppStorage(Defaults.Key.codeWrapEnabled) private var wrapCode = false
+    @AppStorage(Defaults.Key.showHiddenFiles) private var showHidden = Defaults.showHiddenFilesDefault
 
     var body: some View {
         Form {
@@ -33,6 +34,13 @@ struct SettingsView: View {
                 }
                 Toggle("Show Line Numbers", isOn: $lineNumbers)
                 Toggle("Wrap Long Lines", isOn: $wrapCode)
+            }
+
+            Section("Files") {
+                Toggle("Show Hidden Files and Folders", isOn: $showHidden)
+                Text("Shows names that start with a dot, such as .claude.json or .github, in the sidebar and the Open panel.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Markdown") {

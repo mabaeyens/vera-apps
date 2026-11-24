@@ -4,6 +4,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 ## Done
 
+- 2026-11-24: Show Hidden Files and Folders setting (`Defaults.Key.showHiddenFiles`, default on in Debug, off in release). `CloudScanner` skips hidden files only when it is off, the Mac Open panel follows it, toggling rescans the sidebar, and dot-named rows are dimmed (`Theme.hiddenItemOpacity`, 0.55). Search and wikilink lookup still skip hidden files. Unreleased.
 - 2026-11-24: Moved Open from GitHub and Copy All Text into the Mac More menu, document-aware: the GitHub entry hides for local files, and Reveal and Refresh hide for GitHub documents (`MacRootView`). Unreleased.
 - 2026-11-24: Added "reveal active file in sidebar" (toolbar target button, ⇧⌘R on the Mac; `FileTreeView.reveal`, notification `.veraRevealActiveFile`) and a clickable path breadcrumb above the editor on Mac and iPad (`DocumentOrImageView.BreadcrumbBar`), modelled on Obsidian. Commit `6aede54`. Unreleased.
 - 2026-11-24: Mac toolbar is now one flat row (`veraFlatToolbar()` in `Theme.swift`, `sharedBackgroundVisibility(.hidden)` on a `Group` of items) and Edit/Done have padded labels. Commit `1c34038`. Unreleased.

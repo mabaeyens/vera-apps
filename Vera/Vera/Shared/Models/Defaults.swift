@@ -22,6 +22,22 @@ enum Defaults {
         static let githubLastOwner      = "github.lastOwner"
         static let githubLastRepo       = "github.lastRepo"
         static let githubSavedRepos     = "github.savedRepos"
+        static let showHiddenFiles      = "showHiddenFiles"
+    }
+
+    /// Hidden files and folders (names starting with a dot, like `.claude.json`) in the
+    /// sidebar and the Open panel. On by default in Debug builds so development sessions
+    /// can reach dotfiles; off in release builds until the user turns it on.
+    #if DEBUG
+    static let showHiddenFilesDefault = true
+    #else
+    static let showHiddenFilesDefault = false
+    #endif
+
+    /// Current value for code outside SwiftUI (the scanner runs off the main actor).
+    /// An unset key falls back to the build default, not to `false`.
+    nonisolated static var showHiddenFiles: Bool {
+        UserDefaults.standard.object(forKey: Key.showHiddenFiles) as? Bool ?? showHiddenFilesDefault
     }
 
     /// Editor/preview font sizing. Single source for the Dynamic-Type-relevant bounds

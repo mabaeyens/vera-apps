@@ -5,6 +5,7 @@ struct AboutView: View {
     var onReset: (() -> Void)? = nil
 
     @AppStorage(Defaults.Key.linterEnabled) private var linterEnabled = true
+    @AppStorage(Defaults.Key.showHiddenFiles) private var showHiddenFiles = Defaults.showHiddenFilesDefault
     @State private var showResetConfirmation = false
 
     private var version: String {
@@ -77,6 +78,10 @@ struct AboutView: View {
 
             VStack(spacing: 12) {
                 Toggle("Markdown Linter", isOn: $linterEnabled)
+                    .font(.subheadline)
+                    .frame(maxWidth: 280)
+
+                Toggle("Show Hidden Files", isOn: $showHiddenFiles)
                     .font(.subheadline)
                     .frame(maxWidth: 280)
 

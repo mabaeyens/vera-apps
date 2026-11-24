@@ -14,7 +14,7 @@ enum CloudScanner {
         let contents = try FileManager.default.contentsOfDirectory(
             at: url,
             includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey, .contentModificationDateKey],
-            options: [.skipsHiddenFiles]
+            options: Defaults.showHiddenFiles ? [] : [.skipsHiddenFiles]
         )
 
         struct Dated {
@@ -25,6 +25,8 @@ enum CloudScanner {
         var files: [Dated] = []
 
         for itemURL in contents {
+            // Finder litter, never worth a row even with hidden files shown.
+            if itemURL.lastPathComponent == ".DS_Store" { continue }
             // Skip an individual unreadable item rather than aborting the whole scan
             // (which would blank the sidebar over one bad file).
             guard let resources = try? itemURL.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey]) else { continue }

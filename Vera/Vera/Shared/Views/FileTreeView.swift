@@ -17,6 +17,7 @@ struct FileTreeView: View {
     @State private var didInitialLoad = false
     @AppStorage(Defaults.Key.openFilesExpanded) private var openFilesExpanded: Bool = true
     @AppStorage(Defaults.Key.iCloudFolderExpanded) private var iCloudFolderExpanded: Bool = true
+    @AppStorage(Defaults.Key.showHiddenFiles) private var showHiddenFiles: Bool = Defaults.showHiddenFilesDefault
     @State private var savedRepos: [SavedRepo] = RepoListStore.all()
     @State private var repoBrowser = RepoBrowser()
     @State private var expandedRepos: Set<String> = []        // SavedRepo.id
@@ -109,6 +110,8 @@ struct FileTreeView: View {
             prompt: "Search this folder"
         )
         .onChange(of: vm.searchQuery) { _, _ in vm.runSearch() }
+        // Rescan when hidden files are turned on or off, so the sidebar matches at once.
+        .onChange(of: showHiddenFiles) { _, _ in Task { await vm.load() } }
         .confirmationDialog(
             "Delete \"\(fileToDelete?.name ?? "")\"?",
             isPresented: Binding(get: { fileToDelete != nil }, set: { if !$0 { fileToDelete = nil } }),
@@ -453,6 +456,7 @@ struct FileTreeView: View {
                             .accessibilityHidden(true)
                         Text(name)
                     }
+                    .opacity(Theme.hiddenItemOpacity(name))
                     .contentShape(Rectangle())
                     #if os(iOS)
                     .onTapGesture { binding.wrappedValue.toggle() }
@@ -618,6 +622,7 @@ struct FileTreeView: View {
                         DocumentFileIcon(name: name)
                             .foregroundStyle(isActive ? Theme.accent : .secondary)
                     }
+                    .opacity(Theme.hiddenItemOpacity(name))
                     Spacer()
                     if vm.downloadingURLs.contains(url) {
                         ProgressView().controlSize(.small)
@@ -777,6 +782,7 @@ private struct MacFileRow: View {
                 DocumentFileIcon(name: name)
                     .foregroundStyle(isActive ? Theme.accent : .secondary)
             }
+            .opacity(Theme.hiddenItemOpacity(name))
             Spacer()
             if isDownloading {
                 ProgressView().controlSize(.small)

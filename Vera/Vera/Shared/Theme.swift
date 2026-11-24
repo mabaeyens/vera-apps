@@ -167,3 +167,13 @@ extension ToolbarContent {
         #endif
     }
 }
+
+// MARK: - Hidden items
+
+extension Theme {
+    /// Dot-prefixed names (hidden files and folders) are drawn dimmed in the sidebar, so
+    /// they stand out from regular items at a glance without disappearing.
+    static func hiddenItemOpacity(_ name: String) -> Double {
+        name.hasPrefix(".") ? 0.55 : 1
+    }
+}

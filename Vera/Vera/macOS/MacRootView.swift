@@ -208,6 +208,7 @@ struct MacRootView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
+        panel.showsHiddenFiles = Defaults.showHiddenFiles
 
         panel.begin { response in
             vm.needsFolderPicker = false
