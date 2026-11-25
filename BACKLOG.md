@@ -52,7 +52,7 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 - **Support and marketing URLs still point at the GitHub page.** Support should be https://askmira.es/vera/support/. App Store Connect locks both fields on a live version, so the change needs a new version record (1.3.4) with a build, set before submitting it. The changed-on-disk overlay is already committed and can ride along.
 - **Web repo push:** the Vera pages on askmira.es (screenshots, App Store link, copy fixes) are committed or staged locally in mira-web but not pushed. Pushing is a request to that repo's session.
-- **External TestFlight for Vera is ready for 1.3.3** (cleared review). The README line about waiting for beta review can be dropped.
+- **External TestFlight for Vera is ready for 1.3.3** (cleared review). The README note about waiting for review is removed.
 - **Accessibility — device pass + Nutrition Label** — code remediation F1–F6 and F8 done (labels, Dynamic Type for mono text, decorative-icon hiding, selection traits, Reduce Motion); see [ACCESSIBILITY_SPEC.md](ACCESSIBILITY_SPEC.md). F5 left as-is, F7 (preview heading/table VoiceOver structure) deferred. Procedure for the remaining on-device VoiceOver + Dynamic Type pass and the Nutrition Label mapping: [ACCESSIBILITY_SPEC.md § Device pass & Nutrition Label procedure](ACCESSIBILITY_SPEC.md#device-pass--nutrition-label-procedure).
 
 - **UI items still untested:** the iPad close dialog with an unsaved or conflicted file, undo of a Return as one step, and iCloud conflict copies. Shift-Tab (outdent) is not implemented on iOS, only Tab.
