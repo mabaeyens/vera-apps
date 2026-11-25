@@ -176,4 +176,13 @@ extension Theme {
     static func hiddenItemOpacity(_ name: String) -> Double {
         name.hasPrefix(".") ? 0.55 : 1
     }
+
+    /// Like `hiddenItemOpacity(_:)`, but also dims anything inside a hidden folder: true when
+    /// any path component below `root` starts with a dot. A root that itself lives in a
+    /// dot-folder is not counted, and without a root (a standalone file) only the name counts.
+    static func hiddenItemOpacity(url: URL, root: URL?) -> Double {
+        guard let root else { return hiddenItemOpacity(url.lastPathComponent) }
+        let relative = FileIndex.relativePath(of: url, to: root)
+        return relative.split(separator: "/").contains { $0.hasPrefix(".") } ? 0.55 : 1
+    }
 }

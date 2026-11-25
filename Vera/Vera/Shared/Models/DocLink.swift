@@ -96,7 +96,7 @@ enum FileIndex {
             guard let walker = FileManager.default.enumerator(
                 at: root,
                 includingPropertiesForKeys: [.isDirectoryKey],
-                options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                options: Defaults.showHiddenFiles ? [.skipsPackageDescendants] : [.skipsHiddenFiles, .skipsPackageDescendants]
             ) else { return [] }
 
             var files: [URL] = []
@@ -106,6 +106,7 @@ enum FileIndex {
                     if FolderSearch.alwaysSkip.contains(url.lastPathComponent) { walker.skipDescendants() }
                     continue
                 }
+                if url.lastPathComponent == ".DS_Store" { continue }
                 guard FileKind.classify(path: url.path).isEditable else { continue }
                 files.append(url)
             }
@@ -130,8 +131,15 @@ enum FileIndex {
             let da = sharedPrefixLength(a.deletingLastPathComponent().path, currentDir)
             let db = sharedPrefixLength(b.deletingLastPathComponent().path, currentDir)
             if da != db { return da > db }
+            let ha = hiddenRank(a, root: root), hb = hiddenRank(b, root: root)
+            if ha != hb { return ha < hb }
             return a.path.count < b.path.count
         }
+    }
+
+    /// 1 when the file sits under a dot-named component below `root`, else 0.
+    private static func hiddenRank(_ url: URL, root: URL) -> Int {
+        relativePath(of: url, to: root).split(separator: "/").contains { $0.hasPrefix(".") } ? 1 : 0
     }
 
     static func relativePath(of url: URL, to root: URL) -> String {

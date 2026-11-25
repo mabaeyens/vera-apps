@@ -62,7 +62,7 @@ enum FolderSearch {
                 guard let walker = FileManager.default.enumerator(
                     at: root,
                     includingPropertiesForKeys: keys,
-                    options: [.skipsHiddenFiles, .skipsPackageDescendants]
+                    options: Defaults.showHiddenFiles ? [.skipsPackageDescendants] : [.skipsHiddenFiles, .skipsPackageDescendants]
                 ) else {
                     continuation.yield(.finished)
                     continuation.finish()
@@ -73,6 +73,7 @@ enum FolderSearch {
                     if Task.isCancelled { break }
 
                     let name = url.lastPathComponent
+                    if name == ".DS_Store" { continue }
                     let values = try? url.resourceValues(forKeys: Set(keys))
 
                     if values?.isDirectory == true {

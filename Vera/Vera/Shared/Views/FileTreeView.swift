@@ -42,7 +42,10 @@ struct FileTreeView: View {
                     ContentUnavailableView {
                         Label("Couldn't Load Files", systemImage: "exclamationmark.triangle")
                     } actions: {
-                        Button("Try Again") { Task { await vm.load() } }
+                        Button("Try Again") { Task { await vm.load() }
+            // Results from the other setting value would otherwise stay on screen.
+            if !vm.searchQuery.isEmpty { vm.runSearch() }
+        }
                     }
                 } else if vm.rootURL == nil {
                     ContentUnavailableView {
@@ -456,7 +459,7 @@ struct FileTreeView: View {
                             .accessibilityHidden(true)
                         Text(name)
                     }
-                    .opacity(Theme.hiddenItemOpacity(name))
+                    .opacity(Theme.hiddenItemOpacity(url: folderURL, root: vm.rootURL))
                     .contentShape(Rectangle())
                     #if os(iOS)
                     .onTapGesture { binding.wrappedValue.toggle() }
@@ -622,7 +625,7 @@ struct FileTreeView: View {
                         DocumentFileIcon(name: name)
                             .foregroundStyle(isActive ? Theme.accent : .secondary)
                     }
-                    .opacity(Theme.hiddenItemOpacity(name))
+                    .opacity(Theme.hiddenItemOpacity(url: url, root: vm.rootURL))
                     Spacer()
                     if vm.downloadingURLs.contains(url) {
                         ProgressView().controlSize(.small)
@@ -773,6 +776,7 @@ private struct MacFileRow: View {
     let isDownloading: Bool
     let isOnline: Bool
     let onDownload: () -> Void
+    @Environment(FileTreeViewModel.self) private var vm
 
     var body: some View {
         HStack {
@@ -782,7 +786,7 @@ private struct MacFileRow: View {
                 DocumentFileIcon(name: name)
                     .foregroundStyle(isActive ? Theme.accent : .secondary)
             }
-            .opacity(Theme.hiddenItemOpacity(name))
+            .opacity(Theme.hiddenItemOpacity(url: url, root: vm.rootURL))
             Spacer()
             if isDownloading {
                 ProgressView().controlSize(.small)

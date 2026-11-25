@@ -3,7 +3,7 @@
 ## Unreleased
 
 **Files**
-- Show Hidden Files and Folders: a setting (Settings on the Mac, the About sheet on iPhone and iPad) that lists dot-named items such as `.claude.json` or `.github` in the sidebar and the Mac Open panel. Hidden items are drawn dimmed. Off by default in release builds, on in Debug builds. Search and `[[wikilinks]]` still skip hidden files
+- Show Hidden Files and Folders: a setting (Settings on the Mac, the About sheet on iPhone and iPad) that lists dot-named items such as `.claude.json` or `.github` in the sidebar and the Mac Open panel. Hidden items are drawn dimmed. Off by default in release builds, on in Debug builds. Folder search, the quick switcher and `[[wikilinks]]` follow the setting, and everything inside a hidden folder is dimmed too
 - The sidebar lists only files Vera can open, plus all folders. Known binaries (PDF, ZIP, PBW, EPUB and similar) are hidden, so tapping a file never ends in "try another app". Anything on the allowlist shows; anything else shows only if its first 4 KB reads as text
 - Files saved as UTF-16 or Latin-1 now open, and save back in the encoding they came in
 - A CSV or TSV over 1 MB opens as a read-only preview of its first 100 rows, with a notice, so it can't be truncated by autosave
