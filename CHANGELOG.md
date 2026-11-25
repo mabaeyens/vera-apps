@@ -9,6 +9,9 @@
 - A CSV or TSV over 1 MB opens as a read-only preview of its first 100 rows, with a notice, so it can't be truncated by autosave
 - Wikilinks open faster in big folders and ignore repeated taps while resolving
 - Closing an open document from the list on iPhone leaves you on the list instead of opening another document
+- Sort options in More options: Name, Date Modified, Size or Kind, ascending or descending, with an optional Folders on Top. The default keeps the old order (newest first, folders last)
+- Tapping a file that is only in iCloud opens it on the first tap on iPhone and iPad, instead of needing a second tap
+- Pull to refresh and folder scans no longer stall on a folder with many iCloud files, and a failed scan still refreshes the folders you have open
 - INI syntax highlighting for `.ini`, `.cfg` and `.conf`
 
 ## v1.3.4

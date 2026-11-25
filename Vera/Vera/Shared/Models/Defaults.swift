@@ -23,6 +23,34 @@ enum Defaults {
         static let githubLastRepo       = "github.lastRepo"
         static let githubSavedRepos     = "github.savedRepos"
         static let showHiddenFiles      = "showHiddenFiles"
+        static let sortKey              = "sidebarSortKey"
+        static let sortAscending        = "sidebarSortAscending"
+        static let foldersOnTop         = "sidebarFoldersOnTop"
+    }
+
+    /// How the sidebar orders a folder's contents. Defaults reproduce the order Vera always
+    /// had: newest first, files above folders.
+    enum SortKey: String, CaseIterable, Sendable {
+        case name, dateModified, size, kind
+
+        var title: String {
+            switch self {
+            case .name: "Name"
+            case .dateModified: "Date Modified"
+            case .size: "Size"
+            case .kind: "Kind"
+            }
+        }
+    }
+
+    nonisolated static var sortKey: SortKey {
+        (UserDefaults.standard.string(forKey: Key.sortKey)).flatMap(SortKey.init(rawValue:)) ?? .dateModified
+    }
+    nonisolated static var sortAscending: Bool {
+        UserDefaults.standard.object(forKey: Key.sortAscending) as? Bool ?? false
+    }
+    nonisolated static var foldersOnTop: Bool {
+        UserDefaults.standard.object(forKey: Key.foldersOnTop) as? Bool ?? false
     }
 
     /// Hidden files and folders (names starting with a dot, like `.claude.json`) in the

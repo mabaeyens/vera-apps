@@ -18,6 +18,9 @@ struct FileTreeView: View {
     @AppStorage(Defaults.Key.openFilesExpanded) private var openFilesExpanded: Bool = true
     @AppStorage(Defaults.Key.iCloudFolderExpanded) private var iCloudFolderExpanded: Bool = true
     @AppStorage(Defaults.Key.showHiddenFiles) private var showHiddenFiles: Bool = Defaults.showHiddenFilesDefault
+    @AppStorage(Defaults.Key.sortKey) private var sortKeyRaw = Defaults.SortKey.dateModified.rawValue
+    @AppStorage(Defaults.Key.sortAscending) private var sortAscending = false
+    @AppStorage(Defaults.Key.foldersOnTop) private var foldersOnTop = false
     @State private var savedRepos: [SavedRepo] = RepoListStore.all()
     @State private var repoBrowser = RepoBrowser()
     @State private var expandedRepos: Set<String> = []        // SavedRepo.id
@@ -42,10 +45,7 @@ struct FileTreeView: View {
                     ContentUnavailableView {
                         Label("Couldn't Load Files", systemImage: "exclamationmark.triangle")
                     } actions: {
-                        Button("Try Again") { Task { await vm.load() }
-            // Results from the other setting value would otherwise stay on screen.
-            if !vm.searchQuery.isEmpty { vm.runSearch() }
-        }
+                        Button("Try Again") { Task { await vm.load() } }
                     }
                 } else if vm.rootURL == nil {
                     ContentUnavailableView {
@@ -114,7 +114,14 @@ struct FileTreeView: View {
         )
         .onChange(of: vm.searchQuery) { _, _ in vm.runSearch() }
         // Rescan when hidden files are turned on or off, so the sidebar matches at once.
-        .onChange(of: showHiddenFiles) { _, _ in Task { await vm.load() } }
+        .onChange(of: sortKeyRaw) { _, _ in Task { await vm.load() } }
+        .onChange(of: sortAscending) { _, _ in Task { await vm.load() } }
+        .onChange(of: foldersOnTop) { _, _ in Task { await vm.load() } }
+        .onChange(of: showHiddenFiles) { _, _ in
+            Task { await vm.load() }
+            // Results from the other setting value would otherwise stay on screen.
+            if !vm.searchQuery.isEmpty { vm.runSearch() }
+        }
         .confirmationDialog(
             "Delete \"\(fileToDelete?.name ?? "")\"?",
             isPresented: Binding(get: { fileToDelete != nil }, set: { if !$0 { fileToDelete = nil } }),
@@ -217,6 +224,11 @@ struct FileTreeView: View {
             // Check folder tree first
             if let node = findNode(id: id, in: vm.roots),
                case .file(_, _, let url, let state) = node {
+                // Already the open document: this change is only the selection catching up
+                // with it (iPhone button, link, search). Opening again re-set the same
+                // selection and, for an iCloud file, started its download in the same update
+                // as the push, which made the first tap on such a file do nothing.
+                if vm.selectedSource == .file(url) { return }
                 if state == .cloud { vm.download(url) }
                 vm.pinFile(url)
                 vm.openFileInNewTab(url)
@@ -225,6 +237,7 @@ struct FileTreeView: View {
             // Check standalone files
             if let node = vm.standaloneFiles.first(where: { $0.id == id }),
                case .file(_, _, let url, _) = node {
+                if vm.selectedSource == .file(url) { return }
                 vm.openFileInNewTab(url)
             }
         }
@@ -614,9 +627,18 @@ struct FileTreeView: View {
             // Button wrapper is required: List(selection:) doesn't fire onChange inside
             // NavigationStack on iPhone — only NavigationSplitView enables that path.
             Button {
-                if state == .cloud { vm.download(url) }
                 vm.pinFile(url)
                 vm.openFileInNewTab(url)
+                // Not in the same update as the push: changing the row (download spinner)
+                // and presenting the document together made SwiftUI drop the navigation, so
+                // an iCloud file needed a second tap. The document load also waits for the
+                // download itself, so this only adds the row's progress indicator.
+                if state == .cloud {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(400))
+                        vm.download(url)
+                    }
+                }
             } label: {
                 HStack {
                     Label {

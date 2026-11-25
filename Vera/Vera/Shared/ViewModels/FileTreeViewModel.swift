@@ -471,7 +471,9 @@ final class FileTreeViewModel {
             }
         }
         // Retries exhausted and the folder still exists — surface the error but
-        // keep any existing roots so the sidebar isn't blanked.
+        // keep any existing roots so the sidebar isn't blanked. Expanded folders are scanned
+        // on their own, so a slow top level must not leave them showing a stale listing.
+        await reloadExpandedFolderChildren()
         loadFailed = true
     }
 

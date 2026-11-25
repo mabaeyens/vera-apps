@@ -12,44 +12,68 @@ enum CloudScanner {
     nonisolated static func scanShallow(at url: URL) async throws -> [FileNode] {
         let contents = try FileManager.default.contentsOfDirectory(
             at: url,
-            includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey, .contentModificationDateKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .ubiquitousItemDownloadingStatusKey, .contentModificationDateKey,
+                                         .fileSizeKey, .fileAllocatedSizeKey],
             options: Defaults.showHiddenFiles ? [] : [.skipsHiddenFiles]
         )
 
-        struct Dated {
+        struct Entry {
             let node: FileNode
             let date: Date
+            let size: Int
+            let kind: String
         }
-        var folders: [Dated] = []
-        var files: [Dated] = []
+        var folders: [Entry] = []
+        var files: [Entry] = []
 
         for itemURL in contents {
             // Finder litter, never worth a row even with hidden files shown.
             if itemURL.lastPathComponent == ".DS_Store" { continue }
             // Skip an individual unreadable item rather than aborting the whole scan
             // (which would blank the sidebar over one bad file).
-            guard let resources = try? itemURL.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey]) else { continue }
+            guard let resources = try? itemURL.resourceValues(forKeys: [
+                .isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .fileAllocatedSizeKey,
+            ]) else { continue }
             let modDate = resources.contentModificationDate ?? .distantPast
             if resources.isDirectory == true {
-                folders.append(Dated(
+                folders.append(Entry(
                     node: .folder(id: stableID(for: itemURL), name: itemURL.lastPathComponent, url: itemURL, children: []),
-                    date: modDate
+                    date: modDate, size: 0, kind: ""
                 ))
             } else {
-                // Only list files Vera can open; folders always stay so any place is browsable.
                 let state = downloadState(for: itemURL)
-                if !FileAllowlist.isListable(itemURL, downloadState: state) { continue }
-                files.append(Dated(
+                // An evicted iCloud file has a size but no allocated blocks. Reading it to
+                // sniff its contents makes iCloud download it, which once pushed a scan of
+                // a Downloads folder past its timeout, so such files are judged by name only.
+                let size = resources.fileSize ?? 0
+                let isLocal = !(size > 0 && (resources.fileAllocatedSize ?? 0) == 0)
+                if !FileAllowlist.isListable(itemURL, downloadState: state, isLocal: isLocal) { continue }
+                files.append(Entry(
                     // Stable per path, like folders: a fresh UUID per scan made every
                     // refresh look like a brand-new row to the sidebar list.
                     node: .file(id: stableID(for: itemURL), name: itemURL.lastPathComponent, url: itemURL, downloadState: state),
-                    date: modDate
+                    date: modDate, size: size, kind: itemURL.pathExtension.lowercased()
                 ))
             }
         }
 
-        let byDateDesc: (Dated, Dated) -> Bool = { $0.date > $1.date }
-        return files.sorted(by: byDateDesc).map(\.node) + folders.sorted(by: byDateDesc).map(\.node)
+        let key = Defaults.sortKey
+        let ascending = Defaults.sortAscending
+        let byName: (Entry, Entry) -> Bool = { $0.node.name.localizedStandardCompare($1.node.name) == .orderedAscending }
+        let ordered: (Entry, Entry) -> Bool = { a, b in
+            var result: ComparisonResult
+            switch key {
+            case .name: result = a.node.name.localizedStandardCompare(b.node.name)
+            case .dateModified: result = a.date == b.date ? .orderedSame : (a.date < b.date ? .orderedAscending : .orderedDescending)
+            case .size: result = a.size == b.size ? .orderedSame : (a.size < b.size ? .orderedAscending : .orderedDescending)
+            case .kind: result = a.kind.localizedStandardCompare(b.kind)
+            }
+            if result == .orderedSame { return byName(a, b) }
+            return ascending ? result == .orderedAscending : result == .orderedDescending
+        }
+        let sortedFiles = files.sorted(by: ordered).map(\.node)
+        let sortedFolders = folders.sorted(by: ordered).map(\.node)
+        return Defaults.foldersOnTop ? sortedFolders + sortedFiles : sortedFiles + sortedFolders
     }
 
     // Generates a deterministic UUID from a URL so expand/collapse state is preserved

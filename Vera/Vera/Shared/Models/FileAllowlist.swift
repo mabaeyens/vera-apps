@@ -52,11 +52,11 @@ enum FileAllowlist {
 
     /// Whether the sidebar should list this file. Never throws: a file that can't be read
     /// is simply not listed unless the allowlist already vouched for it.
-    nonisolated static func isListable(_ url: URL, downloadState: DownloadState) -> Bool {
+    nonisolated static func isListable(_ url: URL, downloadState: DownloadState, isLocal: Bool = true) -> Bool {
         if FileKind.classify(path: url.path) == .binary { return false }
         if isAllowlisted(url.lastPathComponent, ext: url.pathExtension) { return true }
         // Not downloaded yet: reading would trigger a download, so don't sniff.
-        if downloadState == .cloud { return false }
+        if downloadState == .cloud || !isLocal { return false }
         return looksLikeText(url)
     }
 

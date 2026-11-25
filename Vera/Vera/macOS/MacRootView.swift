@@ -152,6 +152,7 @@ struct MacRootView: View {
                             Label("Copy All Text", systemImage: "doc.on.doc")
                         }
                     }
+                    SortMenu()
                     Divider()
                     Button { showIconHelp = true } label: {
                         Label("Icon Guide", systemImage: "questionmark.circle")

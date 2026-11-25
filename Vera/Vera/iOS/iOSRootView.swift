@@ -202,6 +202,7 @@ struct iOSRootView: View {
                 Button { gitHubInitialRepo = nil; showGitHub = true } label: {
                     Label("Open from GitHub…", systemImage: "chevron.left.forwardslash.chevron.right")
                 }
+                SortMenu()
                 Divider()
                 Button { showIconHelp = true } label: {
                     Label("Icon Guide", systemImage: "questionmark.circle")
