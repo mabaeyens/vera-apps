@@ -588,7 +588,8 @@ final class EditorViewModel {
         scheduleCounts()
         let enabled = UserDefaults.standard.object(forKey: Defaults.Key.linterEnabled) == nil
             ? true : UserDefaults.standard.bool(forKey: Defaults.Key.linterEnabled)
-        guard enabled else {
+        // A truncated preview would always trip hygiene rules (no final newline).
+        guard enabled, !isTablePreview else {
             lintResults = []
             return
         }
