@@ -14,9 +14,15 @@ enum UITestFixture {
         ProcessInfo.processInfo.arguments.contains("-VeraUITestStore")
     }
 
+    /// `-VeraUITestScan`: a folder of files for the sidebar listing, sorting and CSV preview tests.
+    static var isScan: Bool {
+        ProcessInfo.processInfo.arguments.contains("-VeraUITestScan")
+    }
+
     /// Wipes and recreates the fixture, returning its root.
     static func seed() -> URL? {
         if isStore { return seedStore() }
+        if isScan { return seedScan() }
         let fm = FileManager.default
         guard let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
         let root = docs.appendingPathComponent("uitest-fixture", isDirectory: true)
@@ -49,6 +55,56 @@ enum UITestFixture {
             try "start\n\n".write(to: root.appendingPathComponent("scratch.md"), atomically: true, encoding: .utf8)
             try "# Ideas\n\n- one\n"
                 .write(to: root.appendingPathComponent("notes/Ideas.md"), atomically: true, encoding: .utf8)
+        } catch {
+            return nil
+        }
+        return root
+    }
+
+    /// Files the listing must show, files it must hide, three files whose name, date and size
+    /// each order differently, two folders, and a CSV over the 1 MB preview threshold.
+    private static func seedScan() -> URL? {
+        let fm = FileManager.default
+        guard let docs = fm.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        let root = docs.appendingPathComponent("uitest-scan", isDirectory: true)
+        try? fm.removeItem(at: root)
+        do {
+            try fm.createDirectory(at: root.appendingPathComponent("folder-a"), withIntermediateDirectories: true)
+            try fm.createDirectory(at: root.appendingPathComponent("folder-b"), withIntermediateDirectories: true)
+            func put(_ name: String, _ data: Data, modified: Date? = nil) throws {
+                let url = root.appendingPathComponent(name)
+                try data.write(to: url)
+                if let modified { try fm.setAttributes([.modificationDate: modified], ofItemAtPath: url.path) }
+            }
+            func text(_ s: String) -> Data { Data(s.utf8) }
+
+            // Listed: on the allowlist by name or extension, or text by content.
+            try put("Makefile", text("all:\n\techo hi\n"))
+            try put("app.conf", text("port = 5432\n"))
+            try put(".env", text("KEY=value\n"))
+            try put("odd.xyz", text("plain text with an extension nobody knows\n"))
+            // Latin-1 bytes: a lone 0xF3 is not valid UTF-8.
+            try put("legacy.cfg", "[main]\nmensaje = Configuraci\u{F3}n\n".data(using: .isoLatin1) ?? Data())
+
+            // Hidden: known binary extensions, and an unknown extension holding NUL bytes.
+            try put("watch.pbw", Data([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00]))
+            try put("book.epub", Data([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00]))
+            try put("doc.pdf", text("%PDF-1.4\n"))
+            try put("blob.dat", Data([0x00, 0x01, 0x02, 0x00, 0xFF, 0xFE, 0x00, 0x00]))
+
+            // Sort: name alpha<bravo<charlie, date bravo newest, size bravo<charlie<alpha.
+            let day: TimeInterval = 86_400
+            try put("alpha.txt", text(String(repeating: "a", count: 300)), modified: Date(timeIntervalSinceNow: -900 * day))
+            try put("bravo.txt", text(String(repeating: "b", count: 100)), modified: Date(timeIntervalSinceNow: -10 * day))
+            try put("charlie.txt", text(String(repeating: "c", count: 200)), modified: Date(timeIntervalSinceNow: -400 * day))
+
+            // CSV: over 1 MB, one line per row with a zero-padded marker so rows can't prefix-match.
+            var big = "id,payload\n"
+            for n in 1...12_000 {
+                big += String(format: "ROW-%05d,", n) + String(repeating: "x", count: 90) + "\n"
+            }
+            try put("big.csv", text(big))
+            try put("small.csv", text("id,payload\nROW-00001,x\n"))
         } catch {
             return nil
         }
