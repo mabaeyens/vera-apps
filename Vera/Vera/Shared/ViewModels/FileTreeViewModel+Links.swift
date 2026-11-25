@@ -46,8 +46,27 @@ extension FileTreeViewModel {
             target = Self.existingFile(candidate)
         case .wiki(let name, let f):
             fragment = f
-            let files = await FileIndex.build(root: root)
-            target = FileIndex.resolveWiki(name: name, in: files, near: current, root: root)
+            // One lookup at a time: with a big folder this takes a moment, and repeated taps
+            // used to queue up several walks and open several tabs.
+            if isResolvingWikiLink { return }
+            isResolvingWikiLink = true
+            defer { isResolvingWikiLink = false }
+            // The closest match wins, so look around the current file first: that walk is
+            // small. Only then the whole folder, from a short-lived cache when there is one.
+            let nearby = await FileIndex.build(root: root, from: current.deletingLastPathComponent())
+            var found = FileIndex.resolveWiki(name: name, in: nearby, near: current, root: root)
+            if found == nil {
+                let cached = cachedFileIndex(root: root)
+                let files: [URL]
+                if let cached { files = cached } else { files = await rebuildFileIndex(root: root) }
+                found = FileIndex.resolveWiki(name: name, in: files, near: current, root: root)
+                // A stale cache can miss a file created since: rebuild once before giving up.
+                if found == nil, cached != nil {
+                    found = FileIndex.resolveWiki(name: name, in: await rebuildFileIndex(root: root),
+                                                  near: current, root: root)
+                }
+            }
+            target = found
         case .anchor:
             return
         }

@@ -213,6 +213,10 @@ final class FileTreeViewModel {
         // debounce has to be written now or it's gone. Security-scoped access is released
         // only after that write: releasing first made the sandbox reject the final save.
         flushThenRelease(closed)
+        // On iPhone the document list and a document are different screens. If nothing is
+        // being shown (the list is up, selectedSource is nil), closing a tab must not push
+        // its neighbour's document over the list.
+        let wasShowingDocument = selectedSource != nil
         tabs.remove(at: idx)
         activationOrder.removeAll { $0 == id }
         if activeTabID == id {
@@ -222,7 +226,7 @@ final class FileTreeViewModel {
             } else {
                 let newIdx = min(idx, tabs.count - 1)
                 activeTabID = tabs[newIdx].id
-                selectedSource = tabs[newIdx].source
+                if wasShowingDocument { selectedSource = tabs[newIdx].source }
                 noteActivation(tabs[newIdx].id)
             }
         }
@@ -362,6 +366,24 @@ final class FileTreeViewModel {
     // MARK: - State
 
     private(set) var rootURL: URL?
+
+    /// File index for wikilinks, kept for a short while so a second link tap doesn't walk the
+    /// whole folder again. Keyed by root and by the hidden-files setting.
+    @ObservationIgnored private var fileIndexCache: (root: URL, hidden: Bool, built: Date, files: [URL])?
+    @ObservationIgnored var isResolvingWikiLink = false
+    private static let fileIndexMaxAge: TimeInterval = 30
+
+    func cachedFileIndex(root: URL) -> [URL]? {
+        guard let c = fileIndexCache, c.root == root, c.hidden == Defaults.showHiddenFiles,
+              Date().timeIntervalSince(c.built) < Self.fileIndexMaxAge else { return nil }
+        return c.files
+    }
+
+    func rebuildFileIndex(root: URL) async -> [URL] {
+        let files = await FileIndex.build(root: root)
+        fileIndexCache = (root, Defaults.showHiddenFiles, Date(), files)
+        return files
+    }
     private var refreshTask: Task<Void, Never>?
     // Coalesces concurrent load() callers — at launch both FileTreeView's
     // .task and MacRootView's scenePhase==.active fire load() at once.

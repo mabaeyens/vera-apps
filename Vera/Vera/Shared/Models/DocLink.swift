@@ -91,10 +91,12 @@ nonisolated func headingSlug(_ heading: String) -> String {
 enum FileIndex {
     static let maxFiles = 20_000
 
-    static func build(root: URL) async -> [URL] {
-        await Task.detached(priority: .userInitiated) {
+    /// Index `root`, or only the subtree at `dir` when given (a cheap first look).
+    static func build(root: URL, from dir: URL? = nil) async -> [URL] {
+        let start = dir ?? root
+        return await Task.detached(priority: .userInitiated) {
             guard let walker = FileManager.default.enumerator(
-                at: root,
+                at: start,
                 includingPropertiesForKeys: [.isDirectoryKey],
                 options: Defaults.showHiddenFiles ? [.skipsPackageDescendants] : [.skipsHiddenFiles, .skipsPackageDescendants]
             ) else { return [] }

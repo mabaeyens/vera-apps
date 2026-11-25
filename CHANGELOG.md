@@ -7,6 +7,8 @@
 - The sidebar lists only files Vera can open, plus all folders. Known binaries (PDF, ZIP, PBW, EPUB and similar) are hidden, so tapping a file never ends in "try another app". Anything on the allowlist shows; anything else shows only if its first 4 KB reads as text
 - Files saved as UTF-16 or Latin-1 now open, and save back in the encoding they came in
 - A CSV or TSV over 1 MB opens as a read-only preview of its first 100 rows, with a notice, so it can't be truncated by autosave
+- Wikilinks open faster in big folders and ignore repeated taps while resolving
+- Closing an open document from the list on iPhone leaves you on the list instead of opening another document
 - INI syntax highlighting for `.ini`, `.cfg` and `.conf`
 
 ## v1.3.4
