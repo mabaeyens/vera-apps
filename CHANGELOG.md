@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.4.0
 
 **Files**
 - Show Hidden Files and Folders: a setting (Settings on the Mac, the About sheet on iPhone and iPad) that lists dot-named items such as `.claude.json` or `.github` in the sidebar and the Mac Open panel. Hidden items are drawn dimmed. Off by default in release builds, on in Debug builds. Folder search, the quick switcher and `[[wikilinks]]` follow the setting, and everything inside a hidden folder is dimmed too
