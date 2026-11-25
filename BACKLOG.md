@@ -42,9 +42,9 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 ## Pending
 
 - **1.3.4 (build 5) is on TestFlight, tagged `v1.3.4` as a pre-release with the notarized DMG attached.** Check reveal and the breadcrumb on iPhone and iPad. The pre-release flag stays so `/releases/latest` stays on 1.3.3. App Store submission waits for the next weekly release. The 1.3.4 record in App Store Connect already has the askmira.es support and marketing URLs.
-- **Hidden files are not released.** `c796533` (Show Hidden Files setting, dimmed rows) is on `main` after 1.3.4 and ships with the next version. Gaps: search and wikilink lookup still skip hidden files, and files inside a hidden folder are not dimmed. The setting itself is not tried on iPhone or iPad.
+- **Hidden files are not released.** `c796533` (Show Hidden Files setting, dimmed rows) is on `main` after 1.3.4 and ships with the next version. Spec in `specs/hidden-files-gaps.md` (local). Gaps: search and wikilink lookup still skip hidden files, and files inside a hidden folder are not dimmed. The setting itself is not tried on iPhone or iPad.
 - **Allowlist setting dropped:** a custom allowlist setting was considered and not built. The sniff already lists any text file, so it would only matter for undownloaded iCloud files.
-- **Unexplained heat with the Debug build (2026-11-24).** Vera ran hot and the toolbar open-folder button did nothing; quitting fixed it. Not reproduced: 0% CPU idle, after Reveal, Open, Edit and font changes, and an Opus code audit found no loop. If it recurs, run `sample Vera 5 -file /tmp/vera_sample.txt` while hot. Unconfirmed suspects: toolbar rebuild loop in `MacRootView`, and `HighlightingTextView` setting `rulerView?.needsDisplay` on every `updateNSView`.
+- **Heat with the Debug build (2026-11-24): not a Vera bug.** The laptop was warm because Mira was running at full speed; nothing to fix in Vera.
 - **Reveal and breadcrumb gaps:** GitHub files have no tree position, so reveal does nothing for them and the breadcrumb is hidden. Clicking a breadcrumb segment while the sidebar is collapsed does not reopen it. The breadcrumb is hidden on iPhone, where the sidebar is a separate screen behind the back button. None of the new navigation has been tried on an iPhone, iPad or physical device, only on the Mac.
 - **Standalone files get no breadcrumb:** a file opened outside the opened folder could show its parent path as plain text, without links.
 - **Mac toolbar is still dense:** Open from GitHub and Copy All Text moved into the More menu (document-aware, see CHANGELOG). Remaining candidates: wrap lines, and anything else rarely used.
@@ -52,11 +52,11 @@ See [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
 - **Support and marketing URLs still point at the GitHub page.** Support should be https://askmira.es/vera/support/. App Store Connect locks both fields on a live version, so the change needs a new version record (1.3.4) with a build, set before submitting it. The changed-on-disk overlay is already committed and can ride along.
 - **Web repo push:** the Vera pages on askmira.es (screenshots, App Store link, copy fixes) are committed or staged locally in mira-web but not pushed. Pushing is a request to that repo's session.
-- **External TestFlight review for 1.3.3 build 4**: submitted 2026-11-22, waiting for beta review. Until it clears, the public link (testflight.apple.com/join/AyS6RfM8) has no build to offer. Nothing to do but wait; the README line mentions it and can drop that note once approved.
+- **External TestFlight for Vera is ready for 1.3.3** (cleared review). The README line about waiting for beta review can be dropped.
 - **Accessibility — device pass + Nutrition Label** — code remediation F1–F6 and F8 done (labels, Dynamic Type for mono text, decorative-icon hiding, selection traits, Reduce Motion); see [ACCESSIBILITY_SPEC.md](ACCESSIBILITY_SPEC.md). F5 left as-is, F7 (preview heading/table VoiceOver structure) deferred. Procedure for the remaining on-device VoiceOver + Dynamic Type pass and the Nutrition Label mapping: [ACCESSIBILITY_SPEC.md § Device pass & Nutrition Label procedure](ACCESSIBILITY_SPEC.md#device-pass--nutrition-label-procedure).
 
 - **UI items still untested:** the iPad close dialog with an unsaved or conflicted file, undo of a Return as one step, and iCloud conflict copies. Shift-Tab (outdent) is not implemented on iOS, only Tab.
-- **⌘P on iPad simulator does nothing**: the shortcut is wired in `VeraCommands` and the root views and works from the menu, but a synthesized ⌘P in a UI test had no effect on the iPad simulator. Not determined whether it is a simulator or a real-keyboard problem; check on a physical iPad with a keyboard.
+- **⌘P on iPad is untested and ships that way.** The shortcut is wired in `VeraCommands` and the root views and works from the menu; a synthesized ⌘P in a UI test had no effect on the iPad simulator, and there is no hardware keyboard to check on a physical iPad.
 - **Mac App Store record**: App Store Connect has an empty macOS 1.0 version. Mac ships as the notarized DMG, so it is intentionally unused.
 
 ---
