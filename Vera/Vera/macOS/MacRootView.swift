@@ -219,12 +219,11 @@ struct MacRootView: View {
 
         panel.begin { response in
             vm.needsFolderPicker = false
-            if let folder = helper.chosenFolder {
+            if response == .OK, let url = panel.url {
+                vm.openFile(url)
+            } else if let folder = helper.chosenFolder {
                 vm.openFile(folder)
-                return
             }
-            guard response == .OK, let url = panel.url else { return }
-            vm.openFile(url)
         }
         // Keep the helper alive for the panel's lifetime.
         objc_setAssociatedObject(panel, &OpenThisFolderButton.key, helper, .OBJC_ASSOCIATION_RETAIN)
@@ -257,7 +256,13 @@ private final class OpenThisFolderButton: NSObject {
     @objc private func choose() {
         guard let panel, let dir = panel.directoryURL else { return }
         chosenFolder = dir
-        panel.cancel(nil)
+        // End with OK, like the system Open button, so the sandbox's Powerbox grants
+        // access to the folder. A cancelled panel grants nothing, so cancel is only the
+        // fallback if OK didn't dismiss the panel.
+        panel.ok(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak panel] in
+            if let panel, panel.isVisible { panel.cancel(nil) }
+        }
     }
 }
 #endif

@@ -53,12 +53,16 @@ struct FileTreeView: View {
                     } description: {
                         Text("Open a folder to browse and edit its Markdown files.")
                     } actions: {
-                        Button("Open Folder…") {
-                            NotificationCenter.default.post(name: .veraOpenPicker, object: nil)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        Button("Open from GitHub…") {
-                            NotificationCenter.default.post(name: .veraOpenGitHub, object: nil)
+                        // Stacked: side by side, the two buttons are wider than the sidebar
+                        // and clip both themselves and the description above them.
+                        VStack(spacing: 8) {
+                            Button("Open Folder…") {
+                                NotificationCenter.default.post(name: .veraOpenPicker, object: nil)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            Button("Open from GitHub…") {
+                                NotificationCenter.default.post(name: .veraOpenGitHub, object: nil)
+                            }
                         }
                     }
                 } else {

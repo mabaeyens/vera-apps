@@ -73,7 +73,8 @@ private struct BreadcrumbBar: View {
     }
 
     private var standaloneSegments: [Segment] {
-        let home = NSHomeDirectory()
+        // NSHomeDirectory() is the sandbox container on macOS; use the real home.
+        let home = getpwuid(getuid()).flatMap { String(cString: $0.pointee.pw_dir) } ?? NSHomeDirectory()
         var path = fileURL.standardizedFileURL.path
         var current = URL(fileURLWithPath: "/")
         var result: [Segment] = []
@@ -117,7 +118,7 @@ private struct BreadcrumbBar: View {
                         .disabled(!isInTree && !isLast)
                         .accessibilityLabel(index == segs.count - 1
                                             ? "Show \(seg.name) in sidebar"
-                                            : "Show folder \(seg.name) in sidebar")
+                                            : (isInTree ? "Show folder \(seg.name) in sidebar" : "Folder \(seg.name)"))
                     }
                 }
                 .padding(.horizontal, 12)
