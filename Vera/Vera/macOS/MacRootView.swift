@@ -46,7 +46,7 @@ struct MacRootView: View {
             }
         }
         .onChange(of: vm.needsFolderPicker) { _, val in if val { openPicker() } }
-        .onReceive(NotificationCenter.default.publisher(for: .veraOpenPicker)) { _ in openPicker() }
+        .onReceive(NotificationCenter.default.publisher(for: .veraOpenPicker)) { note in openPicker(startingAt: note.object as? URL) }
         .onReceive(NotificationCenter.default.publisher(for: .veraOpenGitHub)) { note in
             gitHubInitialRepo = note.object as? SavedRepo
             showGitHub = true
@@ -204,8 +204,9 @@ struct MacRootView: View {
         }
     }
 
-    private func openPicker() {
+    private func openPicker(startingAt directory: URL? = nil) {
         let panel = NSOpenPanel()
+        panel.directoryURL = directory
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false

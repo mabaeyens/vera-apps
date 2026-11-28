@@ -54,15 +54,18 @@ private struct BreadcrumbBar: View {
     /// True when the file sits inside the opened folder, so segments can reveal tree rows.
     private var isInTree: Bool {
         guard let rootURL else { return false }
-        return fileURL.standardizedFileURL.path.hasPrefix(rootURL.standardizedFileURL.path + "/")
+        // Resolve symlinks on both sides, as openFile does, so /var vs /private/var
+        // spellings of the same location still count as inside the tree.
+        return fileURL.resolvingSymlinksInPath().path
+            .hasPrefix(rootURL.resolvingSymlinksInPath().path + "/")
     }
 
     /// Root folder, each folder down to the file, then the file. A standalone file (no
     /// folder open, or outside it) shows its on-disk path instead, home shown as "~".
     private var segments: [Segment] {
         guard let rootURL, isInTree else { return standaloneSegments }
-        let rootPath = rootURL.standardizedFileURL.path
-        let filePath = fileURL.standardizedFileURL.path
+        let rootPath = rootURL.resolvingSymlinksInPath().path
+        let filePath = fileURL.resolvingSymlinksInPath().path
         var result = [Segment(url: rootURL, name: rootURL.lastPathComponent)]
         var current = rootURL
         for part in filePath.dropFirst(rootPath.count + 1).split(separator: "/") {
@@ -70,6 +73,14 @@ private struct BreadcrumbBar: View {
             result.append(Segment(url: current, name: String(part)))
         }
         return result
+    }
+
+    /// No grant for this folder yet: the macOS picker opens there so one click on
+    /// "Open This Folder" grants it and makes it the root. No-op on iOS.
+    private func openPicker(at folder: URL) {
+        #if os(macOS)
+        NotificationCenter.default.post(name: .veraOpenPicker, object: folder)
+        #endif
     }
 
     private var standaloneSegments: [Segment] {
@@ -104,7 +115,11 @@ private struct BreadcrumbBar: View {
                         }
                         let isLast = index == segs.count - 1
                         Button {
-                            NotificationCenter.default.post(name: .veraRevealActiveFile, object: seg.url)
+                            if isInTree || isLast {
+                                NotificationCenter.default.post(name: .veraRevealActiveFile, object: seg.url)
+                            } else {
+                                openPicker(at: seg.url)
+                            }
                         } label: {
                             Text(seg.name)
                                 .font(.callout)
@@ -114,11 +129,13 @@ private struct BreadcrumbBar: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        // Folders outside the opened tree have no row to reveal.
+                        #if os(iOS)
+                        // iOS can't start its picker in a given folder.
                         .disabled(!isInTree && !isLast)
-                        .accessibilityLabel(index == segs.count - 1
+                        #endif
+                        .accessibilityLabel(isLast
                                             ? "Show \(seg.name) in sidebar"
-                                            : (isInTree ? "Show folder \(seg.name) in sidebar" : "Folder \(seg.name)"))
+                                            : (isInTree ? "Show folder \(seg.name) in sidebar" : "Open folder \(seg.name)"))
                     }
                 }
                 .padding(.horizontal, 12)
