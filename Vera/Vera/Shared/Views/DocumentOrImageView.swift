@@ -15,8 +15,8 @@ struct DocumentOrImageView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if showsBreadcrumb, case .file(let url) = source, let root = vm.rootURL {
-                BreadcrumbBar(fileURL: url, rootURL: root)
+            if showsBreadcrumb, case .file(let url) = source {
+                BreadcrumbBar(fileURL: url, rootURL: vm.rootURL)
                 Divider()
             }
             if FileKind.classify(path: source.path) == .image {
@@ -43,7 +43,7 @@ struct DocumentOrImageView: View {
 /// reveals the file itself.
 private struct BreadcrumbBar: View {
     let fileURL: URL
-    let rootURL: URL
+    let rootURL: URL?
 
     private struct Segment: Identifiable {
         let url: URL
@@ -51,15 +51,38 @@ private struct BreadcrumbBar: View {
         var id: String { url.path }
     }
 
-    /// Root folder, each folder down to the file, then the file. Empty when the file
-    /// is outside the opened folder (standalone files have no tree position).
+    /// True when the file sits inside the opened folder, so segments can reveal tree rows.
+    private var isInTree: Bool {
+        guard let rootURL else { return false }
+        return fileURL.standardizedFileURL.path.hasPrefix(rootURL.standardizedFileURL.path + "/")
+    }
+
+    /// Root folder, each folder down to the file, then the file. A standalone file (no
+    /// folder open, or outside it) shows its on-disk path instead, home shown as "~".
     private var segments: [Segment] {
+        guard let rootURL, isInTree else { return standaloneSegments }
         let rootPath = rootURL.standardizedFileURL.path
         let filePath = fileURL.standardizedFileURL.path
-        guard filePath.hasPrefix(rootPath + "/") else { return [] }
         var result = [Segment(url: rootURL, name: rootURL.lastPathComponent)]
         var current = rootURL
         for part in filePath.dropFirst(rootPath.count + 1).split(separator: "/") {
+            current = current.appendingPathComponent(String(part))
+            result.append(Segment(url: current, name: String(part)))
+        }
+        return result
+    }
+
+    private var standaloneSegments: [Segment] {
+        let home = NSHomeDirectory()
+        var path = fileURL.standardizedFileURL.path
+        var current = URL(fileURLWithPath: "/")
+        var result: [Segment] = []
+        if path.hasPrefix(home + "/") {
+            path = String(path.dropFirst(home.count + 1))
+            current = URL(fileURLWithPath: home)
+            result.append(Segment(url: current, name: "~"))
+        }
+        for part in path.split(separator: "/") {
             current = current.appendingPathComponent(String(part))
             result.append(Segment(url: current, name: String(part)))
         }
@@ -78,6 +101,7 @@ private struct BreadcrumbBar: View {
                                 .foregroundStyle(.tertiary)
                                 .accessibilityHidden(true)
                         }
+                        let isLast = index == segs.count - 1
                         Button {
                             NotificationCenter.default.post(name: .veraRevealActiveFile, object: seg.url)
                         } label: {
@@ -89,6 +113,8 @@ private struct BreadcrumbBar: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        // Folders outside the opened tree have no row to reveal.
+                        .disabled(!isInTree && !isLast)
                         .accessibilityLabel(index == segs.count - 1
                                             ? "Show \(seg.name) in sidebar"
                                             : "Show folder \(seg.name) in sidebar")

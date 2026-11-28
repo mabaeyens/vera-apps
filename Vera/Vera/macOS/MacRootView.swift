@@ -211,11 +211,53 @@ struct MacRootView: View {
         panel.allowsMultipleSelection = false
         panel.showsHiddenFiles = Defaults.showHiddenFiles
 
+        // The system Open button stays disabled when nothing is selected, so the folder
+        // being browsed can't be chosen. This button opens it directly.
+        let helper = OpenThisFolderButton(panel: panel)
+        panel.accessoryView = helper.view
+        panel.isAccessoryViewDisclosed = true
+
         panel.begin { response in
             vm.needsFolderPicker = false
+            if let folder = helper.chosenFolder {
+                vm.openFile(folder)
+                return
+            }
             guard response == .OK, let url = panel.url else { return }
             vm.openFile(url)
         }
+        // Keep the helper alive for the panel's lifetime.
+        objc_setAssociatedObject(panel, &OpenThisFolderButton.key, helper, .OBJC_ASSOCIATION_RETAIN)
+    }
+}
+
+/// Accessory button for `NSOpenPanel`: ends the panel with the directory it is
+/// currently showing as the choice.
+@MainActor
+private final class OpenThisFolderButton: NSObject {
+    static var key = 0
+    let view: NSView
+    private weak var panel: NSOpenPanel?
+    private(set) var chosenFolder: URL?
+
+    init(panel: NSOpenPanel) {
+        self.panel = panel
+        let button = NSButton(title: "Open This Folder", target: nil, action: nil)
+        button.bezelStyle = .rounded
+        button.frame = NSRect(x: 0, y: 4, width: 140, height: 28)
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 160, height: 36))
+        container.addSubview(button)
+        button.frame.origin.x = 10
+        view = container
+        super.init()
+        button.target = self
+        button.action = #selector(choose)
+    }
+
+    @objc private func choose() {
+        guard let panel, let dir = panel.directoryURL else { return }
+        chosenFolder = dir
+        panel.cancel(nil)
     }
 }
 #endif
